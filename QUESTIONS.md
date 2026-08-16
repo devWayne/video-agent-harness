@@ -4,7 +4,7 @@
 
 ## Q1 — 项目术语（已解决）
 
-确认是 **Harness**：视频 Agent 的执行与编排层，不是华为 HarmonyOS。
+确认是 **Video Agent Harness**：视频 Agent 的执行与编排层。
 
 ## Q2 — 目标模型（已解决）
 
