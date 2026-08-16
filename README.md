@@ -16,6 +16,7 @@
 - 阿里云 IMS SR5 4K 超分 Provider 已实现；它与视频生成解耦，输入、输出均使用 OSS。
 - Pi Director 已通过 `@earendil-works/pi-agent-core` 工具调用接入；没有规划模型凭据时使用确定性 Director。
 - OpenAPI 3.1、Bearer 鉴权、健康/就绪检查、Prometheus 指标与可配置人民币成本预算。
+- React + TypeScript 横屏创作工作台，已接入任务创建、轮询、分镜、时间线、取消、检查点重试和交付事件。
 
 当前 Mock 流程输出的是 4K 合成清单，不是假装已经生成 4K MP4。真实流程采用“Wan 生成 1080P 素材 → 合成 1080P 母版 → OSS → IMS SR5 输出 4K”的独立云服务链路；FFmpeg 不用于 AI 超分。
 
@@ -28,6 +29,14 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+生产构建会把 Web UI 与 Fastify API 打包到同一服务。打开：
+
+```text
+http://127.0.0.1:3321/
+```
+
+修改前端时可另开终端运行 `npm run dev:web`，Vite 会把 `/v1` 和 `/health` 代理到本地 API。
 
 接口契约位于 `GET /openapi.json`；生产环境设置 `HARNESS_API_KEY` 后，所有 `/v1/*` 请求都需要 Bearer Key。
 

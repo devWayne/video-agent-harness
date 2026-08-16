@@ -1,4 +1,5 @@
 import { config as loadDotenv } from "dotenv";
+import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import { buildServer } from "./http/server.js";
 import { createRuntime } from "./runtime.js";
@@ -10,6 +11,7 @@ const runtime = createRuntime(config);
 const server = buildServer({
   service: runtime.service,
   logger: true,
+  uiDirectory: resolve(process.cwd(), "web-dist"),
   ...(config.HARNESS_API_KEY ? { apiKey: config.HARNESS_API_KEY } : {}),
 });
 

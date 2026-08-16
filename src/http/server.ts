@@ -1,4 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import { z, ZodError } from "zod";
 import {
@@ -17,6 +20,7 @@ export interface BuildServerOptions {
   service: VideoJobService;
   logger?: boolean;
   apiKey?: string;
+  uiDirectory?: string;
 }
 
 export function buildServer(options: BuildServerOptions) {
@@ -35,6 +39,15 @@ export function buildServer(options: BuildServerOptions) {
     logger,
     requestIdHeader: "x-request-id",
   });
+
+  if (options.uiDirectory && existsSync(join(options.uiDirectory, "index.html"))) {
+    void server.register(fastifyStatic, {
+      root: options.uiDirectory,
+      prefix: "/",
+      decorateReply: true,
+    });
+    server.get("/", (_request, reply) => reply.sendFile("index.html", options.uiDirectory));
+  }
 
   server.addHook("onRequest", async (request, reply) => {
     if (!options.apiKey || !request.url.startsWith("/v1/")) return;

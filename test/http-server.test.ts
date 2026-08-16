@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -41,7 +41,12 @@ describe("video job HTTP API", () => {
       wanCnyPerSecond: 0.25,
       upscaleCnyPerSecond: 0.1,
     });
-    const server = buildServer({ service });
+    const uiDirectory = await mkdtemp(join(tmpdir(), "video-agent-ui-"));
+    temporaryDirectories.push(uiDirectory);
+    await mkdir(join(uiDirectory, "assets"));
+    await writeFile(join(uiDirectory, "index.html"), "<title>Video Agent Harness</title>");
+    await writeFile(join(uiDirectory, "assets", "app.js"), "globalThis.__harness = true;");
+    const server = buildServer({ service, uiDirectory });
     const body = {
       brief: "雨夜里一间温暖的独立书店",
       durationSeconds: 10,
@@ -67,6 +72,12 @@ describe("video job HTTP API", () => {
       openapi: "3.1.0",
       info: { title: "Video Agent Harness API" },
     });
+    expect((await server.inject({ method: "GET", url: "/" })).body).toContain(
+      "Video Agent Harness",
+    );
+    expect((await server.inject({ method: "GET", url: "/assets/app.js" })).body).toContain(
+      "__harness",
+    );
     await server.close();
     repository.close();
   });

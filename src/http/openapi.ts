@@ -159,6 +159,7 @@ export const openApiDocument = {
               "persisting",
               "mastering",
               "upscaling",
+              "composing",
               "completed",
               "failed",
               "cancelled",
