@@ -23,6 +23,11 @@ long-running step:
 3. IMS 1080P mastering task submitted;
 4. IMS SR5 4K task submitted.
 
+Before step 1, cloud mode performs read-only `GetBucketInfo`,
+`ListMediaProducingJobs`, and `ListMediaConvertJobs` checks. Missing or
+under-scoped Alibaba Cloud credentials therefore fail the job before any paid Wan
+generation is submitted.
+
 On process restart, `resumePending()` enqueues the non-terminal jobs at their
 existing state. It polls an existing provider task instead of submitting another
 one. A retryable failure can be continued with:
@@ -75,3 +80,22 @@ containers.
 - Production should attach a least-privilege RAM role or STS identity.
 - Secrets belong in the deployment secret store, never the image, repository,
   logs or OpenAPI document.
+
+The repository includes a bucket- and prefix-scoped starting policy at
+[`ALIYUN_RAM_POLICY.json`](./ALIYUN_RAM_POLICY.json). The IMS APIs do not support
+resource-level authorization, so their documented resource must remain `*`.
+
+## Real cloud acceptance
+
+After a local RAM/STS identity is available, run one 5-second candidate through
+the full paid pipeline:
+
+```bash
+npm run smoke:cloud
+```
+
+The command forces Bailian generation, cloud delivery and one candidate per
+shot. It first performs the cloud preflight, then verifies the persisted
+manifest has no query signatures, IMS reports `3840×2160`, anonymous access to
+the final object returns 403, and a signed one-byte range request succeeds. It
+writes a non-secret report to `.data/cloud-smoke/cloud-acceptance.json`.

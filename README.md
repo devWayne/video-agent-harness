@@ -68,6 +68,14 @@ ALIYUN_IMS_TEMPLATE_4K=S00000004-401070
 
 完整云交付还需设置 `DELIVERY_MODE=cloud` 和同地域 `ALIYUN_OSS_BUCKET`。运行时会把 Wan 临时产物先流式转存为私有 OSS 对象，再创建 1080P 母版和 4K 版本。
 
+账号凭据配置完成后，用一条命令验收真实纵向闭环：
+
+```bash
+npm run smoke:cloud
+```
+
+该命令会先做 OSS/IMS 只读权限预检，预检失败不会产生 Wan 生成费用。
+
 账号中已准备北京地域专用私有 Bucket `jarvan-video-agent-harness`；本地忽略配置在 RAM/STS 运行身份完成前仍保持模拟交付，防止半配置任务误产生费用。
 
 启用 Pi Director 需要一个可调用文本模型的独立 OpenAI-compatible Key：

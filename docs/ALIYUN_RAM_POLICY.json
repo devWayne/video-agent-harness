@@ -1,0 +1,36 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:GetBucketInfo"
+      ],
+      "Resource": [
+        "acs:oss:*:*:jarvan-video-agent-harness"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:GetObject",
+        "oss:PutObject"
+      ],
+      "Resource": [
+        "acs:oss:*:*:jarvan-video-agent-harness/video-agent-harness/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ice:ListMediaProducingJobs",
+        "ice:SubmitMediaProducingJob",
+        "ice:GetMediaProducingJob",
+        "ice:ListMediaConvertJobs",
+        "ice:SubmitMediaConvertJob",
+        "ice:GetMediaConvertJob"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

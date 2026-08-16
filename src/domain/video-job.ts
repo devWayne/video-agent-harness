@@ -78,6 +78,8 @@ export interface DeliveryProviderTask {
   taskId: string;
   status: "submitted" | "running" | "succeeded" | "failed";
   outputUrl?: string;
+  width?: number;
+  height?: number;
   errorCode?: string;
   errorMessage?: string;
 }

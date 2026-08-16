@@ -2,9 +2,10 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FirstSuccessfulCandidateEvaluator } from "../src/application/candidate-evaluator.js";
 import { ManifestDeliveryPipeline } from "../src/application/delivery-pipeline.js";
+import type { DeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import { DeterministicDirector } from "../src/application/director.js";
 import { ManifestWriter } from "../src/application/manifest-writer.js";
 import { WorkflowEngine } from "../src/application/workflow-engine.js";
@@ -127,6 +128,40 @@ describe("WorkflowEngine", () => {
     expect(submitCalls).toBe(0);
     expect(getTaskCalls).toBe(1);
     expect((await repository.findById(created.id))?.status).toBe("completed");
+    repository.close();
+  });
+
+  it("fails before paid generation when cloud delivery preflight is unavailable", async () => {
+    const repository = new SqliteVideoJobRepository(":memory:");
+    const submit = vi.fn<VideoProvider["submit"]>();
+    const deliveryPipeline: DeliveryPipeline = {
+      preflight: async () => {
+        throw new Error("cloud identity unavailable");
+      },
+      deliver: vi.fn(),
+    };
+    const workflow = new WorkflowEngine({
+      repository,
+      director: new DeterministicDirector(),
+      provider: { name: "paid-provider", submit, getTask: vi.fn() },
+      evaluator: new FirstSuccessfulCandidateEvaluator(),
+      deliveryPipeline,
+      candidatesPerShot: 1,
+      pollIntervalMs: 1,
+      providerTimeoutMs: 1_000,
+    });
+    const job = createVideoJob(
+      createVideoJobSchema.parse({ brief: "云凭据预检测试视频", durationSeconds: 5 }),
+    );
+    await repository.save(job);
+
+    await workflow.run(job.id);
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(await repository.findById(job.id)).toMatchObject({
+      status: "failed",
+      error: { code: "WORKFLOW_FAILED", stage: "queued" },
+    });
     repository.close();
   });
 });

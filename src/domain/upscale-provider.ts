@@ -18,6 +18,8 @@ export interface UpscaleTask {
   taskId: string;
   status: UpscaleTaskStatus;
   outputUrl?: string;
+  width?: number;
+  height?: number;
   errorCode?: string;
   errorMessage?: string;
 }

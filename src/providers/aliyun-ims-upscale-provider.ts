@@ -74,13 +74,20 @@ export class AliyunImsUpscaleProvider implements UpscaleProvider {
       );
     }
     const status = normalizeImsState(job.state);
-    const outputFile = job.outputDetails?.find((item) => item.status === "Success")?.result?.outputFile;
+    const successfulOutput = job.outputDetails?.find((item) => item.status === "Success");
+    const outputFile = successfulOutput?.result?.outputFile;
     const outputUrl = outputFile?.url ?? outputFile?.media;
+    const fileMeta = successfulOutput?.result?.outFileMeta;
+    const videoStream = fileMeta?.videoStreamInfoList?.[0];
+    const width = parseDimension(fileMeta?.fileBasicInfo?.width ?? videoStream?.width);
+    const height = parseDimension(fileMeta?.fileBasicInfo?.height ?? videoStream?.height);
     return {
       provider: this.name,
       taskId: job.jobId ?? taskId,
       status,
       ...(outputUrl ? { outputUrl } : {}),
+      ...(width === undefined ? {} : { width }),
+      ...(height === undefined ? {} : { height }),
       ...(status === "failed"
         ? {
             errorCode: job.code ?? "IMS_UPSCALE_FAILED",
@@ -89,6 +96,12 @@ export class AliyunImsUpscaleProvider implements UpscaleProvider {
         : {}),
     };
   }
+}
+
+function parseDimension(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function normalizeImsState(state: string): UpscaleTask["status"] {

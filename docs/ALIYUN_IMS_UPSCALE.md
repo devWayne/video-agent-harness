@@ -44,6 +44,8 @@ ALIYUN_IMS_TEMPLATE_4K=S00000004-401070
 
 本地可以通过忽略文件提供 `ALIBABA_CLOUD_ACCESS_KEY_ID` 与 `ALIBABA_CLOUD_ACCESS_KEY_SECRET`；生产环境应使用 RAM 角色或 STS，不能把 AccessKey 写入仓库。
 
+最小权限起点见 [`ALIYUN_RAM_POLICY.json`](./ALIYUN_RAM_POLICY.json)。运行时还会用 `oss:GetBucketInfo`、`ice:ListMediaProducingJobs` 和 `ice:ListMediaConvertJobs` 做付费前预检；这些均为只读调用。
+
 母版合成接口与参数依据：<https://help.aliyun.com/en/ims/developer-reference/api-ice-2020-11-09-submitmediaproducingjob>、<https://help.aliyun.com/en/ims/developer-reference/timeline-configuration-description>、<https://help.aliyun.com/en/ims/developer-reference/clip-composition-parameter-description>。
 
 公开计费页当前列出的中国内地 4K 超分标准版价格为 0.014 元/帧；按 30 fps 换算约 0.42 元/输出秒。本地预算使用该换算值，实际 SR5 模板档位、订阅折扣、OSS 与流量费用以控制台账单为准：<https://help.aliyun.com/zh/ims/on-demand-media-processing-3>。

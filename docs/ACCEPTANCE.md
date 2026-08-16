@@ -6,12 +6,14 @@
 
 | 范围 | 证据 | 结果 |
 | --- | --- | --- |
-| 工程质量门禁 | `npm run check` | TypeScript、ESLint、Vitest、生产构建通过；9 个测试文件、23 项测试通过 |
+| 工程质量门禁 | `npm run check` | TypeScript、ESLint、Vitest、生产构建通过；10 个测试文件、25 项测试通过 |
 | Wan 2.7 最小协议 | `wan2.7-t2v`，2 秒，720P，16:9 | 阿里云异步任务成功，任务 ID `50e3dbbb-80aa-49ad-ac21-6baf0aca23ef` |
 | Wan 2.7 生产请求 | `wan2.7-t2v`，2 秒，1080P，16:9，模型自动音频 | 阿里云异步任务成功，任务 ID `17adbb94-389c-4df6-bf1b-84ec3799e866` |
 | 本地纵向闭环 | Fastify API → 工作流 → Mock → 清单 | 创建任务后完成 3840×2160 模拟交付，健康检查、指标和事件均正常 |
 | OSS 基础设施 | 北京 `jarvan-video-agent-harness` | 私有、阻止公共访问、同城冗余、OSS 托管 AES-256 加密 |
 | 请求契约 | Wan T2V、OSS 持久化、IMS 母版、IMS SR5 | 单元和集成测试覆盖提交、轮询、恢复、跨地域拦截、私有下载签名 |
+| 付费前保护 | 云身份与 OSS/IMS 只读权限预检 | 自动测试覆盖；本机运行任务 `9add4247-c021-4832-8572-23417918f841` 在 `queued` 阶段以 `ALIYUN_CLOUD_PREFLIGHT_FAILED` 结束，镜头数为 0，证明未提交 Wan 候选 |
+| 签名脱敏 | Provider 临时 URL → OSS 后 | 已持久化候选与生产清单移除账号、查询签名和 fragment；自动测试覆盖 |
 
 真实烟测脚本只记录任务 ID、规格与结果主机，不输出 API Key 或完整签名 URL。
 
@@ -26,3 +28,5 @@
 | GitHub 远端 | 需要可用的 GitHub CLI/SSH 写入身份或浏览器创建后可推送 | 创建私有仓库并推送 `main` |
 
 代码默认保持 `DELIVERY_MODE=simulation`，直到真实 RAM/STS 凭据齐备；这样不会把“配置了一半”误当成已验收的付费生产链路。
+
+账号身份配置完成后，`npm run smoke:cloud` 会执行上述四项账号侧验收，并把不含密钥和签名 URL 的结果写入 `.data/cloud-smoke/cloud-acceptance.json`。

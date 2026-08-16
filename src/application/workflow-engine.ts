@@ -15,6 +15,7 @@ import {
   type VideoProvider,
 } from "../domain/video-provider.js";
 import type { VideoJobRepository } from "../infrastructure/video-job-repository.js";
+import { redactUrlSecrets } from "../security/url-redaction.js";
 import type { CandidateEvaluator } from "./candidate-evaluator.js";
 import type { DeliveryPipeline, DeliveryStage } from "./delivery-pipeline.js";
 import type { Director } from "./director.js";
@@ -55,6 +56,10 @@ export class WorkflowEngine {
     try {
       let job = await this.#requireRunnableJob(jobId);
       if (isTerminalStatus(job.status)) return;
+
+      // Validate cloud identity and read-only provider access before any paid
+      // generation request is submitted.
+      await this.#deliveryPipeline.preflight(signal);
 
       if (job.status === "queued") {
         job = transitionVideoJob(job, "planning");
@@ -235,6 +240,15 @@ export class WorkflowEngine {
     delivery: VideoDeliveryState,
   ): Promise<void> {
     const job = await this.#requireRunnableJob(jobId);
+    const persistedCandidateIds = new Set(delivery.assets.map((asset) => asset.candidateId));
+    const sanitizedShots = job.shots.map((shot) => ({
+      ...shot,
+      candidates: shot.candidates.map((candidate) =>
+        candidate.outputUrl && persistedCandidateIds.has(candidate.id)
+          ? { ...candidate, outputUrl: redactUrlSecrets(candidate.outputUrl) }
+          : candidate,
+      ),
+    }));
     const currentRank = deliveryStageRank(job.status);
     const nextRank = deliveryStageRank(stage);
     const updated =
@@ -242,10 +256,11 @@ export class WorkflowEngine {
         ? {
             ...job,
             delivery,
+            shots: sanitizedShots,
             version: job.version + 1,
             updatedAt: new Date().toISOString(),
           }
-        : transitionVideoJob(job, stage, { delivery });
+        : transitionVideoJob(job, stage, { delivery, shots: sanitizedShots });
     await this.#repository.save(updated);
   }
 

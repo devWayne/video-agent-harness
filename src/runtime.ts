@@ -1,4 +1,8 @@
 import { join } from "node:path";
+import {
+  ListMediaConvertJobsRequest,
+  ListMediaProducingJobsRequest,
+} from "@alicloud/ice20201109";
 import { FirstSuccessfulCandidateEvaluator } from "./application/candidate-evaluator.js";
 import {
   CloudDeliveryPipeline,
@@ -14,11 +18,15 @@ import { WorkflowEngine } from "./application/workflow-engine.js";
 import type { AppConfig } from "./config.js";
 import type { VideoProvider } from "./domain/video-provider.js";
 import type { MediaDeliverySigner } from "./domain/media-asset-store.js";
+import { MediaAssetStoreError } from "./domain/media-asset-store.js";
 import { SqliteVideoJobRepository } from "./infrastructure/sqlite-video-job-repository.js";
 import { createAliyunImsClient } from "./providers/aliyun-ims-client.js";
 import { AliyunImsMasteringProvider } from "./providers/aliyun-ims-mastering-provider.js";
 import { AliyunImsUpscaleProvider } from "./providers/aliyun-ims-upscale-provider.js";
-import { createLazyAliyunOssClient } from "./providers/aliyun-oss-client.js";
+import {
+  createAliyunOssClient,
+  createLazyAliyunOssClient,
+} from "./providers/aliyun-oss-client.js";
 import { AliyunOssMediaAssetStore } from "./providers/aliyun-oss-media-asset-store.js";
 import { BailianWanProvider } from "./providers/bailian-wan-provider.js";
 import { MockVideoProvider } from "./providers/mock-video-provider.js";
@@ -94,7 +102,38 @@ function createDeliveryPipeline(config: AppConfig): {
       objectPrefix: config.ALIYUN_OSS_PREFIX,
       pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
       timeoutMs: config.PROVIDER_TIMEOUT_MS,
+      preflight: createAliyunCloudPreflight(config, iceClient),
     }),
+  };
+}
+
+function createAliyunCloudPreflight(
+  config: AppConfig,
+  iceClient: ReturnType<typeof createAliyunImsClient>,
+): (signal?: AbortSignal) => Promise<void> {
+  return async (signal) => {
+    signal?.throwIfAborted();
+    try {
+      const ossClient = await createAliyunOssClient({
+        region: config.ALIYUN_OSS_REGION,
+        bucket: config.ALIYUN_OSS_BUCKET!,
+        endpoint: config.ALIYUN_OSS_ENDPOINT,
+      });
+      await Promise.all([
+        ossClient.getBucketInfo(config.ALIYUN_OSS_BUCKET!),
+        iceClient.listMediaProducingJobs(new ListMediaProducingJobsRequest({ maxResults: 1 })),
+        iceClient.listMediaConvertJobs(new ListMediaConvertJobsRequest({ pageSize: 1 })),
+      ]);
+      signal?.throwIfAborted();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      throw new MediaAssetStoreError(
+        "Alibaba Cloud delivery preflight failed before paid video generation",
+        "ALIYUN_CLOUD_PREFLIGHT_FAILED",
+        true,
+        { cause: error },
+      );
+    }
   };
 }
 

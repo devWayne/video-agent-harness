@@ -55,7 +55,12 @@ describe("AliyunImsUpscaleProvider", () => {
             outputDetails: [
               {
                 status: "Success",
-                result: { outputFile: { type: "OSS", media: "oss://bucket/output-4k.mp4" } },
+                result: {
+                  outputFile: { type: "OSS", media: "oss://bucket/output-4k.mp4" },
+                  outFileMeta: {
+                    fileBasicInfo: { width: "3840", height: "2160" },
+                  },
+                },
               },
             ],
           },
@@ -69,6 +74,8 @@ describe("AliyunImsUpscaleProvider", () => {
       taskId: "ims-job-1",
       status: "succeeded",
       outputUrl: "oss://bucket/output-4k.mp4",
+      width: 3840,
+      height: 2160,
     });
   });
 });

@@ -2,6 +2,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { VideoDeliveryState, VideoJob } from "../domain/video-job.js";
+import { redactUrlSecrets } from "../security/url-redaction.js";
 
 export class ManifestWriter {
   constructor(private readonly dataDirectory: string) {}
@@ -22,7 +23,8 @@ export class ManifestWriter {
         index: shot.index,
         durationSeconds: shot.durationSeconds,
         prompt: shot.prompt,
-        providerSourceUrl: selected.outputUrl,
+        // Keep lineage without persisting provider query signatures.
+        providerSourceUrl: redactUrlSecrets(selected.outputUrl),
         ...(stored ? { storedAsset: stored } : {}),
       };
     });

@@ -24,6 +24,7 @@ export type DeliveryCheckpoint = (
 ) => Promise<void>;
 
 export interface DeliveryPipeline {
+  preflight(signal?: AbortSignal): Promise<void>;
   deliver(
     job: VideoJob,
     checkpoint: DeliveryCheckpoint,
@@ -33,6 +34,8 @@ export interface DeliveryPipeline {
 
 export class ManifestDeliveryPipeline implements DeliveryPipeline {
   constructor(private readonly manifestWriter: ManifestWriter) {}
+
+  async preflight(): Promise<void> {}
 
   async deliver(job: VideoJob, checkpoint: DeliveryCheckpoint): Promise<VideoJobOutput> {
     const delivery: VideoDeliveryState =
@@ -59,6 +62,7 @@ export interface CloudDeliveryPipelineOptions {
   objectPrefix: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  preflight?: (signal?: AbortSignal) => Promise<void>;
 }
 
 export class CloudDeliveryPipeline implements DeliveryPipeline {
@@ -69,6 +73,7 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
   readonly #locations: OssDeliveryLocations;
   readonly #pollIntervalMs: number;
   readonly #timeoutMs: number;
+  readonly #preflight: (signal?: AbortSignal) => Promise<void>;
 
   constructor(options: CloudDeliveryPipelineOptions) {
     this.#assetStore = options.assetStore;
@@ -82,6 +87,11 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
     );
     this.#pollIntervalMs = options.pollIntervalMs;
     this.#timeoutMs = options.timeoutMs;
+    this.#preflight = options.preflight ?? (async () => undefined);
+  }
+
+  async preflight(signal?: AbortSignal): Promise<void> {
+    await this.#preflight(signal);
   }
 
   async deliver(

@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:wan": "tsx scripts/smoke-wan.ts",
+    "smoke:cloud": "tsx scripts/smoke-cloud.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
