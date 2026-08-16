@@ -13,6 +13,7 @@ import { WorkflowDispatcher } from "./application/workflow-dispatcher.js";
 import { WorkflowEngine } from "./application/workflow-engine.js";
 import type { AppConfig } from "./config.js";
 import type { VideoProvider } from "./domain/video-provider.js";
+import type { MediaDeliverySigner } from "./domain/media-asset-store.js";
 import { SqliteVideoJobRepository } from "./infrastructure/sqlite-video-job-repository.js";
 import { createAliyunImsClient } from "./providers/aliyun-ims-client.js";
 import { AliyunImsMasteringProvider } from "./providers/aliyun-ims-mastering-provider.js";
@@ -25,7 +26,7 @@ import { MockVideoProvider } from "./providers/mock-video-provider.js";
 export function createRuntime(config: AppConfig) {
   const repository = new SqliteVideoJobRepository(join(config.DATA_DIR, "video-jobs.sqlite"));
   const provider = createProvider(config);
-  const deliveryPipeline = createDeliveryPipeline(config);
+  const { deliveryPipeline, deliverySigner } = createDeliveryPipeline(config);
   const workflow = new WorkflowEngine({
     repository,
     director: createDirector(config),
@@ -37,15 +38,27 @@ export function createRuntime(config: AppConfig) {
     providerTimeoutMs: config.PROVIDER_TIMEOUT_MS,
   });
   const dispatcher = new WorkflowDispatcher(workflow);
-  const service = new VideoJobService(repository, dispatcher);
+  const service = new VideoJobService(repository, dispatcher, {
+    candidatesPerShot: config.SHOT_CANDIDATES,
+    ...(config.COST_WAN_CNY_PER_SECOND === undefined
+      ? {}
+      : { wanCnyPerSecond: config.COST_WAN_CNY_PER_SECOND }),
+    ...(config.COST_4K_CNY_PER_SECOND === undefined
+      ? {}
+      : { upscaleCnyPerSecond: config.COST_4K_CNY_PER_SECOND }),
+    ...(deliverySigner ? { deliverySigner } : {}),
+  });
 
   return { repository, provider, deliveryPipeline, workflow, dispatcher, service };
 }
 
-function createDeliveryPipeline(config: AppConfig): DeliveryPipeline {
+function createDeliveryPipeline(config: AppConfig): {
+  deliveryPipeline: DeliveryPipeline;
+  deliverySigner?: MediaDeliverySigner;
+} {
   const manifestWriter = new ManifestWriter(config.DATA_DIR);
   if (config.DELIVERY_MODE === "simulation") {
-    return new ManifestDeliveryPipeline(manifestWriter);
+    return { deliveryPipeline: new ManifestDeliveryPipeline(manifestWriter) };
   }
   if (!config.ALIYUN_OSS_BUCKET || config.UPSCALE_PROVIDER !== "aliyun-ims") {
     throw new Error("Cloud delivery configuration was not validated");
@@ -59,26 +72,30 @@ function createDeliveryPipeline(config: AppConfig): DeliveryPipeline {
     bucket: config.ALIYUN_OSS_BUCKET,
     endpoint: config.ALIYUN_OSS_ENDPOINT,
   });
-  return new CloudDeliveryPipeline({
-    assetStore: new AliyunOssMediaAssetStore({
-      client: ossClient,
-      bucket: config.ALIYUN_OSS_BUCKET,
-      endpoint: config.ALIYUN_OSS_ENDPOINT,
-      allowedSourceHostSuffixes: config.MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES,
-      maxBytes: config.MEDIA_IMPORT_MAX_BYTES,
-    }),
-    masteringProvider: new AliyunImsMasteringProvider(iceClient),
-    upscaleProvider: new AliyunImsUpscaleProvider({
-      client: iceClient,
-      templateId: config.ALIYUN_IMS_TEMPLATE_4K,
-    }),
-    manifestWriter,
+  const assetStore = new AliyunOssMediaAssetStore({
+    client: ossClient,
     bucket: config.ALIYUN_OSS_BUCKET,
     endpoint: config.ALIYUN_OSS_ENDPOINT,
-    objectPrefix: config.ALIYUN_OSS_PREFIX,
-    pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
-    timeoutMs: config.PROVIDER_TIMEOUT_MS,
+    allowedSourceHostSuffixes: config.MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES,
+    maxBytes: config.MEDIA_IMPORT_MAX_BYTES,
   });
+  return {
+    deliverySigner: assetStore,
+    deliveryPipeline: new CloudDeliveryPipeline({
+      assetStore,
+      masteringProvider: new AliyunImsMasteringProvider(iceClient),
+      upscaleProvider: new AliyunImsUpscaleProvider({
+        client: iceClient,
+        templateId: config.ALIYUN_IMS_TEMPLATE_4K,
+      }),
+      manifestWriter,
+      bucket: config.ALIYUN_OSS_BUCKET,
+      endpoint: config.ALIYUN_OSS_ENDPOINT,
+      objectPrefix: config.ALIYUN_OSS_PREFIX,
+      pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
+      timeoutMs: config.PROVIDER_TIMEOUT_MS,
+    }),
+  };
 }
 
 function createDirector(config: AppConfig): Director {

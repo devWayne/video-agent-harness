@@ -1,6 +1,7 @@
 import { Readable, Transform, type TransformCallback } from "node:stream";
 import {
   MediaAssetStoreError,
+  type MediaDeliverySigner,
   type MediaAssetStore,
   type PersistRemoteMediaRequest,
   type StoredMediaAsset,
@@ -12,6 +13,10 @@ export interface OssStreamClient {
     stream: NodeJS.ReadableStream,
     options: { contentLength?: number; mime: string; timeout: number; headers?: object },
   ): Promise<unknown>;
+  signatureUrl?(
+    objectKey: string,
+    options: { expires: number; method: "GET" },
+  ): string | Promise<string>;
 }
 
 export interface AliyunOssMediaAssetStoreOptions {
@@ -24,7 +29,7 @@ export interface AliyunOssMediaAssetStoreOptions {
   fetch?: typeof fetch;
 }
 
-export class AliyunOssMediaAssetStore implements MediaAssetStore {
+export class AliyunOssMediaAssetStore implements MediaAssetStore, MediaDeliverySigner {
   readonly name = "aliyun-oss";
   readonly #client: OssStreamClient;
   readonly #bucket: string;
@@ -109,6 +114,25 @@ export class AliyunOssMediaAssetStore implements MediaAssetStore {
     };
   }
 
+  async signRead(storageUri: string, expiresSeconds: number) {
+    const objectKey = parseStorageUri(storageUri, this.#bucket);
+    if (!this.#client.signatureUrl) {
+      throw new MediaAssetStoreError(
+        "OSS client does not support signed URLs",
+        "OSS_SIGNING_NOT_SUPPORTED",
+        false,
+      );
+    }
+    const url = await this.#client.signatureUrl(objectKey, {
+      expires: expiresSeconds,
+      method: "GET",
+    });
+    return {
+      url,
+      expiresAt: new Date(Date.now() + expiresSeconds * 1_000).toISOString(),
+    };
+  }
+
   #isAllowedHost(hostname: string): boolean {
     const normalized = hostname.toLowerCase();
     return this.#allowedSourceHostSuffixes.some((suffix) => {
@@ -161,4 +185,18 @@ function assertObjectKey(objectKey: string): void {
   ) {
     throw new MediaAssetStoreError("Invalid OSS object key", "INVALID_OBJECT_KEY", false);
   }
+}
+
+function parseStorageUri(storageUri: string, expectedBucket: string): string {
+  const url = new URL(storageUri);
+  const objectKey = decodeURIComponent(url.pathname.replace(/^\//, ""));
+  if (url.protocol !== "oss:" || url.hostname !== expectedBucket) {
+    throw new MediaAssetStoreError(
+      "Storage URI does not belong to the configured OSS bucket",
+      "INVALID_STORAGE_URI",
+      false,
+    );
+  }
+  assertObjectKey(objectKey);
+  return objectKey;
 }

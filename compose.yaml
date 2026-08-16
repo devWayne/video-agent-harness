@@ -1,0 +1,19 @@
+services:
+  harness:
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "3321:3321"
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATA_DIR: /app/data
+    volumes:
+      - harness-data:/app/data
+
+volumes:
+  harness-data:

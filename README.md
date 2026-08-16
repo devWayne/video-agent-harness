@@ -7,12 +7,15 @@
 - `POST /v1/video-jobs`：以一句 Brief 创建 15–60 秒视频任务，支持幂等键。
 - `GET /v1/video-jobs/:id`：查询统一任务、分镜、候选和产物状态。
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
+- `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。
+- `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
 - 默认 16:9、1080P 镜头生成、3840×2160 交付画布。
 - 每镜头默认生成两个候选并自动选片。
-- SQLite 持久化、进程重启任务恢复、原子写入生产清单。
+- SQLite 逐步骤检查点、进程重启无重复提交恢复、原子写入生产清单。
 - Mock Provider 可完整跑通；百炼 Wan Provider 已实现提交和轮询协议，`wan2.7-t2v` 已通过真实调用。
 - 阿里云 IMS SR5 4K 超分 Provider 已实现；它与视频生成解耦，输入、输出均使用 OSS。
 - Pi Director 已通过 `@earendil-works/pi-agent-core` 工具调用接入；没有规划模型凭据时使用确定性 Director。
+- OpenAPI 3.1、Bearer 鉴权、健康/就绪检查、Prometheus 指标与可配置人民币成本预算。
 
 当前 Mock 流程输出的是 4K 合成清单，不是假装已经生成 4K MP4。真实流程采用“Wan 生成 1080P 素材 → 合成 1080P 母版 → OSS → IMS SR5 输出 4K”的独立云服务链路；FFmpeg 不用于 AI 超分。
 
@@ -25,6 +28,8 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+接口契约位于 `GET /openapi.json`；生产环境设置 `HARNESS_API_KEY` 后，所有 `/v1/*` 请求都需要 Bearer Key。
 
 创建任务：
 
@@ -61,6 +66,10 @@ ALIYUN_IMS_REGION=cn-beijing
 ALIYUN_IMS_TEMPLATE_4K=S00000004-401070
 ```
 
+完整云交付还需设置 `DELIVERY_MODE=cloud` 和同地域 `ALIYUN_OSS_BUCKET`。运行时会把 Wan 临时产物先流式转存为私有 OSS 对象，再创建 1080P 母版和 4K 版本。
+
+账号中已准备北京地域专用私有 Bucket `jarvan-video-agent-harness`；本地忽略配置在 RAM/STS 运行身份完成前仍保持模拟交付，防止半配置任务误产生费用。
+
 启用 Pi Director 需要一个可调用文本模型的独立 OpenAI-compatible Key：
 
 ```dotenv
@@ -87,4 +96,5 @@ npm run check
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)：当前模块和后续演进边界。
 - [`docs/BAILIAN_WAN.md`](./docs/BAILIAN_WAN.md)：Wan 2.7 实测与 Wan 3.0 接入状态。
 - [`docs/ALIYUN_IMS_UPSCALE.md`](./docs/ALIYUN_IMS_UPSCALE.md)：独立云端 4K 超分基线。
+- [`docs/OPERATIONS.md`](./docs/OPERATIONS.md)：鉴权、恢复、指标、成本与容器部署。
 - [`docs/OSS_BASELINE_REVIEW.md`](./docs/OSS_BASELINE_REVIEW.md)：开源项目参考与采用策略。

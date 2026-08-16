@@ -30,6 +30,7 @@ export type VideoJobStatus =
   | "completed"
   | "failed"
   | "cancelled";
+export type TerminalVideoJobStatus = "completed" | "failed" | "cancelled";
 
 export type ShotStatus = "queued" | "generating" | "completed" | "failed";
 export type CandidateStatus = "submitted" | "running" | "succeeded" | "failed";
@@ -100,6 +101,25 @@ export interface VideoJobError {
   code: string;
   message: string;
   retryable: boolean;
+  stage?: Exclude<VideoJobStatus, "completed" | "failed" | "cancelled">;
+}
+
+export interface VideoJobEvent {
+  at: string;
+  type: "created" | "status_changed" | "retry_requested";
+  status: VideoJobStatus;
+  message?: string;
+}
+
+export interface VideoJobCostEstimate {
+  currency: "CNY";
+  generationSeconds: number;
+  upscaleSeconds: number;
+  generationRateCnyPerSecond?: number;
+  upscaleRateCnyPerSecond?: number;
+  generationCny?: number;
+  upscaleCny?: number;
+  totalCny?: number;
 }
 
 export interface VideoJob {
@@ -114,6 +134,9 @@ export interface VideoJob {
   delivery?: VideoDeliveryState;
   output?: VideoJobOutput;
   error?: VideoJobError;
+  attempt?: number;
+  events?: VideoJobEvent[];
+  costEstimate?: VideoJobCostEstimate;
 }
 
 const transitions: Record<VideoJobStatus, readonly VideoJobStatus[]> = {
@@ -140,6 +163,8 @@ export function createVideoJob(input: CreateVideoJobInput, now = new Date()): Vi
     createdAt: timestamp,
     updatedAt: timestamp,
     shots: [],
+    attempt: 1,
+    events: [{ at: timestamp, type: "created", status: "queued" }],
   };
 }
 
@@ -153,15 +178,78 @@ export function transitionVideoJob(
     throw new Error(`Invalid video job transition: ${job.status} -> ${nextStatus}`);
   }
 
+  const timestamp = now.toISOString();
   return {
     ...job,
     ...patch,
     status: nextStatus,
     version: job.version + 1,
-    updatedAt: now.toISOString(),
+    updatedAt: timestamp,
+    events: [
+      ...(job.events ?? []),
+      {
+        at: timestamp,
+        type: "status_changed",
+        status: nextStatus,
+        message: `${job.status} -> ${nextStatus}`,
+      },
+    ],
   };
 }
 
-export function isTerminalStatus(status: VideoJobStatus): boolean {
+export function isTerminalStatus(status: VideoJobStatus): status is TerminalVideoJobStatus {
   return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+export function retryFailedVideoJob(job: VideoJob, now = new Date()): VideoJob {
+  if (job.status !== "failed" || !job.error?.retryable || !job.error.stage) {
+    throw new VideoJobRetryError("Job is not eligible for retry");
+  }
+
+  const timestamp = now.toISOString();
+  const retryStage = job.error.stage;
+  const retried: VideoJob = {
+    ...job,
+    status: retryStage,
+    version: job.version + 1,
+    updatedAt: timestamp,
+    attempt: (job.attempt ?? 1) + 1,
+    events: [
+      ...(job.events ?? []),
+      {
+        at: timestamp,
+        type: "retry_requested",
+        status: retryStage,
+        message: `Retrying from ${retryStage}`,
+      },
+    ],
+  };
+  delete retried.error;
+
+  if (retryStage === "generating") {
+    retried.shots = retried.shots.map((shot) => {
+      if (shot.status === "completed") return shot;
+      const candidates = shot.candidates.filter((candidate) => candidate.status !== "failed");
+      const retryShot: VideoShot = {
+        ...shot,
+        status: "generating",
+        candidates,
+      };
+      if (!candidates.some((candidate) => candidate.id === shot.selectedCandidateId)) {
+        delete retryShot.selectedCandidateId;
+      }
+      return retryShot;
+    });
+  }
+
+  return retried;
+}
+
+export class VideoJobRetryError extends Error {
+  readonly code = "JOB_NOT_RETRYABLE";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "VideoJobRetryError";
+  }
 }

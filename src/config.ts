@@ -6,11 +6,17 @@ const optionalNonEmptyString = z.preprocess(
   z.string().min(1).optional(),
 );
 
+const optionalNonNegativeNumber = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  z.coerce.number().min(0).optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_321),
   DATA_DIR: z.string().default(".data"),
+  HARNESS_API_KEY: optionalNonEmptyString,
   VIDEO_PROVIDER: z.enum(["mock", "bailian"]).default("mock"),
   MOCK_LATENCY_MS: z.coerce.number().int().min(0).default(25),
   PROVIDER_POLL_INTERVAL_MS: z.coerce.number().int().min(10).default(2_000),
@@ -25,6 +31,8 @@ const envSchema = z.object({
   BAILIAN_BASE_URL: optionalNonEmptyString,
   BAILIAN_API_KEY: optionalNonEmptyString,
   BAILIAN_WAN_MODEL: z.string().default("wan2.7-t2v"),
+  COST_WAN_CNY_PER_SECOND: optionalNonNegativeNumber,
+  COST_4K_CNY_PER_SECOND: optionalNonNegativeNumber,
   DELIVERY_MODE: z.enum(["simulation", "cloud"]).default("simulation"),
   UPSCALE_PROVIDER: z.enum(["none", "aliyun-ims"]).default("none"),
   ALIYUN_IMS_REGION: z.string().default("cn-beijing"),

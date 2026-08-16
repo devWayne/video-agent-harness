@@ -5,4 +5,6 @@ export interface VideoJobRepository {
   findById(id: string): Promise<VideoJob | undefined>;
   findByIdempotencyKey(key: string): Promise<VideoJob | undefined>;
   listByStatus(statuses: readonly VideoJobStatus[]): Promise<VideoJob[]>;
+  isReady(): Promise<boolean>;
+  countByStatus(): Promise<Record<VideoJobStatus, number>>;
 }

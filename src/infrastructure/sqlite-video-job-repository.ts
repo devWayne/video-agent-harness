@@ -8,6 +8,25 @@ interface JobRow {
   payload: string;
 }
 
+interface StatusCountRow {
+  status: VideoJobStatus;
+  count: number;
+}
+
+const videoJobStatuses: readonly VideoJobStatus[] = [
+  "queued",
+  "planning",
+  "generating",
+  "evaluating",
+  "persisting",
+  "mastering",
+  "upscaling",
+  "composing",
+  "completed",
+  "failed",
+  "cancelled",
+];
+
 export class SqliteVideoJobRepository implements VideoJobRepository {
   readonly #database: DatabaseSync;
 
@@ -69,6 +88,23 @@ export class SqliteVideoJobRepository implements VideoJobRepository {
       .prepare(`SELECT payload FROM video_jobs WHERE status IN (${placeholders}) ORDER BY updated_at`)
       .all(...statuses) as unknown as JobRow[];
     return rows.map((row) => JSON.parse(row.payload) as VideoJob);
+  }
+
+  async isReady(): Promise<boolean> {
+    const row = this.#database.prepare("SELECT 1 AS ready").get() as { ready: number } | undefined;
+    return row?.ready === 1;
+  }
+
+  async countByStatus(): Promise<Record<VideoJobStatus, number>> {
+    const counts = Object.fromEntries(videoJobStatuses.map((status) => [status, 0])) as Record<
+      VideoJobStatus,
+      number
+    >;
+    const rows = this.#database
+      .prepare("SELECT status, COUNT(*) AS count FROM video_jobs GROUP BY status")
+      .all() as unknown as StatusCountRow[];
+    for (const row of rows) counts[row.status] = row.count;
+    return counts;
   }
 
   close(): void {

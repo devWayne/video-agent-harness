@@ -271,6 +271,7 @@ export class WorkflowEngine {
         code: operationalError?.code ?? "WORKFLOW_FAILED",
         message: error instanceof Error ? error.message : "Unknown workflow error",
         retryable: operationalError?.retryable ?? false,
+        stage: job.status,
       },
     });
     await this.#repository.save(failed);

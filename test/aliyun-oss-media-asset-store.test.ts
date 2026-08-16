@@ -61,4 +61,27 @@ describe("AliyunOssMediaAssetStore", () => {
       }),
     ).rejects.toMatchObject({ code: "REMOTE_MEDIA_HOST_NOT_ALLOWED" });
   });
+
+  it("signs only objects in the configured private delivery bucket", async () => {
+    const signatureUrl = vi.fn(() => "https://signed.example/final.mp4?signature=secret");
+    const store = new AliyunOssMediaAssetStore({
+      client: { putStream: vi.fn(), signatureUrl },
+      bucket: "video-bucket",
+      endpoint: "oss-cn-beijing.aliyuncs.com",
+    });
+
+    const signed = await store.signRead(
+      "oss://video-bucket/jobs/job-1/deliveries/final-4k.mp4",
+      900,
+    );
+
+    expect(signed.url).toContain("signature=secret");
+    expect(signatureUrl).toHaveBeenCalledWith("jobs/job-1/deliveries/final-4k.mp4", {
+      expires: 900,
+      method: "GET",
+    });
+    await expect(
+      store.signRead("oss://another-bucket/private.mp4", 900),
+    ).rejects.toMatchObject({ code: "INVALID_STORAGE_URI" });
+  });
 });

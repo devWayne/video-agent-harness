@@ -7,7 +7,11 @@ loadDotenv({ path: [".env.local", ".env"], quiet: true });
 
 const config = loadConfig();
 const runtime = createRuntime(config);
-const server = buildServer({ service: runtime.service, logger: true });
+const server = buildServer({
+  service: runtime.service,
+  logger: true,
+  ...(config.HARNESS_API_KEY ? { apiKey: config.HARNESS_API_KEY } : {}),
+});
 
 await runtime.service.resumePending();
 await server.listen({ host: config.HOST, port: config.PORT });

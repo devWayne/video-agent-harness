@@ -20,6 +20,15 @@ export interface MediaAssetStore {
   ): Promise<StoredMediaAsset>;
 }
 
+export interface SignedMediaUrl {
+  url: string;
+  expiresAt: string;
+}
+
+export interface MediaDeliverySigner {
+  signRead(storageUri: string, expiresSeconds: number): Promise<SignedMediaUrl>;
+}
+
 export class MediaAssetStoreError extends Error {
   constructor(
     message: string,

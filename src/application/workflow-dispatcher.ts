@@ -3,6 +3,7 @@ import type { WorkflowEngine } from "./workflow-engine.js";
 export class WorkflowDispatcher {
   readonly #queue: string[] = [];
   readonly #queued = new Set<string>();
+  readonly #controllers = new Map<string, AbortController>();
   #draining: Promise<void> | undefined;
 
   constructor(private readonly workflow: WorkflowEngine) {}
@@ -12,6 +13,10 @@ export class WorkflowDispatcher {
     this.#queued.add(jobId);
     this.#queue.push(jobId);
     this.#ensureDraining();
+  }
+
+  cancel(jobId: string): void {
+    this.#controllers.get(jobId)?.abort();
   }
 
   #ensureDraining(): void {
@@ -29,9 +34,12 @@ export class WorkflowDispatcher {
     while (this.#queue.length > 0) {
       const jobId = this.#queue.shift();
       if (!jobId) continue;
+      const controller = new AbortController();
+      this.#controllers.set(jobId, controller);
       try {
-        await this.workflow.run(jobId);
+        await this.workflow.run(jobId, controller.signal);
       } finally {
+        this.#controllers.delete(jobId);
         this.#queued.delete(jobId);
       }
     }
