@@ -12,7 +12,7 @@
 
 ## Q3 — API 接入渠道（已解决）
 
-MVP 仅通过用户自己的阿里云百炼官方账号直连 Wan 3.0。火山方舟和第三方聚合通道均不进入首版。
+MVP 仅通过用户自己的阿里云百炼官方账号直连 Wan。先用 Wan 2.7 跑通，Wan 3.0 授权生效后通过配置切换；火山方舟和第三方聚合通道均不进入首版。
 
 ## Q4 — MVP 交付边界（已解决）
 
@@ -32,7 +32,7 @@ MVP 仅通过用户自己的阿里云百炼官方账号直连 Wan 3.0。火山�
 
 ## Q8 — 浏览器配置（申请处理中）
 
-已在用户账号的华北 2（北京）百炼控制台确认默认业务空间和 `wan3.0-video`。已提交 Wan 3.0 开通申请；控制台当前状态为“申请中”。已创建描述为 `video-agent-harness` 的项目专用 API Key，并限制为仅访问万相 3.0 视频生成；明文只保存在被 Git 忽略的 `.env.local`。
+已在用户账号的华北 2（北京）百炼控制台确认默认业务空间和 `wan3.0-video`。Wan 3.0 当前仍为“申请中”，真实调用返回 `AccessDenied`；同一 Key 与 endpoint 切换 `wan2.7-t2v` 后已成功生成。明文只保存在被 Git 忽略的 `.env.local`。
 
 ## Q9 — 付费调用审批（已解决）
 
@@ -40,7 +40,11 @@ MVP 仅通过用户自己的阿里云百炼官方账号直连 Wan 3.0。火山�
 
 ## Q10 — 是否基于现有开源视频 Agent（已解决）
 
-从零实现自有 Harness，不直接 fork。选择性参考 OpenReels、Tsugite、Code2MP4、ViMax、OpenMontage 和 video-use 的设计，并优先把 Pi Agent Core、HyperFrames、FFmpeg 作为隔离后的底层依赖。
+从零实现自有 Harness，不直接 fork。选择性参考 OpenReels、Tsugite、Code2MP4、ViMax、OpenMontage 和 video-use 的设计，并优先把 Pi Agent Core、HyperFrames 和云端媒体服务作为隔离后的底层依赖。
+
+## Q10 — 4K 是否依赖 FFmpeg 超分？
+
+不依赖。4K 是独立云服务阶段，首个适配器使用阿里云 IMS SR5；FFmpeg 如后续引入，只做封装、混音、探测等确定性媒体处理。
 
 ## Q11 — 自动候选与选片（已解决）
 

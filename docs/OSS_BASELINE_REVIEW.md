@@ -34,7 +34,7 @@
 
 ### HyperFrames + FFmpeg
 
-优先评估 [HyperFrames](https://github.com/heygen-com/hyperframes) 作为确定性字幕、包装、图形动画和最终合成层。它是 TypeScript/HTML 路线，Apache-2.0，适合 Agent 生成可检查的场景源。FFmpeg/ffprobe 继续承担编码、混音、探测、超分前后处理和母版验证。
+优先评估 [HyperFrames](https://github.com/heygen-com/hyperframes) 作为确定性字幕、包装、图形动画和最终合成层。它是 TypeScript/HTML 路线，Apache-2.0，适合 Agent 生成可检查的场景源。FFmpeg/ffprobe 如后续引入，只承担编码、混音、探测和母版验证；AI 4K 超分由独立云服务完成。
 
 [Remotion](https://github.com/remotion-dev/remotion) 保留为可选 Renderer adapter。它更成熟，但采用特殊许可；如果商业主体超过其免费许可条件，需要另行确认公司许可证。
 
@@ -54,8 +54,7 @@ packages/agent-runtime   Pi adapter and director tools
 packages/domain          project/shot/job/timeline contracts
 packages/providers       Wan 3.0 and future video providers
 packages/workflows       deterministic production state machine
-packages/media           FFmpeg, ffprobe, upscale and mastering
+packages/media           media probing, cloud upscale and mastering
 packages/renderers       HyperFrames primary, Remotion optional
 packages/evals           shot scoring, continuity and delivery QC
 ```
-

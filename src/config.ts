@@ -24,7 +24,11 @@ const envSchema = z.object({
   BAILIAN_WORKSPACE_ID: optionalNonEmptyString,
   BAILIAN_BASE_URL: optionalNonEmptyString,
   BAILIAN_API_KEY: optionalNonEmptyString,
-  BAILIAN_WAN_MODEL: z.string().default("wan3.0-video"),
+  BAILIAN_WAN_MODEL: z.string().default("wan2.7-t2v"),
+  UPSCALE_PROVIDER: z.enum(["none", "aliyun-ims"]).default("none"),
+  ALIYUN_IMS_REGION: z.string().default("cn-beijing"),
+  ALIYUN_IMS_ENDPOINT: optionalNonEmptyString,
+  ALIYUN_IMS_TEMPLATE_4K: z.string().default("S00000004-401070"),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;

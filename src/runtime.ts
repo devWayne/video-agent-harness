@@ -7,14 +7,18 @@ import { VideoJobService } from "./application/video-job-service.js";
 import { WorkflowDispatcher } from "./application/workflow-dispatcher.js";
 import { WorkflowEngine } from "./application/workflow-engine.js";
 import type { AppConfig } from "./config.js";
+import type { UpscaleProvider } from "./domain/upscale-provider.js";
 import type { VideoProvider } from "./domain/video-provider.js";
 import { SqliteVideoJobRepository } from "./infrastructure/sqlite-video-job-repository.js";
+import { createAliyunImsClient } from "./providers/aliyun-ims-client.js";
+import { AliyunImsUpscaleProvider } from "./providers/aliyun-ims-upscale-provider.js";
 import { BailianWanProvider } from "./providers/bailian-wan-provider.js";
 import { MockVideoProvider } from "./providers/mock-video-provider.js";
 
 export function createRuntime(config: AppConfig) {
   const repository = new SqliteVideoJobRepository(join(config.DATA_DIR, "video-jobs.sqlite"));
   const provider = createProvider(config);
+  const upscaleProvider = createUpscaleProvider(config);
   const workflow = new WorkflowEngine({
     repository,
     director: createDirector(config),
@@ -28,7 +32,18 @@ export function createRuntime(config: AppConfig) {
   const dispatcher = new WorkflowDispatcher(workflow);
   const service = new VideoJobService(repository, dispatcher);
 
-  return { repository, provider, workflow, dispatcher, service };
+  return { repository, provider, upscaleProvider, workflow, dispatcher, service };
+}
+
+function createUpscaleProvider(config: AppConfig): UpscaleProvider | undefined {
+  if (config.UPSCALE_PROVIDER === "none") return undefined;
+  return new AliyunImsUpscaleProvider({
+    client: createAliyunImsClient({
+      region: config.ALIYUN_IMS_REGION,
+      ...(config.ALIYUN_IMS_ENDPOINT ? { endpoint: config.ALIYUN_IMS_ENDPOINT } : {}),
+    }),
+    templateId: config.ALIYUN_IMS_TEMPLATE_4K,
+  });
 }
 
 function createDirector(config: AppConfig): Director {

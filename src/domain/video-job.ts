@@ -60,6 +60,7 @@ export interface VideoShot extends ShotPlanItem {
 
 export interface VideoJobOutput {
   manifestUrl: string;
+  videoUrl?: string;
   width: 3840;
   height: 2160;
 }

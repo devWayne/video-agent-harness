@@ -9,9 +9,12 @@ flowchart LR
   Service --> Queue["WorkflowDispatcher"]
   Queue --> Workflow["WorkflowEngine"]
   Workflow --> Director["Pi / Deterministic Director"]
-  Workflow --> Provider["Wan 3.0 / Mock Provider"]
+  Workflow --> Provider["Wan 2.7 / Wan 3.0 / Mock Provider"]
   Workflow --> Evaluator["Candidate Evaluator"]
-  Workflow --> Composer["Manifest / FFmpeg Composer"]
+  Workflow --> Composer["Manifest / Master Composer"]
+  Composer --> OSS["OSS 1080P Master"]
+  OSS --> Upscale["IMS SR5 UpscaleProvider"]
+  Upscale --> UHD["3840×2160 Delivery"]
   Service --> Repository["VideoJobRepository"]
   Workflow --> Repository
   Repository --> SQLite["SQLite（本地）"]
@@ -24,7 +27,8 @@ flowchart LR
 - `WorkflowEngine` 只依赖端口：Director、Provider、Evaluator、Composer、Repository。
 - 百炼请求和响应只存在于 Provider 内部；上层使用统一任务和错误模型。
 - 云端密钥只从运行时环境读取，日志对鉴权字段执行脱敏。
-- 生成素材与 4K 母版分层；Wan 3.0 当前最高 1080P，由后期执行面负责超分和交付编码。
+- 生成素材与 4K 母版分层；Wan 输出最高 1080P，4K 由独立的云端 `UpscaleProvider` 完成。
+- FFmpeg 不是超分实现；以后如引入，仅承担确定性的探测、封装、混音或编码辅助。
 
 ## 已实现与下一阶段
 
@@ -32,9 +36,10 @@ flowchart LR
 | --- | --- | --- |
 | Director | 确定性分镜；Pi 工具提交适配器 | 接入百炼文本模型，增加脚本/角色 Bible/视觉连续性 |
 | Workflow | 状态机、候选生成、轮询、恢复、取消 | 持久化队列、退避重试、供应商回调、镜头级重做 |
-| Provider | Mock；Wan 3.0 文生视频 | 参考媒体字段、结果转存、Seedance 2.5 |
+| Provider | Mock；Wan 2.7/3.0 可配置；2.7 已真实验证 | 参考媒体字段、结果转存、Seedance 2.5 |
 | Evaluator | 首个成功候选 | VLM 多维评分与低置信度补抽 |
-| Composer | 原子写入 4K 时间线清单 | FFmpeg 合成、字幕、配音、BGM、超分与 QC |
+| Composer | 原子写入 4K 时间线清单 | 1080P 母版、字幕、配音、BGM 与 QC |
+| Upscale | IMS SR5 端口、官方 SDK 适配器与 4K 模板 | OSS 转存后接入工作流、回调与成片 QC |
 | Storage | Node SQLite | PostgreSQL + 对象存储；BullMQ/Redis 或 Temporal 适配器 |
 
 SQLite 仅用于单节点开发和首个纵向切片。接口已经隔离，进入多实例部署前切换 PostgreSQL 和持久化队列，不改变 API 与领域模型。

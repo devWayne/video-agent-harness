@@ -55,7 +55,7 @@ export class BailianWanProvider implements VideoProvider {
   constructor(options: BailianWanProviderOptions) {
     this.#baseUrl = options.baseUrl.replace(/\/$/, "");
     this.#apiKey = options.apiKey;
-    this.#model = options.model ?? "wan3.0-video";
+    this.#model = options.model ?? "wan2.7-t2v";
     this.#fetch = options.fetch ?? globalThis.fetch;
   }
 
@@ -65,7 +65,7 @@ export class BailianWanProvider implements VideoProvider {
   ): Promise<SubmittedProviderTask> {
     if (request.referenceUrls.length > 0) {
       throw new VideoProviderError(
-        "Wan 3.0 reference media fields are not enabled until the account-specific API schema is verified",
+        "Wan reference media fields are not enabled until the selected model schema is verified",
         "REFERENCE_MEDIA_NOT_CONFIGURED",
         false,
       );
@@ -87,7 +87,7 @@ export class BailianWanProvider implements VideoProvider {
             resolution: request.resolution,
             ratio: request.ratio,
             duration: request.durationSeconds,
-            audio: request.generateAudio,
+            ...(request.generateAudio ? { audio: true } : {}),
           },
         }),
         ...(signal ? { signal } : {}),
