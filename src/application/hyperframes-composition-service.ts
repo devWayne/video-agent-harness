@@ -206,13 +206,22 @@ function compileSmartCityStoryHtml(
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 1920px; height: 1080px; overflow: hidden; background: #06101b; }
     body { color: #f7fbff; font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }
-    #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #06101b; }
+    #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #06101b; perspective: 1400px; transform-style: preserve-3d; }
     .clip { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; }
-    .story-background { object-fit: cover; filter: saturate(.78) brightness(.58); transform: scale(1.025); }
-    .story-scene { overflow: hidden; opacity: 0; isolation: isolate; }
+    .story-background { object-fit: cover; filter: saturate(.78) brightness(.58); transform: scale(1.08); }
+    .story-scene { overflow: hidden; opacity: 0; isolation: isolate; transform-origin: center; will-change: transform, opacity, clip-path; }
+    .story-scene::before { content: ""; position: absolute; inset: -14%; z-index: 1; opacity: .24; background: linear-gradient(rgba(104,224,255,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(104,224,255,.11) 1px,transparent 1px); background-size: 84px 84px; transform: perspective(900px) rotateX(62deg) translateY(330px) scale(1.35); transform-origin: center bottom; }
     .story-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,18,.02), rgba(3,10,18,.34)); z-index: 2; }
-    .scene-content { position: absolute; inset: 0; z-index: 4; }
+    .scene-content { position: absolute; inset: -3%; z-index: 4; transform-origin: center; will-change: transform; }
     .grain { position: absolute; inset: 0; z-index: 3; opacity: .08; mix-blend-mode: soft-light; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"); }
+    .cinematic-vignette { position: absolute; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 190px rgba(0,0,0,.62); background: linear-gradient(180deg,rgba(0,0,0,.18),transparent 18%,transparent 78%,rgba(0,0,0,.25)); }
+    .impact-flash { position: absolute; inset: 0; z-index: 27; pointer-events: none; opacity: 0; background: linear-gradient(105deg,transparent 18%,rgba(189,246,255,.72) 47%,rgba(255,255,255,.94) 50%,rgba(81,216,255,.3) 55%,transparent 78%); mix-blend-mode: screen; }
+    .transition-blades { position: absolute; inset: -15%; z-index: 25; pointer-events: none; overflow: hidden; transform: rotate(-7deg); }
+    .transition-blade { position: absolute; left: -20%; width: 140%; height: 23%; opacity: 0; background: linear-gradient(90deg,transparent,rgba(23,176,220,.1) 12%,rgba(117,237,255,.92) 48%,rgba(255,255,255,.98) 52%,rgba(32,82,124,.92) 57%,transparent 88%); filter: blur(.3px); box-shadow: 0 0 60px rgba(85,226,255,.46); }
+    .transition-blade:nth-child(1) { top: 8%; } .transition-blade:nth-child(2) { top: 31%; } .transition-blade:nth-child(3) { top: 54%; } .transition-blade:nth-child(4) { top: 77%; }
+    .speed-lines { position: absolute; inset: 0; z-index: 22; pointer-events: none; overflow: hidden; opacity: .55; }
+    .speed-line { position: absolute; left: -34%; width: 32%; height: 3px; opacity: 0; border-radius: 99px; background: linear-gradient(90deg,transparent,rgba(183,246,255,.95)); box-shadow: 0 0 16px rgba(104,230,255,.85); }
+    .speed-line:nth-child(1) { top: 16%; width: 22%; } .speed-line:nth-child(2) { top: 31%; width: 38%; } .speed-line:nth-child(3) { top: 47%; width: 27%; } .speed-line:nth-child(4) { top: 66%; width: 44%; } .speed-line:nth-child(5) { top: 83%; width: 31%; }
     .eyebrow { color: ${input.accentColor}; font-size: 25px; font-weight: 800; letter-spacing: .2em; }
     .display { max-width: 1360px; font-size: 114px; line-height: 1.02; letter-spacing: -.055em; font-weight: 850; }
     .lead { max-width: 1020px; color: rgba(239,248,255,.75); font-size: 34px; line-height: 1.5; }
@@ -239,7 +248,7 @@ function compileSmartCityStoryHtml(
     .scene-2 { background: radial-gradient(circle at 68% 55%, rgba(51,222,255,.22), transparent 30%), linear-gradient(145deg,rgba(6,31,48,.98),rgba(10,61,76,.94)); }
     .scene-2 .copy { position: absolute; left: 92px; top: 148px; width: 620px; display: grid; gap: 20px; }
     .scene-2 .time-badge { position: absolute; right: 100px; top: 72px; }
-    .mobility-map { position: absolute; left: 90px; right: 90px; bottom: 70px; height: 520px; border: 1px solid rgba(132,234,255,.19); border-radius: 40px; overflow: hidden; background: linear-gradient(rgba(80,201,230,.08) 1px, transparent 1px), linear-gradient(90deg,rgba(80,201,230,.08) 1px,transparent 1px), rgba(4,20,32,.56); background-size: 56px 56px; transform: perspective(900px) rotateX(8deg); transform-origin: bottom; }
+    .mobility-map { position: absolute; left: 90px; right: 90px; bottom: 70px; height: 520px; border: 1px solid rgba(132,234,255,.19); border-radius: 40px; overflow: hidden; background: linear-gradient(rgba(80,201,230,.08) 1px, transparent 1px), linear-gradient(90deg,rgba(80,201,230,.08) 1px,transparent 1px), rgba(4,20,32,.56); background-size: 56px 56px; transform: perspective(900px) rotateX(13deg) rotateZ(-1deg); transform-origin: bottom; box-shadow: 0 55px 120px rgba(0,0,0,.34); }
     .route { position: absolute; height: 7px; border-radius: 20px; background: linear-gradient(90deg,transparent,${input.accentColor},#60e7ff); box-shadow: 0 0 24px rgba(83,225,255,.38); transform-origin: left; }
     .route.r1 { left: 80px; top: 300px; width: 1000px; transform: rotate(-9deg); } .route.r2 { left: 390px; top: 120px; width: 790px; transform: rotate(18deg); } .route.r3 { left: 760px; top: 370px; width: 600px; transform: rotate(-24deg); }
     .station { position: absolute; width: 22px; height: 22px; border: 5px solid #d7fbff; border-radius: 50%; background: #0b6075; box-shadow: 0 0 28px #61e9ff; }
@@ -248,7 +257,7 @@ function compileSmartCityStoryHtml(
     .mobility-kpis .glass-card { min-width: 220px; padding: 24px; }
     .scene-3 { background: radial-gradient(circle at 24% 58%, rgba(255,178,62,.22), transparent 30%), linear-gradient(130deg,#251b15,#172a36 54%,#0a1927); }
     .factory-lines { position: absolute; inset: 270px 80px 70px; display: flex; align-items: end; gap: 34px; }
-    .machine { position: relative; flex: 1; min-height: 270px; border: 1px solid rgba(255,255,255,.14); border-radius: 30px 30px 8px 8px; background: linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.025)); box-shadow: inset 0 1px rgba(255,255,255,.18); }
+    .machine { position: relative; flex: 1; min-height: 270px; border: 1px solid rgba(255,255,255,.14); border-radius: 30px 30px 8px 8px; background: linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.025)); box-shadow: inset 0 1px rgba(255,255,255,.18),0 38px 90px rgba(0,0,0,.24); transform-origin: center bottom; }
     .machine::before { content: ""; position: absolute; left: 30px; right: 30px; top: 32px; height: 9px; border-radius: 20px; background: rgba(255,255,255,.1); box-shadow: 0 42px rgba(255,255,255,.07),0 84px rgba(255,255,255,.07); }
     .machine i { position: absolute; left: 30px; right: 30px; bottom: 30px; height: 12px; border-radius: 30px; background: #192430; overflow: hidden; }
     .machine i::after { content: ""; display: block; width: var(--fill); height: 100%; border-radius: inherit; background: linear-gradient(90deg,#ffad45,${input.accentColor}); box-shadow: 0 0 22px ${input.accentColor}; transform-origin: left; }
@@ -277,7 +286,7 @@ function compileSmartCityStoryHtml(
     .finale .display { max-width: 1500px; font-size: 96px; }
     .finale-grid { display: flex; gap: 16px; margin-top: 35px; }
     .finale-grid span { padding: 15px 22px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: rgba(240,249,255,.76); background: rgba(255,255,255,.055); font-size: 18px; }
-    .signature { position: absolute; right: 62px; bottom: 42px; z-index: 9; color: rgba(255,255,255,.45); font-size: 16px; font-weight: 700; letter-spacing: .15em; }
+    .signature { position: absolute; right: 62px; bottom: 42px; z-index: 31; color: rgba(255,255,255,.45); font-size: 16px; font-weight: 700; letter-spacing: .15em; }
   </style>
 </head>
 <body>
@@ -340,25 +349,50 @@ function compileSmartCityStoryHtml(
         <div class="finale-grid reveal"><span>城市交通</span><span>智能制造</span><span>绿色能源</span><span>公共安全</span></div>
       </div>
     </section>
+    <div class="speed-lines"><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i></div>
+    <div class="transition-blades"><i class="transition-blade"></i><i class="transition-blade"></i><i class="transition-blade"></i><i class="transition-blade"></i></div>
+    <div class="impact-flash"></div>
+    <div class="cinematic-vignette"></div>
     <div class="signature">HYPERFRAMES × VIDEO AGENT HARNESS</div>
   </div>
   <script>
     var tl = gsap.timeline({ paused: true });
     gsap.set(".story-scene", { opacity: 0 });
     gsap.set("#story-scene-1", { opacity: 1 });
-    ${starts.map((start, index) => `
-    tl.to("#story-scene-${index + 1}", { opacity: 1, duration: .42, ease: "power2.out" }, ${fadeInAt(index)});
-    tl.fromTo("#story-scene-${index + 1} .reveal", { opacity: 0, y: 42 }, { opacity: 1, y: 0, duration: .7, stagger: .11, ease: "power3.out" }, ${Number((start + 0.22).toFixed(3))});
-    tl.fromTo("#story-scene-${index + 1} .metric-card", { opacity: 0, y: 34, scale: .97 }, { opacity: 1, y: 0, scale: 1, duration: .62, stagger: .1, ease: "power2.out" }, ${Number((start + 0.48).toFixed(3))});
-    ${index < starts.length - 1 ? `tl.to("#story-scene-${index + 1}", { opacity: 0, duration: .46, ease: "power2.inOut" }, ${fadeOutAt(index)});` : ""}`).join("")}
+    gsap.set(".transition-blade, .speed-line, .impact-flash", { opacity: 0 });
+    ${starts.map((start, index) => {
+      const direction = index % 2 === 0 ? 1 : -1;
+      const driftEnd = Math.max(start + 1.15, (starts[index + 1] ?? duration) - 0.24);
+      return `
+    tl.fromTo("#story-scene-${index + 1}", { opacity: ${index === 0 ? 1 : 0}, x: ${direction * 170}, y: ${index % 3 === 0 ? 70 : -42}, scale: 1.16, rotation: ${direction * 1.7}, clipPath: "inset(0 ${direction > 0 ? 0 : 100}% 0 ${direction > 0 ? 100 : 0}%)" }, { opacity: 1, x: 0, y: 0, scale: 1, rotation: 0, clipPath: "inset(0 0% 0 0%)", duration: .58, ease: "expo.out", immediateRender: false }, ${Math.max(0, start - 0.08)});
+    tl.fromTo("#story-scene-${index + 1} .scene-content", { x: ${direction * -80}, y: 34, scale: 1.13, rotation: ${direction * -.75} }, { x: 0, y: 0, scale: 1, rotation: 0, duration: 1.05, ease: "power4.out", immediateRender: false }, ${start});
+    tl.to("#story-scene-${index + 1} .scene-content", { x: ${direction * 34}, y: -18, scale: 1.055, duration: ${Number((driftEnd - start - 1.06).toFixed(3))}, ease: "none" }, ${Number((start + 1.06).toFixed(3))});
+    tl.fromTo("#story-scene-${index + 1} .reveal", { opacity: 0, x: ${direction * 64}, y: 34, skewX: ${direction * -5} }, { opacity: 1, x: 0, y: 0, skewX: 0, duration: .58, stagger: .085, ease: "power3.out", immediateRender: false }, ${Number((start + 0.16).toFixed(3))});
+    tl.fromTo("#story-scene-${index + 1} .metric-card", { opacity: 0, y: 74, scale: .88, rotationX: -12 }, { opacity: 1, y: 0, scale: 1, rotationX: 0, duration: .54, stagger: .075, ease: "back.out(1.45)", immediateRender: false }, ${Number((start + 0.42).toFixed(3))});
+    ${index > 0 ? `tl.fromTo(".transition-blade", { xPercent: -135, opacity: 0 }, { xPercent: 135, opacity: .92, duration: .48, stagger: .035, ease: "power4.inOut", immediateRender: false }, ${Number((start - 0.22).toFixed(3))});
+    tl.fromTo(".impact-flash", { opacity: 0 }, { opacity: .85, duration: .09, repeat: 1, yoyo: true, ease: "power4.out", immediateRender: false }, ${Number((start - 0.01).toFixed(3))});` : ""}
+    tl.fromTo(".speed-line", { xPercent: -30, opacity: 0 }, { xPercent: 470, opacity: .72, duration: .54, stagger: .035, ease: "power4.in", immediateRender: false }, ${Number((start + 0.02).toFixed(3))});
+    ${index < starts.length - 1 ? `tl.to("#story-scene-${index + 1}", { opacity: 0, x: ${direction * -105}, scale: 1.12, rotation: ${direction * -1.2}, duration: .34, ease: "power3.in" }, ${fadeOutAt(index)});` : ""}`;
+    }).join("")}
     tl.fromTo(".scene-1 .pulse-orb", { scale: .72, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "power3.out" }, .3);
+    tl.to(".scene-1 .pulse-orb", { rotation: 155, scale: 1.08, duration: ${Number((starts[1]! - 1.75).toFixed(3))}, ease: "none" }, 1.7);
     tl.fromTo(".orbit-dot", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: .5, stagger: .16, ease: "back.out(1.8)" }, .8);
+    tl.to(".orbit-dot.a", { x: 150, y: 85, duration: 1.65, ease: "power1.inOut" }, 1.15);
+    tl.to(".orbit-dot.b", { x: -180, y: -120, duration: 1.8, ease: "power1.inOut" }, 1.05);
     tl.fromTo(".scene-2 .route", { scaleX: 0 }, { scaleX: 1, duration: 1.3, stagger: .16, ease: "power2.out" }, ${Number((starts[1]! + 0.62).toFixed(3))});
     tl.fromTo(".scene-2 .station", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: .42, stagger: .12, ease: "back.out(2)" }, ${Number((starts[1]! + 1.05).toFixed(3))});
+    tl.fromTo(".mobility-map", { y: 190, rotationX: 34, scale: .86 }, { y: 0, rotationX: 13, scale: 1, duration: 1.15, ease: "power3.out" }, ${Number((starts[1]! + 0.25).toFixed(3))});
+    tl.fromTo(".machine", { y: 300, rotationY: -18, scale: .8 }, { y: 0, rotationY: 0, scale: 1, duration: .85, stagger: .1, ease: "back.out(1.35)" }, ${Number((starts[2]! + 0.34).toFixed(3))});
     tl.fromTo(".machine i", { scaleX: 0, transformOrigin: "left center" }, { scaleX: 1, duration: 1.1, stagger: .12, ease: "power2.out" }, ${Number((starts[2]! + 0.75).toFixed(3))});
+    tl.to(".machine", { y: -26, stagger: .09, duration: .7, repeat: 1, yoyo: true, ease: "sine.inOut" }, ${Number((starts[2]! + 2.0).toFixed(3))});
     tl.fromTo(".energy-ring .value", { strokeDashoffset: 942 }, { strokeDashoffset: 220, duration: 1.45, ease: "power2.out" }, ${Number((starts[3]! + 0.55).toFixed(3))});
+    tl.fromTo(".energy-ring", { rotationY: -22, scale: .82 }, { rotationY: 0, scale: 1, duration: 1.1, ease: "power3.out" }, ${Number((starts[3]! + 0.25).toFixed(3))});
+    tl.to(".energy-ring svg", { rotation: 272, duration: 2.7, ease: "none" }, ${Number((starts[3]! + 0.52).toFixed(3))});
     tl.fromTo(".city-map .map-route", { strokeDashoffset: 900 }, { strokeDashoffset: 0, duration: 1.55, ease: "power2.out" }, ${Number((starts[4]! + 0.55).toFixed(3))});
     tl.fromTo(".city-map .map-node", { scale: 0, transformOrigin: "center" }, { scale: 1, duration: .45, stagger: .14, ease: "back.out(2)" }, ${Number((starts[4]! + 1.0).toFixed(3))});
+    tl.fromTo(".city-map", { scale: 1.28, rotation: -4, x: -140, y: 80 }, { scale: 1, rotation: 0, x: 0, y: 0, duration: 1.2, ease: "power4.out" }, ${Number((starts[4]! + 0.15).toFixed(3))});
+    tl.fromTo(".finale-grid span", { opacity: 0, scale: .55, y: 35 }, { opacity: 1, scale: 1, y: 0, duration: .45, stagger: .1, ease: "back.out(1.8)" }, ${Number((starts[5]! + 0.72).toFixed(3))});
+    ${input.backgroundVideoUrl ? `tl.to("#story-background", { scale: 1.18, x: -42, y: -20, duration: ${duration}, ease: "none" }, 0);` : ""}
     tl.to({}, { duration: ${duration} }, 0);
     window.__timelines = window.__timelines || {};
     window.__timelines[${JSON.stringify(id)}] = tl;
