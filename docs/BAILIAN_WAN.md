@@ -19,6 +19,14 @@ Wan 2.7 在没有 `input.audio_url` 时会自动生成匹配的背景音乐或�
 
 官方参考：<https://help.aliyun.com/en/model-studio/text-to-video-api-reference>
 
+## 角色连续性与构图控制
+
+当前 `BailianWanProvider` 是已验证的 T2V Profile，因此尚不会把图片或视频参考误发到文生视频接口。下一条生产 Profile 使用 `wan2.7-r2v-2026-06-12`：`reference_image` / `reference_video` 固定人物、服装、声音与主体特征，`first_frame` 固定镜头构图；需要串接镜头时，I2V Profile 使用首尾帧或 `first_clip` 延续前一段视频。官方接口仍是生成式约束，不保证像素级复现，因此最终文字、数字和 Logo 必须留在 HyperFrames 合成层。
+
+- Wan 2.7 参考生视频 API：<https://help.aliyun.com/zh/model-studio/wan-video-to-video-api-reference>
+- Wan 2.7 图生视频 API：<https://help.aliyun.com/zh/model-studio/image-to-video-general-api-reference>
+- 图生视频使用指南：<https://help.aliyun.com/zh/model-studio/wan-image-to-video-guide>
+
 项目专用 Key 当前已收紧为仅允许 `Wan2.7-T2V`。以后切回 Wan 3.0 时，需要先在控制台为该 Key 增加相应模型范围。
 
 ```bash

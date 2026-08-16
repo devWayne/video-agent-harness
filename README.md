@@ -9,7 +9,7 @@
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
 - `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。
 - `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
-- `POST /v1/compositions/preview`：把模板、标题、品牌色、动效和可选背景视频编译为安全的 HyperFrames 合成预览。
+- `POST /v1/compositions/preview`：把模板、标题、品牌色、动效和单段或多段 timed AI 背景视频编译为安全的 HyperFrames 合成预览。
 - 默认 16:9、1080P 镜头生成、3840×2160 交付画布。
 - 每镜头默认生成两个候选并自动选片。
 - SQLite 逐步骤检查点、进程重启无重复提交恢复、原子写入生产清单。

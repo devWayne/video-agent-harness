@@ -75,6 +75,34 @@ describe("HyperframesCompositionService", () => {
     expect(html?.match(/class="clip story-scene/g)).toHaveLength(6);
   });
 
+  it("places multiple generated video shots on the HyperFrames base track", async () => {
+    const service = new HyperframesCompositionService();
+    const preview = await service.createPreview({
+      template: "smart-city-story",
+      title: "智慧城市的一天",
+      durationSeconds: 24,
+      backgroundClips: [
+        {
+          videoUrl: "https://assets.example.invalid/shot-01.mp4",
+          startSeconds: 0,
+          durationSeconds: 8,
+          mediaStartSeconds: 1.5,
+        },
+        {
+          videoUrl: "https://assets.example.invalid/shot-02.mp4",
+          startSeconds: 8,
+          durationSeconds: 7,
+        },
+      ],
+    });
+
+    const html = service.getPreviewHtml(preview.id);
+    expect(html?.match(/class="clip story-background"/g)).toHaveLength(2);
+    expect(html).toContain('data-start="0" data-duration="8" data-media-start="1.5"');
+    expect(html).toContain('data-start="8" data-duration="7" data-media-start="0"');
+    expect(html).toContain('data-track-index="0"');
+  });
+
   it("rejects non-HTTPS media sources", async () => {
     await expect(
       new HyperframesCompositionService().createPreview({
@@ -82,6 +110,22 @@ describe("HyperframesCompositionService", () => {
         backgroundVideoUrl: "http://example.com/video.mp4",
       }),
     ).rejects.toThrow("Media URLs must use HTTPS");
+  });
+
+  it("rejects a background clip that extends past the composition", async () => {
+    await expect(
+      new HyperframesCompositionService().createPreview({
+        title: "Too long",
+        durationSeconds: 8,
+        backgroundClips: [
+          {
+            videoUrl: "https://assets.example.invalid/shot.mp4",
+            startSeconds: 6,
+            durationSeconds: 3,
+          },
+        ],
+      }),
+    ).rejects.toThrow("Background clip must end within the composition duration");
   });
 
   it("rejects a smart-city story that is too short for six readable scenes", async () => {

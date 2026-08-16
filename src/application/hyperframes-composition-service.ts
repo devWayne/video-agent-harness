@@ -111,9 +111,7 @@ function compileTitleCardHtml(
   const motion = MOTIONS[input.motion];
   const duration = input.durationSeconds;
   const outroStart = Math.max(2, duration - 0.65);
-  const background = input.backgroundVideoUrl
-    ? `<video id="background-video" class="clip background-media" data-start="0" data-duration="${duration}" data-track-index="0" src="${escapeAttribute(input.backgroundVideoUrl)}" muted playsinline></video>`
-    : "";
+  const background = compileBackgroundVideos(input, "background-media", "background-video");
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -186,12 +184,9 @@ function compileSmartCityStoryHtml(
         (index < starts.length - 1 ? 0.5 : 0)
       ).toFixed(3),
     );
-  const background = input.backgroundVideoUrl
-    ? `<video id="story-background" class="clip story-background" data-start="0" data-duration="${duration}" data-track-index="0" src="${escapeAttribute(input.backgroundVideoUrl)}" muted playsinline></video>`
-    : "";
+  const background = compileBackgroundVideos(input, "story-background", "story-background");
   const sceneAttrs = (index: number) =>
     `class="clip story-scene scene-${index + 1}" data-start="${starts[index]!}" data-duration="${sceneDuration(index)}" data-track-index="${index + 1}"`;
-  const fadeInAt = (index: number) => Number((starts[index]! + 0.08).toFixed(3));
   const fadeOutAt = (index: number) => Number(((starts[index + 1] ?? duration) - 0.04).toFixed(3));
 
   return `<!doctype html>
@@ -222,15 +217,19 @@ function compileSmartCityStoryHtml(
     .speed-lines { position: absolute; inset: 0; z-index: 22; pointer-events: none; overflow: hidden; opacity: .55; }
     .speed-line { position: absolute; left: -34%; width: 32%; height: 3px; opacity: 0; border-radius: 99px; background: linear-gradient(90deg,transparent,rgba(183,246,255,.95)); box-shadow: 0 0 16px rgba(104,230,255,.85); }
     .speed-line:nth-child(1) { top: 16%; width: 22%; } .speed-line:nth-child(2) { top: 31%; width: 38%; } .speed-line:nth-child(3) { top: 47%; width: 27%; } .speed-line:nth-child(4) { top: 66%; width: 44%; } .speed-line:nth-child(5) { top: 83%; width: 31%; }
+    .kinetic-tokens { position: absolute; inset: 0; z-index: 23; pointer-events: none; transform-style: preserve-3d; perspective: 1100px; overflow: hidden; }
+    .kinetic-token { position: absolute; display: grid; place-items: center; width: 104px; height: 104px; border: 3px solid rgba(188,247,255,.72); border-radius: 50%; color: rgba(231,253,255,.9); background: linear-gradient(135deg,rgba(220,252,255,.62),rgba(68,217,245,.2) 38%,rgba(5,29,46,.86) 72%); box-shadow: inset -14px -18px 28px rgba(0,0,0,.42),inset 10px 10px 24px rgba(255,255,255,.12),0 0 35px rgba(78,222,255,.38); font-size: 20px; font-weight: 850; letter-spacing: .06em; opacity: 0; backface-visibility: hidden; }
+    .kinetic-token::after { content: ""; position: absolute; inset: 9px; border: 1px solid rgba(255,255,255,.3); border-radius: inherit; }
+    .kinetic-token:nth-child(1) { left: 4%; top: 14%; } .kinetic-token:nth-child(2) { left: 18%; top: 70%; width: 78px; height: 78px; font-size: 16px; } .kinetic-token:nth-child(3) { left: 41%; top: 20%; width: 132px; height: 132px; } .kinetic-token:nth-child(4) { left: 67%; top: 66%; width: 88px; height: 88px; font-size: 16px; } .kinetic-token:nth-child(5) { left: 83%; top: 24%; width: 148px; height: 148px; }
     .eyebrow { color: ${input.accentColor}; font-size: 25px; font-weight: 800; letter-spacing: .2em; }
     .display { max-width: 1360px; font-size: 114px; line-height: 1.02; letter-spacing: -.055em; font-weight: 850; }
     .lead { max-width: 1020px; color: rgba(239,248,255,.75); font-size: 34px; line-height: 1.5; }
     .scene-title { font-size: 62px; line-height: 1.08; letter-spacing: -.035em; font-weight: 830; }
     .scene-copy { color: rgba(235,246,255,.72); font-size: 26px; line-height: 1.5; }
-    .time-badge { display: flex; align-items: baseline; gap: 13px; padding: 18px 28px; border: 1px solid rgba(255,255,255,.26); border-radius: 22px; background: rgba(8,18,34,.52); box-shadow: 0 18px 60px rgba(0,0,0,.2); backdrop-filter: blur(18px); }
+    .time-badge { display: flex; align-items: baseline; gap: 13px; padding: 18px 28px; border: 1px solid rgba(255,255,255,.26); border-radius: 22px; background: rgba(8,18,34,.52); box-shadow: 0 18px 60px rgba(0,0,0,.2); backdrop-filter: blur(18px); transform-style: preserve-3d; backface-visibility: hidden; }
     .time-badge b { font-size: 48px; letter-spacing: -.04em; }
     .time-badge span { color: rgba(255,255,255,.58); font-size: 17px; font-weight: 750; letter-spacing: .12em; }
-    .glass-card { border: 1px solid rgba(255,255,255,.25); border-radius: 28px; background: rgba(7,20,34,.7); box-shadow: 0 30px 90px rgba(0,0,0,.28); backdrop-filter: blur(24px); }
+    .glass-card { border: 1px solid rgba(255,255,255,.25); border-radius: 28px; background: rgba(7,20,34,.7); box-shadow: 0 30px 90px rgba(0,0,0,.28); backdrop-filter: blur(24px); transform-style: preserve-3d; backface-visibility: hidden; }
     .card-label { color: rgba(233,245,255,.58); font-size: 18px; font-weight: 720; letter-spacing: .08em; }
     .card-value { margin-top: 8px; font-size: 52px; font-weight: 850; letter-spacing: -.04em; }
     .card-delta { margin-top: 6px; color: ${input.accentColor}; font-size: 19px; font-weight: 760; }
@@ -349,6 +348,7 @@ function compileSmartCityStoryHtml(
         <div class="finale-grid reveal"><span>城市交通</span><span>智能制造</span><span>绿色能源</span><span>公共安全</span></div>
       </div>
     </section>
+    <div class="kinetic-tokens"><i class="kinetic-token">AI</i><i class="kinetic-token">5G</i><i class="kinetic-token">DATA</i><i class="kinetic-token">IoT</i><i class="kinetic-token">24H</i></div>
     <div class="speed-lines"><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i><i class="speed-line"></i></div>
     <div class="transition-blades"><i class="transition-blade"></i><i class="transition-blade"></i><i class="transition-blade"></i><i class="transition-blade"></i></div>
     <div class="impact-flash"></div>
@@ -364,15 +364,21 @@ function compileSmartCityStoryHtml(
       const direction = index % 2 === 0 ? 1 : -1;
       const driftEnd = Math.max(start + 1.15, (starts[index + 1] ?? duration) - 0.24);
       return `
-    tl.fromTo("#story-scene-${index + 1}", { opacity: ${index === 0 ? 1 : 0}, x: ${direction * 170}, y: ${index % 3 === 0 ? 70 : -42}, scale: 1.16, rotation: ${direction * 1.7}, clipPath: "inset(0 ${direction > 0 ? 0 : 100}% 0 ${direction > 0 ? 100 : 0}%)" }, { opacity: 1, x: 0, y: 0, scale: 1, rotation: 0, clipPath: "inset(0 0% 0 0%)", duration: .58, ease: "expo.out", immediateRender: false }, ${Math.max(0, start - 0.08)});
+    tl.fromTo("#story-scene-${index + 1}", { opacity: ${index === 0 ? 1 : 0}, x: ${direction * 230}, y: ${index % 3 === 0 ? 82 : -54}, z: -420, scale: 1.2, rotation: ${direction * 2.2}, rotationY: ${direction * 18}, rotationX: -4, transformPerspective: 1400, transformOrigin: "${direction > 0 ? "left" : "right"} center", clipPath: "inset(0 ${direction > 0 ? 0 : 100}% 0 ${direction > 0 ? 100 : 0}%)" }, { opacity: 1, x: 0, y: 0, z: 0, scale: 1, rotation: 0, rotationY: 0, rotationX: 0, clipPath: "inset(0 0% 0 0%)", duration: .62, ease: "expo.out", immediateRender: false }, ${Math.max(0, start - 0.1)});
     tl.fromTo("#story-scene-${index + 1} .scene-content", { x: ${direction * -80}, y: 34, scale: 1.13, rotation: ${direction * -.75} }, { x: 0, y: 0, scale: 1, rotation: 0, duration: 1.05, ease: "power4.out", immediateRender: false }, ${start});
     tl.to("#story-scene-${index + 1} .scene-content", { x: ${direction * 34}, y: -18, scale: 1.055, duration: ${Number((driftEnd - start - 1.06).toFixed(3))}, ease: "none" }, ${Number((start + 1.06).toFixed(3))});
-    tl.fromTo("#story-scene-${index + 1} .reveal", { opacity: 0, x: ${direction * 64}, y: 34, skewX: ${direction * -5} }, { opacity: 1, x: 0, y: 0, skewX: 0, duration: .58, stagger: .085, ease: "power3.out", immediateRender: false }, ${Number((start + 0.16).toFixed(3))});
+    tl.fromTo("#story-scene-${index + 1} .reveal:not(.time-badge)", { opacity: 0, x: ${direction * 64}, y: 34, skewX: ${direction * -5} }, { opacity: 1, x: 0, y: 0, skewX: 0, duration: .58, stagger: .085, ease: "power3.out", immediateRender: false }, ${Number((start + 0.16).toFixed(3))});
     tl.fromTo("#story-scene-${index + 1} .metric-card", { opacity: 0, y: 74, scale: .88, rotationX: -12 }, { opacity: 1, y: 0, scale: 1, rotationX: 0, duration: .54, stagger: .075, ease: "back.out(1.45)", immediateRender: false }, ${Number((start + 0.42).toFixed(3))});
+    ${index > 0 && index < starts.length - 1 ? `tl.fromTo("#story-scene-${index + 1} .time-badge", { opacity: 0, y: -170, z: -360, rotationX: -108, scale: .72 }, { opacity: 1, y: 0, z: 0, rotationX: 0, scale: 1, duration: .66, ease: "back.out(1.55)", immediateRender: false }, ${Number((start + 0.12).toFixed(3))});` : ""}
     ${index > 0 ? `tl.fromTo(".transition-blade", { xPercent: -135, opacity: 0 }, { xPercent: 135, opacity: .92, duration: .48, stagger: .035, ease: "power4.inOut", immediateRender: false }, ${Number((start - 0.22).toFixed(3))});
     tl.fromTo(".impact-flash", { opacity: 0 }, { opacity: .85, duration: .09, repeat: 1, yoyo: true, ease: "power4.out", immediateRender: false }, ${Number((start - 0.01).toFixed(3))});` : ""}
     tl.fromTo(".speed-line", { xPercent: -30, opacity: 0 }, { xPercent: 470, opacity: .72, duration: .54, stagger: .035, ease: "power4.in", immediateRender: false }, ${Number((start + 0.02).toFixed(3))});
-    ${index < starts.length - 1 ? `tl.to("#story-scene-${index + 1}", { opacity: 0, x: ${direction * -105}, scale: 1.12, rotation: ${direction * -1.2}, duration: .34, ease: "power3.in" }, ${fadeOutAt(index)});` : ""}`;
+    tl.fromTo(".kinetic-token", { opacity: 0, x: ${direction * -1550}, y: ${direction * 120}, z: -760, scale: .35, rotationY: ${direction * -540}, rotationZ: ${direction * -45} }, { opacity: .78, x: ${direction * 120}, y: ${direction * -30}, z: 180, scale: 1.08, rotationY: ${direction * 180}, rotationZ: 0, duration: .55, stagger: .035, ease: "power3.in", immediateRender: false }, ${Number((start + 0.01).toFixed(3))});
+    tl.to(".kinetic-token", { opacity: 0, x: ${direction * 1750}, y: ${direction * -180}, z: 820, scale: 1.75, rotationY: ${direction * 620}, rotationZ: ${direction * 38}, duration: .3, stagger: .025, ease: "power4.in" }, ${Number((start + 0.72).toFixed(3))});
+    ${index < starts.length - 1 ? `tl.to("#story-scene-${index + 1} .metric-card", { opacity: 0, x: ${direction * -260}, z: 620, scale: 1.3, rotationY: ${direction * -58}, filter: "blur(14px)", duration: .3, stagger: .025, ease: "power4.in" }, ${Number((fadeOutAt(index) - 0.2).toFixed(3))});
+    tl.to("#story-scene-${index + 1} .time-badge", { opacity: 0, y: -150, z: 480, rotationX: 92, scale: 1.22, duration: .3, ease: "power4.in" }, ${Number((fadeOutAt(index) - 0.16).toFixed(3))});
+    tl.to("#story-scene-${index + 1}", { opacity: 0, x: ${direction * -150}, z: 440, scale: 1.16, rotation: ${direction * -1.5}, rotationY: ${direction * -16}, duration: .36, ease: "power3.in" }, ${fadeOutAt(index)});
+    tl.set("#story-scene-${index + 1}", { opacity: 0 }, ${Number((fadeOutAt(index) + 0.36).toFixed(3))});` : ""}`;
     }).join("")}
     tl.fromTo(".scene-1 .pulse-orb", { scale: .72, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "power3.out" }, .3);
     tl.to(".scene-1 .pulse-orb", { rotation: 155, scale: 1.08, duration: ${Number((starts[1]! - 1.75).toFixed(3))}, ease: "none" }, 1.7);
@@ -392,13 +398,38 @@ function compileSmartCityStoryHtml(
     tl.fromTo(".city-map .map-node", { scale: 0, transformOrigin: "center" }, { scale: 1, duration: .45, stagger: .14, ease: "back.out(2)" }, ${Number((starts[4]! + 1.0).toFixed(3))});
     tl.fromTo(".city-map", { scale: 1.28, rotation: -4, x: -140, y: 80 }, { scale: 1, rotation: 0, x: 0, y: 0, duration: 1.2, ease: "power4.out" }, ${Number((starts[4]! + 0.15).toFixed(3))});
     tl.fromTo(".finale-grid span", { opacity: 0, scale: .55, y: 35 }, { opacity: 1, scale: 1, y: 0, duration: .45, stagger: .1, ease: "back.out(1.8)" }, ${Number((starts[5]! + 0.72).toFixed(3))});
-    ${input.backgroundVideoUrl ? `tl.to("#story-background", { scale: 1.18, x: -42, y: -20, duration: ${duration}, ease: "none" }, 0);` : ""}
+    ${input.backgroundVideoUrl || (input.backgroundClips?.length ?? 0) > 0 ? `tl.fromTo(".story-background", { scale: 1.08, x: 0, y: 0 }, { scale: 1.18, x: -42, y: -20, duration: ${duration}, ease: "none" }, 0);` : ""}
     tl.to({}, { duration: ${duration} }, 0);
     window.__timelines = window.__timelines || {};
     window.__timelines[${JSON.stringify(id)}] = tl;
   </script>
 </body>
 </html>`;
+}
+
+function compileBackgroundVideos(
+  input: CreateCompositionPreviewInput,
+  className: string,
+  idPrefix: string,
+): string {
+  const authoredClips = input.backgroundClips ?? [];
+  const clips = authoredClips.length > 0
+    ? authoredClips
+    : input.backgroundVideoUrl
+      ? [{
+          videoUrl: input.backgroundVideoUrl,
+          startSeconds: 0,
+          durationSeconds: input.durationSeconds,
+          mediaStartSeconds: 0,
+        }]
+      : [];
+
+  return clips
+    .map(
+      (clip, index) =>
+        `<video id="${idPrefix}-${index + 1}" class="clip ${className}" data-start="${clip.startSeconds}" data-duration="${clip.durationSeconds}" data-media-start="${clip.mediaStartSeconds}" data-track-index="0" src="${escapeAttribute(clip.videoUrl)}" muted playsinline></video>`,
+    )
+    .join("\n    ");
 }
 
 function escapeHtml(value: string): string {

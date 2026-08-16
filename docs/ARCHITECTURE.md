@@ -30,6 +30,25 @@ flowchart LR
   Repository -.-> Postgres["PostgreSQL（生产适配器）"]
 ```
 
+## Wan × HyperFrames 合成闭环
+
+```mermaid
+flowchart LR
+  Brief["Brief + 角色/风格参考"] --> Director["Director：分镜与节拍"]
+  Director --> Guide["HyperFrames：无文字构图参考帧"]
+  Guide --> Wan["Wan 2.7 R2V/I2V：人物与场景运动"]
+  Wan --> Clips["OSS：逐镜头 AI 视频"]
+  Clips --> HF["HyperFrames：timed video clips"]
+  Director --> Overlays["文字、卡片、标记、转场 cues"]
+  Overlays --> HF
+  HF --> Master["确定性 1080P 母版"]
+  Master --> UHD["IMS：4K 交付"]
+```
+
+推荐采用“构图参考 → AI 底片 → 确定性图形合成”的三明治链路：HyperFrames 可以先输出不带最终文字和 Logo 的首帧/尾帧或构图参考，Wan 负责生成会动的人物与环境，最终再把逐镜头 Wan 结果作为 HyperFrames 第 0 轨视频片段，叠加可复现的文字、卡片和转场。不要把带清晰文字的 HyperFrames 成片交给生成模型重绘，否则文字、数字、品牌资产和帧级节拍都可能失真。
+
+`CompositionSpec.backgroundClips` 是 AI 底片与确定性合成之间的契约。每个 clip 包含 `videoUrl`、合成时间线上的 `startSeconds`、使用时长 `durationSeconds`，以及源视频的裁切起点 `mediaStartSeconds`。HyperFrames 通过 `data-start`、`data-duration` 和 `data-media-start` 将多段视频放入同一底层轨道；上层信息图仍由模板和 GSAP 时间线控制。
+
 ## 边界原则
 
 - Agent 只负责需要推理和工具调用的决策，不承担长时间供应商任务的可靠性。
@@ -48,10 +67,10 @@ flowchart LR
 | --- | --- | --- |
 | Director | 确定性分镜；Pi Agent Core 工具提交适配器；结构与时长契约测试 | 接入独立百炼文本模型 Key，增加脚本/角色 Bible/视觉连续性 |
 | Workflow | 状态机、逐任务检查点、跨进程恢复、取消、显式重试 | 持久化队列、退避重试、供应商回调、镜头级重做 |
-| Provider | Mock；Wan 2.7 T2V；2.7 已真实验证 | 为 Wan 3.0、I2V/R2V 和 Seedance 2.5 分别增加经过官方契约验证的模型 Profile |
+| Provider | Mock；Wan 2.7 T2V；2.7 已真实验证 | 增加 Wan 2.7 R2V/I2V Profile，以角色参考、首帧、尾帧和前序片段维持连续性；Wan 3.0 授权后再增加独立 Profile |
 | Evaluator | 首个成功候选 | VLM 多维评分与低置信度补抽 |
 | Delivery | OSS 转存、IMS 1080P 母版、IMS SR5 4K、原子清单 | 字幕、独立配音/BGM 与成片 QC |
-| Composition | 安全标题卡；《智慧城市的一天》6 场景模板；CSS/SVG 信息图；HyperFrames Core lint；官方 Player；与当前 Wan 候选联动 | 持久化 CompositionSpec、数据驱动模板库、字幕、遮挡蒙版/跟踪、隔离 Render Worker |
+| Composition | 安全标题卡；《智慧城市的一天》6 场景模板；多段 AI 视频 timed clips；CSS/SVG 信息图；HyperFrames Core lint；官方 Player | 从已选 Wan candidates 自动构建 CompositionSpec；数据驱动 overlay cues；字幕、遮挡蒙版/跟踪、隔离 Render Worker |
 | Operations | Bearer 鉴权、OpenAPI、健康/就绪、Prometheus gauge、成本预算 | 分布式 tracing、实际账单回填与告警 |
 | Storage | Node SQLite + OSS | PostgreSQL；BullMQ/Redis 或 Temporal 适配器 |
 

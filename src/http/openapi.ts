@@ -170,6 +170,20 @@ export const openApiDocument = {
           subtitle: { type: "string", maxLength: 220, default: "" },
           kicker: { type: "string", maxLength: 48, default: "VIDEO AGENT HARNESS" },
           backgroundVideoUrl: { type: "string", format: "uri", pattern: "^https://" },
+          backgroundClips: {
+            type: "array",
+            maxItems: 12,
+            items: {
+              type: "object",
+              required: ["videoUrl", "startSeconds", "durationSeconds"],
+              properties: {
+                videoUrl: { type: "string", format: "uri", pattern: "^https://" },
+                startSeconds: { type: "number", minimum: 0, maximum: 30 },
+                durationSeconds: { type: "number", exclusiveMinimum: 0, maximum: 30 },
+                mediaStartSeconds: { type: "number", minimum: 0, maximum: 3600, default: 0 },
+              },
+            },
+          },
           durationSeconds: { type: "number", minimum: 3, maximum: 30, default: 8 },
           theme: { type: "string", enum: ["violet", "cinema", "editorial"], default: "violet" },
           motion: { type: "string", enum: ["fade-up", "scale-in", "slide-left"], default: "fade-up" },
