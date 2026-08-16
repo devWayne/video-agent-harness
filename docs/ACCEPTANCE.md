@@ -1,13 +1,13 @@
 # 验收记录
 
-更新时间：2026-08-16
+更新时间：2026-08-17
 
 ## 已验证
 
 | 范围 | 证据 | 结果 |
 | --- | --- | --- |
-| 工程质量门禁 | `npm run check` | TypeScript、ESLint、Vitest、生产构建通过；11 个测试文件、29 项测试通过 |
-| HyperFrames 动效切片 | Studio → Composition API → Core lint → 官方 Player | 1920×1080、8 秒标题卡通过 0 warning lint；浏览器实测播放/暂停、时间轴与标题入场正常 |
+| 工程质量门禁 | `npm run check` | TypeScript、ESLint、Vitest、生产构建通过；11 个测试文件、31 项测试通过 |
+| HyperFrames 动效切片 | Studio → Composition API → Core lint → 官方 Player | 1920×1080 标题卡与 24 秒《智慧城市的一天》6 场景模板均通过 0 warning lint；浏览器实测开场、交通、智造、城市安全场景播放和 seek 正常 |
 | Wan 2.7 最小协议 | `wan2.7-t2v`，2 秒，720P，16:9 | 阿里云异步任务成功，任务 ID `50e3dbbb-80aa-49ad-ac21-6baf0aca23ef` |
 | Wan 2.7 生产请求 | `wan2.7-t2v`，2 秒，1080P，16:9，模型自动音频 | 阿里云异步任务成功，任务 ID `17adbb94-389c-4df6-bf1b-84ec3799e866` |
 | 本地纵向闭环 | Fastify API → 工作流 → Mock → 清单 | 创建任务后完成 3840×2160 模拟交付，健康检查、指标和事件均正常 |

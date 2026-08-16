@@ -113,6 +113,9 @@ button { color: inherit; }
 .shot-visual { height: 48px; display: grid; place-items: center; border-radius: 6px; color: rgba(255,255,255,.82); background: linear-gradient(135deg,#2b4056,#d0845b); }
 .shot-1 { background: linear-gradient(135deg,#171d30,#9271db); }
 .shot-2 { background: linear-gradient(135deg,#315150,#d3b268); }
+.shot-3 { background: linear-gradient(135deg,#17414a,#49b89d); }
+.shot-4 { background: linear-gradient(135deg,#171f4d,#745bd2); }
+.shot-5 { background: linear-gradient(135deg,#17384b,#4de2ff); }
 .shot-card strong { display: block; margin-top: 6px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .shot-card small { display: block; margin-top: 3px; color: #9298a4; font-size: 8px; }
 .timeline-section { padding: 10px 18px 15px; border-top: 1px solid #2a2d33; background: #17191d; }
@@ -127,6 +130,11 @@ button { color: inherit; }
 .hf-background { flex: 1; background: linear-gradient(90deg,#364253,#596474); }
 .hf-motion { flex: 1; display: flex; align-items: center; padding: 0 8px; background: linear-gradient(90deg,#6b54e8,#9c79ee); }
 .hf-motion b { overflow: hidden; color: #f2efff; font-size: 7px; letter-spacing: .08em; text-overflow: ellipsis; white-space: nowrap; }
+.hf-scene-1 { background: linear-gradient(90deg,#315c7a,#4f87a6); }
+.hf-scene-2 { background: linear-gradient(90deg,#8c6841,#bd8b4d); }
+.hf-scene-3 { background: linear-gradient(90deg,#2b776e,#45ad91); }
+.hf-scene-4 { background: linear-gradient(90deg,#5541a7,#8068d8); }
+.hf-scene-5 { background: linear-gradient(90deg,#28738c,#45bdd2); }
 
 .job-summary { padding: 11px; margin-bottom: 16px; border: 1px solid #353943; border-radius: 9px; background: #21242a; }
 .job-summary > div:first-child { display: flex; justify-content: space-between; }

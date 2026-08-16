@@ -9,6 +9,7 @@ const optionalHttpsUrl = z.preprocess(
 );
 
 export const createCompositionPreviewSchema = z.object({
+  template: z.enum(["title-card", "smart-city-story"]).default("title-card"),
   title: z.string().trim().min(1).max(100),
   subtitle: z.string().trim().max(220).default(""),
   kicker: z.string().trim().max(48).default("VIDEO AGENT HARNESS"),
@@ -20,9 +21,18 @@ export const createCompositionPreviewSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Accent color must be a six-digit hex color")
     .default("#8b7cff"),
+}).superRefine((input, context) => {
+  if (input.template === "smart-city-story" && input.durationSeconds < 15) {
+    context.addIssue({
+      code: "custom",
+      path: ["durationSeconds"],
+      message: "Smart-city story duration must be at least 15 seconds",
+    });
+  }
 });
 
 export type CreateCompositionPreviewInput = z.infer<typeof createCompositionPreviewSchema>;
+export type CompositionTemplate = CreateCompositionPreviewInput["template"];
 
 export interface CompositionPreview {
   id: string;
@@ -31,6 +41,7 @@ export interface CompositionPreview {
   width: 1920;
   height: 1080;
   engine: "hyperframes";
+  template: CompositionTemplate;
   lint: {
     warningCount: number;
     findings: Array<{ code: string; message: string }>;

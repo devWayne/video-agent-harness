@@ -9,7 +9,7 @@
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
 - `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。
 - `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
-- `POST /v1/compositions/preview`：把标题、品牌色、动效和可选背景视频编译为安全的 HyperFrames 合成预览。
+- `POST /v1/compositions/preview`：把模板、标题、品牌色、动效和可选背景视频编译为安全的 HyperFrames 合成预览。
 - 默认 16:9、1080P 镜头生成、3840×2160 交付画布。
 - 每镜头默认生成两个候选并自动选片。
 - SQLite 逐步骤检查点、进程重启无重复提交恢复、原子写入生产清单。
@@ -54,7 +54,7 @@ curl --request POST http://127.0.0.1:3321/v1/video-jobs \
   }'
 ```
 
-在 Studio 中切到“动效合成”即可创建标题卡。背景视频留空时可自动使用当前 Wan 候选；若临时签名已过期或只想调试版式，可关闭“自动使用当前 Wan 候选作为背景”。当前 HyperFrames 路径是确定性浏览器预览，不会调用 IMS 或产生云渲染费用。
+在 Studio 中切到“动效合成”可选择标题卡，或直接生成 24 秒《智慧城市的一天》多场景信息动效。后者包含交通、制造、能源、安全和收束等 6 段确定性场景；背景留空即可使用自包含 CSS/SVG 视觉，也可绑定当前 Wan 候选。当前 HyperFrames 路径是确定性浏览器预览，不会调用 IMS 或产生云渲染费用。
 
 默认 `VIDEO_PROVIDER=mock`，不会产生云端费用。启用百炼真实生成：
 
