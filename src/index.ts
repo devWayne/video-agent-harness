@@ -12,6 +12,12 @@ const server = buildServer({
   service: runtime.service,
   logger: true,
   uiDirectory: resolve(process.cwd(), "web-dist"),
+  runtimeInfo: {
+    videoProvider: config.VIDEO_PROVIDER,
+    videoModel: config.BAILIAN_WAN_MODEL,
+    deliveryMode: config.DELIVERY_MODE,
+    generationResolution: "1080P",
+  },
   ...(config.HARNESS_API_KEY ? { apiKey: config.HARNESS_API_KEY } : {}),
 });
 

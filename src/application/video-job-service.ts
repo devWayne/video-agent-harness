@@ -133,8 +133,8 @@ function estimateCost(
     estimate.upscaleRateCnyPerSecond = options.upscaleCnyPerSecond;
     estimate.upscaleCny = upscaleSeconds * options.upscaleCnyPerSecond;
   }
-  if (estimate.generationCny !== undefined && estimate.upscaleCny !== undefined) {
-    estimate.totalCny = estimate.generationCny + estimate.upscaleCny;
+  if (estimate.generationCny !== undefined || estimate.upscaleCny !== undefined) {
+    estimate.totalCny = (estimate.generationCny ?? 0) + (estimate.upscaleCny ?? 0);
   }
   return estimate;
 }

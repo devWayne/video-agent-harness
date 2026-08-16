@@ -60,6 +60,7 @@ button { color: inherit; }
 .advanced-grid span { margin-bottom: 3px; color: #8e94a1; font-size: 8px; }
 .advanced-grid strong { font-size: 9px; font-weight: 670; }
 .policy-note { margin-top: 16px; padding: 11px; border-radius: 9px; background: #27233a; color: #c8bfff; font-size: 9px; line-height: 1.55; }
+.policy-note.real { border: 1px solid rgba(67,197,138,.3); background: rgba(34,102,76,.22); color: #9fe3c7; }
 .error-banner, .job-error { margin-top: 12px; padding: 10px; border: 1px solid rgba(255,94,119,.34); border-radius: 8px; background: rgba(255,94,119,.09); color: #ff9bae; font-size: 10px; line-height: 1.45; }
 
 .creative-stage { min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: #111216; }
@@ -67,7 +68,8 @@ button { color: inherit; }
 .stage-tabs span { min-width: 82px; padding: 8px; border-radius: 7px; color: #949aa7; text-align: center; font-size: 10px; }
 .stage-tabs span.active { background: #2d2747; color: #bfb2ff; font-weight: 720; }
 .preview-area { flex: 1; min-height: 300px; display: grid; place-items: center; padding: 18px; }
-.video-frame { position: relative; width: min(100%, 760px); aspect-ratio: 16/9; overflow: hidden; border-radius: 10px; background: radial-gradient(circle at 72% 24%, rgba(255,196,93,.42), transparent 28%), linear-gradient(155deg,#122135 0%,#3c4e63 45%,#c4775a 100%); box-shadow: 0 16px 42px rgba(0,0,0,.35); }
+.preview-stack { width: min(100%, 760px); }
+.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; border-radius: 10px; background: radial-gradient(circle at 72% 24%, rgba(255,196,93,.42), transparent 28%), linear-gradient(155deg,#122135 0%,#3c4e63 45%,#c4775a 100%); box-shadow: 0 16px 42px rgba(0,0,0,.35); }
 .video-frame::after { content: ""; position: absolute; inset: auto 0 0; height: 48%; background: linear-gradient(165deg,transparent 0 28%,rgba(9,18,29,.72) 29% 46%,rgba(30,46,61,.9) 47% 100%); clip-path: polygon(0 62%,30% 34%,58% 57%,82% 20%,100% 38%,100% 100%,0 100%); }
 .video-frame video { position: relative; z-index: 3; width: 100%; height: 100%; background: #000; }
 .frame-toolbar { position: absolute; z-index: 2; inset: 11px 12px auto; display: flex; justify-content: space-between; }
@@ -76,6 +78,9 @@ button { color: inherit; }
 .frame-copy strong, .frame-copy span { display: block; }
 .frame-copy strong { margin-bottom: 6px; font-size: 15px; letter-spacing: .04em; }
 .frame-copy span { max-width: 80%; overflow: hidden; color: rgba(255,255,255,.8); font-size: 9px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.candidate-switcher { display: flex; justify-content: center; gap: 7px; margin-top: 10px; }
+.candidate-switcher button { min-height: 28px; padding: 0 11px; border: 1px solid #3a3e47; border-radius: 999px; background: #1d2025; color: #9ba1ad; font-size: 9px; cursor: pointer; }
+.candidate-switcher button.active { border-color: #7357ff; background: #2d2747; color: #c6bbff; }
 .storyboard-section { padding: 0 18px 12px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .section-heading strong { font-size: 11px; }

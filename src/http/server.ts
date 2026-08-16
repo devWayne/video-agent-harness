@@ -21,6 +21,12 @@ export interface BuildServerOptions {
   logger?: boolean;
   apiKey?: string;
   uiDirectory?: string;
+  runtimeInfo?: {
+    videoProvider: "mock" | "bailian";
+    videoModel: string;
+    deliveryMode: "simulation" | "cloud";
+    generationResolution: "1080P";
+  };
 }
 
 export function buildServer(options: BuildServerOptions) {
@@ -61,7 +67,10 @@ export function buildServer(options: BuildServerOptions) {
   server.get("/health/live", () => ({ status: "ok" }));
   server.get("/health/ready", async (_request, reply) => {
     const ready = await options.service.readiness();
-    return reply.code(ready ? 200 : 503).send({ status: ready ? "ready" : "not_ready" });
+    return reply.code(ready ? 200 : 503).send({
+      status: ready ? "ready" : "not_ready",
+      ...(options.runtimeInfo ? { runtime: options.runtimeInfo } : {}),
+    });
   });
   server.get("/openapi.json", () => openApiDocument);
   server.get("/metrics", async (_request, reply) => {

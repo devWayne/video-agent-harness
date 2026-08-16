@@ -61,6 +61,13 @@ interface VideoJob {
   };
 }
 
+interface RuntimeInfo {
+  videoProvider: "mock" | "bailian";
+  videoModel: string;
+  deliveryMode: "simulation" | "cloud";
+  generationResolution: "1080P";
+}
+
 const statusLabels: Record<JobStatus, string> = {
   queued: "已排队",
   planning: "Agent 规划中",
@@ -106,11 +113,25 @@ export function App() {
   const [showConnection, setShowConnection] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [job, setJob] = useState<VideoJob>();
+  const [runtime, setRuntime] = useState<RuntimeInfo>();
   const [selectedShotId, setSelectedShotId] = useState<string>();
+  const [previewCandidateId, setPreviewCandidateId] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
 
   const selectedShot = job?.shots.find((shot) => shot.id === selectedShotId) ?? job?.shots[0];
+  const selectedCandidate = selectedShot?.candidates.find(
+    (candidate) => candidate.id === previewCandidateId,
+  ) ?? selectedShot?.candidates.find(
+    (candidate) => candidate.id === selectedShot.selectedCandidateId,
+  ) ?? selectedShot?.candidates.find(
+    (candidate) => candidate.status === "succeeded" && candidate.outputUrl,
+  );
+  const previewUrl = job?.output?.videoUrl ?? selectedCandidate?.outputUrl;
+  const isRealGeneration = runtime?.videoProvider === "bailian";
+  const activeJobIsReal = !job || job.shots.every((shot) => shot.candidates.length === 0)
+    ? isRealGeneration
+    : job.shots.some((shot) => shot.candidates.some((candidate) => candidate.provider === "bailian-wan"));
   const isTerminal = job ? ["completed", "failed", "cancelled"].includes(job.status) : true;
   const progress = useMemo(() => {
     if (!job) return 0;
@@ -123,6 +144,13 @@ export function App() {
   useEffect(() => {
     sessionStorage.setItem("harness-api-key", apiKey);
   }, [apiKey]);
+
+  useEffect(() => {
+    void fetch("/health/ready")
+      .then((response) => parseResponse<{ status: string; runtime?: RuntimeInfo }>(response))
+      .then((health) => setRuntime(health.runtime))
+      .catch(() => setRuntime(undefined));
+  }, []);
 
   useEffect(() => {
     const lastJobId = localStorage.getItem("harness-last-job");
@@ -216,7 +244,7 @@ export function App() {
         </div>
         <div className="top-actions">
           <button className="connection-badge" type="button" onClick={() => setShowConnection((value) => !value)}>
-            <span className="online-dot" /> Harness Local
+            <span className="online-dot" /> {isRealGeneration ? "百炼真实调用" : "Harness Local"}
           </button>
           <span className="delivery-badge">16:9 · 4K 交付</span>
           {job?.costEstimate?.totalCny !== undefined && <span className="cost">预计 ¥{job.costEstimate.totalCny.toFixed(2)}</span>}
@@ -242,7 +270,7 @@ export function App() {
         </nav>
 
         <aside className="control-panel">
-          <div className="panel-heading"><h1>创作指令</h1><span>Wan 2.7</span></div>
+          <div className="panel-heading"><h1>创作指令</h1><span>{runtime?.videoModel ?? "Wan 2.7"}</span></div>
           <div className="mode-tabs">
             <button className="active" type="button">文生视频</button>
             <button type="button" disabled title="待接入 wan2.7-i2v">首帧 / 首尾</button>
@@ -273,26 +301,46 @@ export function App() {
           </button>
           {showAdvanced && (
             <div className="advanced-grid">
-              <div><span>生成模型</span><strong>wan2.7-t2v</strong></div>
-              <div><span>生成规格</span><strong>1080P · 16:9</strong></div>
+              <div><span>生成模型</span><strong>{runtime?.videoModel ?? "wan2.7-t2v"}</strong></div>
+              <div><span>生成规格</span><strong>{runtime?.generationResolution ?? "1080P"} · 16:9</strong></div>
               <div><span>交付规格</span><strong>3840 × 2160</strong></div>
               <div><span>Prompt 增强</span><strong>Provider 默认</strong></div>
             </div>
           )}
 
-          <div className="policy-note">生产策略由 Harness 管理：Provider 生成、候选评估、稳定存储、母版合成和 4K 交付彼此解耦。当前本地验证使用 Mock 与模拟交付，不产生云费用。</div>
+          <div className={`policy-note ${isRealGeneration ? "real" : ""}`}>
+            {isRealGeneration
+              ? `已连接阿里云百炼 ${runtime?.videoModel ?? "wan2.7-t2v"}：提交任务会按成功生成的视频秒数计费。当前 4K 交付仍为模拟，不会调用 IMS。`
+              : "当前使用 Mock 与模拟交付，不产生云费用。"}
+          </div>
           {error && <div className="error-banner" role="alert">{error}</div>}
         </aside>
 
         <main className="creative-stage">
           <div className="stage-tabs"><span>1 · 指令</span><span className="active">2 · 分镜</span><span>3 · 剪辑</span><span>4 · 交付</span></div>
           <section className="preview-area">
-            <div className="video-frame">
-              {job?.output?.videoUrl ? <video controls src={job.output.videoUrl} /> : (
-                <>
-                  <div className="frame-toolbar"><span>{selectedShot ? `镜头 ${String(selectedShot.index + 1).padStart(2, "0")} · ${selectedShot.durationSeconds} 秒` : "16:9 预览"}</span><span>1920 × 1080</span></div>
-                  <div className="frame-copy"><strong>{job?.plan?.title ?? "等待创建视频任务"}</strong><span>{selectedShot?.prompt ?? "提交创作指令后，Agent 会规划分镜并生成候选。"}</span></div>
-                </>
+            <div className="preview-stack">
+              <div className="video-frame">
+                {previewUrl ? <video key={previewUrl} controls playsInline src={previewUrl} /> : (
+                  <>
+                    <div className="frame-toolbar"><span>{selectedShot ? `镜头 ${String(selectedShot.index + 1).padStart(2, "0")} · ${selectedShot.durationSeconds} 秒` : "16:9 预览"}</span><span>1920 × 1080</span></div>
+                    <div className="frame-copy"><strong>{job?.plan?.title ?? "等待创建视频任务"}</strong><span>{selectedShot?.prompt ?? "提交创作指令后，Agent 会规划分镜并生成候选。"}</span></div>
+                  </>
+                )}
+              </div>
+              {selectedShot && selectedShot.candidates.filter((candidate) => candidate.outputUrl).length > 1 && (
+                <div className="candidate-switcher" aria-label="视频候选">
+                  {selectedShot.candidates.filter((candidate) => candidate.outputUrl).map((candidate, index) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      className={candidate.id === selectedCandidate?.id ? "active" : ""}
+                      onClick={() => setPreviewCandidateId(candidate.id)}
+                    >
+                      候选 {index + 1}{candidate.id === selectedShot.selectedCandidateId ? " · 推荐" : ""}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </section>
@@ -301,7 +349,7 @@ export function App() {
             <div className="section-heading"><strong>分镜候选</strong><span>{job ? `${job.shots.filter((shot) => shot.selectedCandidateId).length} / ${job.shots.length} 已选择` : "尚未生成"}</span></div>
             <div className="shot-grid">
               {job?.shots.length ? job.shots.map((shot) => (
-                <button key={shot.id} type="button" className={`shot-card ${selectedShot?.id === shot.id ? "selected" : ""}`} onClick={() => setSelectedShotId(shot.id)}>
+                <button key={shot.id} type="button" className={`shot-card ${selectedShot?.id === shot.id ? "selected" : ""}`} onClick={() => { setSelectedShotId(shot.id); setPreviewCandidateId(undefined); }}>
                   <div className={`shot-visual shot-${shot.index % 3}`}><span>{shot.status === "completed" ? "✓" : "…"}</span></div>
                   <strong>{String(shot.index + 1).padStart(2, "0")} · {shot.prompt}</strong>
                   <small>{shot.durationSeconds} 秒 · {shot.candidates.length} 个候选 · {shot.status}</small>
@@ -326,7 +374,7 @@ export function App() {
           <div className="job-summary">
             <div><strong>{job ? `job_${job.id.slice(0, 8)}` : "尚无任务"}</strong><span className={`status ${job?.status ?? "idle"}`}>{job ? statusLabels[job.status] : "待创建"}</span></div>
             <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
-            <small>{job ? `更新于 ${new Date(job.updatedAt).toLocaleTimeString("zh-CN")}` : "Mock 模式可立即验证完整状态机"}</small>
+            <small>{job ? `更新于 ${new Date(job.updatedAt).toLocaleTimeString("zh-CN")}` : isRealGeneration ? "百炼真实生成 · 成功任务按量计费" : "Mock 模式可立即验证完整状态机"}</small>
           </div>
 
           <div className="section-heading"><strong>执行流水线</strong><span>{progress}%</span></div>
@@ -355,7 +403,9 @@ export function App() {
             )) ?? <div className="event-empty">创建任务后，这里显示可追溯事件。</div>}
           </div>
 
-          <div className="delivery-note">{job?.output ? `${job.output.deliveryMode === "cloud" ? "云端" : "模拟"}交付完成 · ${job.output.width} × ${job.output.height}` : "目标交付：4K MP4、1080P 母版、分镜参数与任务事件。"}</div>
+          <div className="delivery-note">{job?.output
+            ? `${activeJobIsReal ? "真实 Wan 素材已生成" : "模拟生成完成"} · ${job.output.deliveryMode === "cloud" ? "云端 4K 已交付" : "4K 交付待接入"}`
+            : "目标交付：真实 Wan 素材、4K MP4、1080P 母版、分镜参数与任务事件。"}</div>
         </aside>
       </div>
     </div>
