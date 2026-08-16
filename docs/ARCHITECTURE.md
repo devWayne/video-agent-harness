@@ -70,7 +70,7 @@ flowchart LR
 | Provider | Mock；Wan 2.7 T2V；2.7 已真实验证 | 增加 Wan 2.7 R2V/I2V Profile，以角色参考、首帧、尾帧和前序片段维持连续性；Wan 3.0 授权后再增加独立 Profile |
 | Evaluator | 首个成功候选 | VLM 多维评分与低置信度补抽 |
 | Delivery | OSS 转存、IMS 1080P 母版、IMS SR5 4K、原子清单 | 字幕、独立配音/BGM 与成片 QC |
-| Composition | 安全标题卡；《智慧城市的一天》6 场景模板；多段 AI 视频 timed clips；CSS/SVG 信息图；HyperFrames Core lint；官方 Player | 从已选 Wan candidates 自动构建 CompositionSpec；数据驱动 overlay cues；字幕、遮挡蒙版/跟踪、隔离 Render Worker |
+| Composition | 安全标题卡；《智慧城市的一天》6 场景模板；AI 人物数据动效模板；多段 AI 视频 timed clips；CSS/SVG 信息图；HyperFrames Core lint；官方 Player | 从已选 Wan candidates 自动构建 CompositionSpec；自动动作检测与数据驱动 overlay cues；字幕、遮挡蒙版/跟踪、隔离 Render Worker |
 | Operations | Bearer 鉴权、OpenAPI、健康/就绪、Prometheus gauge、成本预算 | 分布式 tracing、实际账单回填与告警 |
 | Storage | Node SQLite + OSS | PostgreSQL；BullMQ/Redis 或 Temporal 适配器 |
 

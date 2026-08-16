@@ -165,7 +165,7 @@ export const openApiDocument = {
         type: "object",
         required: ["title"],
         properties: {
-          template: { type: "string", enum: ["title-card", "smart-city-story"], default: "title-card" },
+          template: { type: "string", enum: ["title-card", "smart-city-story", "kinetic-character"], default: "title-card" },
           title: { type: "string", minLength: 1, maxLength: 100 },
           subtitle: { type: "string", maxLength: 220, default: "" },
           kicker: { type: "string", maxLength: 48, default: "VIDEO AGENT HARNESS" },

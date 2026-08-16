@@ -98,9 +98,9 @@ export function compileCompositionHtml(
   id: string,
   input: CreateCompositionPreviewInput,
 ): string {
-  return input.template === "smart-city-story"
-    ? compileSmartCityStoryHtml(id, input)
-    : compileTitleCardHtml(id, input);
+  if (input.template === "smart-city-story") return compileSmartCityStoryHtml(id, input);
+  if (input.template === "kinetic-character") return compileKineticCharacterHtml(id, input);
+  return compileTitleCardHtml(id, input);
 }
 
 function compileTitleCardHtml(
@@ -430,6 +430,111 @@ function compileBackgroundVideos(
         `<video id="${idPrefix}-${index + 1}" class="clip ${className}" data-start="${clip.startSeconds}" data-duration="${clip.durationSeconds}" data-media-start="${clip.mediaStartSeconds}" data-track-index="0" src="${escapeAttribute(clip.videoUrl)}" muted playsinline></video>`,
     )
     .join("\n    ");
+}
+
+function compileKineticCharacterHtml(
+  id: string,
+  input: CreateCompositionPreviewInput,
+): string {
+  const duration = input.durationSeconds;
+  const background = compileBackgroundVideos(input, "character-background", "character-background");
+  const finaleAt = Number(Math.max(5.8, duration - 3.2).toFixed(3));
+  const exitAt = Number(Math.max(finaleAt + 1.6, duration - 0.65).toFixed(3));
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>${escapeHtml(input.title)} · Kinetic Character</title>
+  <script src="/vendor/gsap-3.12.5.min.js"></script>
+  <style>
+    @font-face { font-family: "Noto Sans SC"; src: local("Noto Sans SC"); font-display: swap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 1920px; height: 1080px; overflow: hidden; background: #050b12; }
+    body { color: #f5fbff; font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }
+    #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #050b12; perspective: 1500px; }
+    .clip { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; }
+    .character-background { object-fit: cover; }
+    .overlay-canvas { position: absolute; inset: 0; overflow: hidden; transform-style: preserve-3d; }
+    .grade { position: absolute; inset: 0; background: linear-gradient(90deg,rgba(2,8,15,.08) 0%,rgba(2,8,15,.12) 42%,rgba(2,8,15,.82) 76%,rgba(2,8,15,.94) 100%); }
+    .topbar { position: absolute; left: 68px; right: 68px; top: 48px; display: flex; justify-content: space-between; align-items: center; color: rgba(225,246,255,.68); font-size: 15px; font-weight: 760; letter-spacing: .18em; }
+    .topbar span:first-child::before { content: ""; display: inline-block; width: 36px; height: 3px; margin: 0 14px 5px 0; border-radius: 20px; background: ${input.accentColor}; box-shadow: 0 0 20px ${input.accentColor}; }
+    .hero-copy { position: absolute; right: 86px; top: 152px; width: 690px; transform-origin: right center; }
+    .eyebrow { color: ${input.accentColor}; font-size: 21px; font-weight: 850; letter-spacing: .2em; text-transform: uppercase; }
+    h1 { margin-top: 20px; font-size: 74px; line-height: 1.05; letter-spacing: -.055em; font-weight: 860; text-wrap: balance; }
+    .subtitle { margin-top: 24px; max-width: 610px; color: rgba(229,244,252,.72); font-size: 25px; line-height: 1.5; }
+    .data-stack { position: absolute; right: 82px; top: 392px; width: 626px; display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; perspective: 1100px; }
+    .data-card { min-height: 154px; padding: 24px 26px; border: 1px solid rgba(183,241,255,.28); border-radius: 22px; background: rgba(4,17,28,.72); box-shadow: 0 24px 72px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.1); backdrop-filter: blur(20px); transform-style: preserve-3d; backface-visibility: hidden; }
+    .data-card.wide { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+    .data-label { color: rgba(218,240,250,.55); font-size: 15px; font-weight: 780; letter-spacing: .12em; }
+    .data-value { margin-top: 12px; font-size: 42px; font-weight: 880; letter-spacing: -.04em; }
+    .data-value em { color: ${input.accentColor}; font-size: 19px; font-style: normal; letter-spacing: 0; }
+    .micro-bars { display: flex; align-items: end; justify-content: end; gap: 8px; height: 78px; }
+    .micro-bars i { width: 12px; height: var(--h); border-radius: 9px; background: linear-gradient(180deg,#d6fbff,${input.accentColor}); box-shadow: 0 0 16px rgba(77,226,255,.35); transform-origin: bottom; }
+    .action-label { position: absolute; left: 74px; bottom: 78px; display: flex; align-items: center; gap: 16px; padding: 15px 20px; border: 1px solid rgba(210,248,255,.22); border-radius: 999px; color: rgba(237,250,255,.78); background: rgba(4,15,26,.54); backdrop-filter: blur(16px); font-size: 16px; font-weight: 780; letter-spacing: .1em; }
+    .action-label i { width: 10px; height: 10px; border-radius: 50%; background: ${input.accentColor}; box-shadow: 0 0 20px ${input.accentColor}; }
+    .kinetic-word { position: absolute; right: 64px; top: 320px; color: rgba(219,249,255,.94); font-size: 128px; line-height: .9; font-weight: 900; letter-spacing: -.07em; text-align: right; transform-style: preserve-3d; text-shadow: 0 0 36px rgba(68,219,255,.24); }
+    .kinetic-word small { display: block; margin-top: 28px; color: ${input.accentColor}; font-size: 21px; letter-spacing: .22em; }
+    .final-rule { position: absolute; right: 68px; top: 254px; width: 520px; height: 4px; border-radius: 20px; background: linear-gradient(90deg,transparent,${input.accentColor}); transform-origin: right; }
+    .speed-token { position: absolute; display: grid; place-items: center; width: 84px; height: 84px; border: 2px solid rgba(187,244,255,.68); border-radius: 50%; color: #e9fcff; background: rgba(9,42,57,.68); box-shadow: 0 0 34px rgba(74,225,255,.34); font-size: 16px; font-weight: 850; opacity: 0; }
+    .speed-token.a { left: 7%; top: 20%; } .speed-token.b { left: 34%; top: 67%; width: 108px; height: 108px; } .speed-token.c { left: 58%; top: 12%; width: 70px; height: 70px; }
+    .scan { position: absolute; left: -20%; width: 140%; height: 4px; top: 54%; opacity: 0; background: linear-gradient(90deg,transparent,${input.accentColor},#fff,transparent); box-shadow: 0 0 30px ${input.accentColor}; transform: rotate(-8deg); }
+    .vignette { position: absolute; inset: 0; box-shadow: inset 0 0 190px rgba(0,0,0,.58); }
+  </style>
+</head>
+<body>
+  <div id="stage" data-composition-id="${id}" data-start="0" data-width="1920" data-height="1080">
+    ${background}
+    <div id="kinetic-overlay" class="clip" data-start="0" data-duration="${duration}" data-track-index="2">
+      <div class="overlay-canvas">
+        <div class="grade"></div>
+        <div class="topbar"><span>${escapeHtml(input.kicker)}</span><span>URBAN INTELLIGENCE / LIVE</span></div>
+        <div class="hero-copy">
+          <div class="eyebrow">CITY SYSTEM OPERATOR</div>
+          <h1>${escapeHtml(input.title)}</h1>
+          ${input.subtitle ? `<p class="subtitle">${escapeHtml(input.subtitle)}</p>` : ""}
+        </div>
+        <div class="data-stack">
+          <div class="data-card"><div class="data-label">城市响应速度</div><div class="data-value">42<em> 秒</em></div></div>
+          <div class="data-card"><div class="data-label">系统在线率</div><div class="data-value">99.98<em>%</em></div></div>
+          <div class="data-card wide"><div><div class="data-label">实时决策流</div><div class="data-value">2.4<em>M / MIN</em></div></div><div class="micro-bars"><i style="--h:38%"></i><i style="--h:64%"></i><i style="--h:48%"></i><i style="--h:86%"></i><i style="--h:72%"></i><i style="--h:96%"></i></div></div>
+        </div>
+        <div class="action-label"><i></i>系统已接管 · 实时协同</div>
+        <div class="final-rule"></div>
+        <div class="kinetic-word">提前发生<small>DECISIONS BEFORE EVENTS</small></div>
+        <i class="speed-token a">AI</i><i class="speed-token b">DATA</i><i class="speed-token c">5G</i>
+        <div class="scan"></div><div class="vignette"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    var tl = gsap.timeline({ paused: true });
+    gsap.set(".hero-copy", { opacity: 0, x: 180, z: -280, rotationY: -18 });
+    gsap.set(".data-card", { opacity: 0, x: 340, z: -520, rotationY: -96, scale: .76 });
+    gsap.set(".action-label", { opacity: 0, x: -170 });
+    gsap.set(".kinetic-word", { opacity: 0, x: 360, z: -600, rotationY: -42, scale: .66 });
+    gsap.set(".final-rule", { scaleX: 0 });
+    tl.to(".hero-copy", { opacity: 1, x: 0, z: 0, rotationY: 0, duration: .72, ease: "expo.out" }, .28);
+    tl.fromTo(".hero-copy > *", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: .52, stagger: .1, ease: "power3.out" }, .42);
+    tl.fromTo(".scan", { opacity: 0, xPercent: -35 }, { opacity: .82, xPercent: 80, duration: .42, repeat: 1, yoyo: true, ease: "power4.inOut" }, 2.5);
+    tl.to(".data-card", { opacity: 1, x: 0, z: 0, rotationY: 0, scale: 1, duration: .66, stagger: .12, ease: "back.out(1.5)" }, 2.68);
+    tl.fromTo(".micro-bars i", { scaleY: 0 }, { scaleY: 1, duration: .52, stagger: .06, ease: "power3.out" }, 3.35);
+    tl.to(".action-label", { opacity: 1, x: 0, duration: .46, ease: "back.out(1.6)" }, 3.15);
+    tl.fromTo(".speed-token", { opacity: 0, x: -1250, y: 110, z: -680, rotationY: -520, scale: .35 }, { opacity: .72, x: 180, y: -60, z: 260, rotationY: 160, scale: 1.15, duration: .68, stagger: .08, ease: "power4.in" }, 4.75);
+    tl.to(".speed-token", { opacity: 0, x: 1600, y: -220, z: 800, rotationY: 640, scale: 1.7, duration: .36, stagger: .05, ease: "power4.in" }, 5.62);
+    tl.to(".hero-copy", { opacity: 0, x: 260, z: 360, rotationY: 22, filter: "blur(12px)", duration: .42, ease: "power4.in" }, ${Number((finaleAt - 0.5).toFixed(3))});
+    tl.to(".data-card", { opacity: 0, x: 520, z: 520, rotationY: 82, scale: 1.25, filter: "blur(12px)", duration: .38, stagger: .05, ease: "power4.in" }, ${Number((finaleAt - 0.42).toFixed(3))});
+    tl.to(".action-label", { opacity: 0, x: -190, duration: .3, ease: "power3.in" }, ${Number((finaleAt - 0.32).toFixed(3))});
+    tl.to(".final-rule", { scaleX: 1, duration: .58, ease: "power3.out" }, ${finaleAt});
+    tl.to(".kinetic-word", { opacity: 1, x: 0, z: 0, rotationY: 0, scale: 1, duration: .76, ease: "expo.out" }, ${Number((finaleAt + 0.08).toFixed(3))});
+    tl.to(".kinetic-word, .final-rule", { opacity: 0, x: 210, duration: .48, ease: "power3.in" }, ${exitAt});
+    tl.to({}, { duration: ${duration} }, 0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines[${JSON.stringify(id)}] = tl;
+  </script>
+</body>
+</html>`;
 }
 
 function escapeHtml(value: string): string {

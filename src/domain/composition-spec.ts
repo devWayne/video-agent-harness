@@ -18,7 +18,7 @@ const backgroundClipSchema = z.object({
 });
 
 export const createCompositionPreviewSchema = z.object({
-  template: z.enum(["title-card", "smart-city-story"]).default("title-card"),
+  template: z.enum(["title-card", "smart-city-story", "kinetic-character"]).default("title-card"),
   title: z.string().trim().min(1).max(100),
   subtitle: z.string().trim().max(220).default(""),
   kicker: z.string().trim().max(48).default("VIDEO AGENT HARNESS"),
@@ -54,6 +54,22 @@ export const createCompositionPreviewSchema = z.object({
       path: ["durationSeconds"],
       message: "Smart-city story duration must be at least 15 seconds",
     });
+  }
+  if (input.template === "kinetic-character") {
+    if (input.durationSeconds < 8 || input.durationSeconds > 15) {
+      context.addIssue({
+        code: "custom",
+        path: ["durationSeconds"],
+        message: "Kinetic character story duration must be between 8 and 15 seconds",
+      });
+    }
+    if (!input.backgroundVideoUrl && (input.backgroundClips?.length ?? 0) === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["backgroundVideoUrl"],
+        message: "Kinetic character story requires an AI background video",
+      });
+    }
   }
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HyperframesPreview } from "./HyperframesPreview";
 
 type WorkspaceMode = "wan" | "hyperframes";
-type CompositionTemplate = "title-card" | "smart-city-story";
+type CompositionTemplate = "title-card" | "smart-city-story" | "kinetic-character";
 
 interface CompositionPreview {
   id: string;
@@ -169,6 +169,7 @@ export function App() {
     return index < 0 ? 0 : Math.round((index / (stageOrder.length - 1)) * 100);
   }, [job]);
   const isSmartCityTemplate = compositionTemplate === "smart-city-story";
+  const isKineticCharacterTemplate = compositionTemplate === "kinetic-character";
 
   function changeCompositionTemplate(template: CompositionTemplate) {
     setCompositionTemplate(template);
@@ -180,6 +181,13 @@ export function App() {
       setCompositionDuration(24);
       setCompositionAccent("#4de2ff");
       setUseCurrentWanBackground(false);
+    } else if (template === "kinetic-character") {
+      setCompositionKicker("CITY PULSE");
+      setCompositionTitle("城市正在学会提前思考");
+      setCompositionSubtitle("当数据、空间与人的判断在同一秒完成协同。");
+      setCompositionDuration(10);
+      setCompositionAccent("#4de2ff");
+      setUseCurrentWanBackground(true);
     } else {
       setCompositionKicker("CITY OF TOMORROW");
       setCompositionTitle("杭州，向未来生长");
@@ -315,7 +323,7 @@ export function App() {
       <header className="topbar">
         <div className="brand-mark">VAH</div>
         <div>
-          <div className="project-name">{workspaceMode === "hyperframes" && isSmartCityTemplate ? "智慧城市的一天 · 多场景动效" : "城市品牌片 · 杭州未来感"}</div>
+          <div className="project-name">{workspaceMode === "hyperframes" ? isSmartCityTemplate ? "智慧城市的一天 · 多场景动效" : isKineticCharacterTemplate ? "城市系统工程师 · AI × 动效" : "城市品牌片 · 杭州未来感" : "城市品牌片 · 杭州未来感"}</div>
           <div className="project-meta">Video Agent Harness / production workspace</div>
         </div>
         <div className="top-actions">
@@ -409,6 +417,7 @@ export function App() {
               <label className="field-label" htmlFor="composition-template">创意模板 <span>结构化预设</span></label>
               <select id="composition-template" value={compositionTemplate} onChange={(event) => changeCompositionTemplate(event.target.value as CompositionTemplate)}>
                 <option value="smart-city-story">智慧城市 · 多场景故事</option>
+                <option value="kinetic-character">AI 人物 · 数据动效</option>
                 <option value="title-card">品牌标题卡</option>
               </select>
               <label className="field-label" htmlFor="composition-kicker">眉题 <span>品牌 / 栏目</span></label>
@@ -417,7 +426,7 @@ export function App() {
               <textarea id="composition-title" className="brief-input title-input" value={compositionTitle} onChange={(event) => setCompositionTitle(event.target.value)} maxLength={100} />
               <label className="field-label" htmlFor="composition-subtitle">副标题 <span>可选</span></label>
               <textarea id="composition-subtitle" className="brief-input subtitle-input" value={compositionSubtitle} onChange={(event) => setCompositionSubtitle(event.target.value)} maxLength={220} />
-              <label className="field-label" htmlFor="composition-background">背景视频 <span>{isSmartCityTemplate ? "可选 · 留空使用自生成城市视觉" : "留空则使用当前 Wan 候选"}</span></label>
+              <label className="field-label" htmlFor="composition-background">背景视频 <span>{isSmartCityTemplate ? "可选 · 留空使用自生成城市视觉" : isKineticCharacterTemplate ? "必填 · 可绑定当前 Wan 候选" : "留空则使用当前 Wan 候选"}</span></label>
               <input id="composition-background" className="text-input background-input" type="url" value={compositionBackgroundUrl} onChange={(event) => setCompositionBackgroundUrl(event.target.value)} placeholder={useCurrentWanBackground && previewUrl ? "已绑定当前 Wan 素材" : "https://…/shot.mp4"} />
               <label className="source-toggle">
                 <input type="checkbox" checked={useCurrentWanBackground} onChange={(event) => setUseCurrentWanBackground(event.target.checked)} disabled={!previewUrl} />
@@ -427,7 +436,7 @@ export function App() {
                 <div>
                   <label className="field-label" htmlFor="composition-duration">时长</label>
                   <select id="composition-duration" value={compositionDuration} onChange={(event) => setCompositionDuration(Number(event.target.value))}>
-                    {isSmartCityTemplate ? <><option value={15}>15 秒</option><option value={24}>24 秒</option><option value={30}>30 秒</option></> : <><option value={5}>5 秒</option><option value={8}>8 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option></>}
+                    {isSmartCityTemplate ? <><option value={15}>15 秒</option><option value={24}>24 秒</option><option value={30}>30 秒</option></> : isKineticCharacterTemplate ? <><option value={8}>8 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option></> : <><option value={5}>5 秒</option><option value={8}>8 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option></>}
                   </select>
                 </div>
                 {!isSmartCityTemplate && <div>
@@ -447,7 +456,7 @@ export function App() {
                   <input id="composition-accent" className="color-input" type="color" value={compositionAccent} onChange={(event) => setCompositionAccent(event.target.value)} />
                 </div>
               </div>
-              <div className="policy-note hyperframes-note">{isSmartCityTemplate ? "6 段城市故事由结构化模板生成：交通、制造、能源、安全与收束场景共享同一条 HyperFrames 时间线。" : "结构化参数由 Harness 编译为安全的 HyperFrames HTML；官方 Player 负责逐帧预览。"} 当前不会发起云渲染或额外计费。</div>
+              <div className="policy-note hyperframes-note">{isSmartCityTemplate ? "6 段城市故事由结构化模板生成：交通、制造、能源、安全与收束场景共享同一条 HyperFrames 时间线。" : isKineticCharacterTemplate ? "Wan 负责人物与场景运动，HyperFrames 按动作节拍叠加数据卡、飞入、翻转与收束标题。" : "结构化参数由 Harness 编译为安全的 HyperFrames HTML；官方 Player 负责逐帧预览。"} 当前不会发起云渲染或额外计费。</div>
             </>
           )}
           {error && <div className="error-banner" role="alert">{error}</div>}
@@ -494,6 +503,11 @@ export function App() {
                 ["04", "14:00 能源", "清洁能源 / 储能"],
                 ["05", "20:30 安全", "地图 / 协同响应"],
                 ["06", "城市收束", "四域协同"],
+              ] : isKineticCharacterTemplate ? [
+                ["01", "Wan 人物底片", "人物表演 / 动态运镜"],
+                ["02", "动作节拍", "操作界面 / 转身 / 城市推进"],
+                ["03", "数据图形", "翻转卡片 / 飞行 Token"],
+                ["04", "城市收束", "提前发生 / 品牌签名"],
               ] : [
                 ["01", "背景素材", compositionBackgroundUrl || useCurrentWanBackground && previewUrl ? "当前 Wan / URL 视频" : "纯色主题背景"],
                 ["02", "标题动效", `${compositionMotion} · ${compositionDuration} 秒`],
@@ -516,11 +530,11 @@ export function App() {
           </section>
 
           <section className="timeline-section">
-            <div className="timeline-ruler"><span /><span>00:00</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:08" : "00:05"}</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:16" : "00:10"}</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:24" : "00:15"}</span></div>
+            <div className="timeline-ruler"><span /><span>00:00</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:08" : isKineticCharacterTemplate && workspaceMode === "hyperframes" ? "00:03" : "00:05"}</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:16" : isKineticCharacterTemplate && workspaceMode === "hyperframes" ? "00:06" : "00:10"}</span><span>{isSmartCityTemplate && workspaceMode === "hyperframes" ? "00:24" : isKineticCharacterTemplate && workspaceMode === "hyperframes" ? "00:10" : "00:15"}</span></div>
             {workspaceMode === "hyperframes" ? (
               <>
                 <div className="timeline-track"><label>背景</label><div className="track-lane"><span className="video-clip hf-background" style={{ flex: compositionDuration }} /></div></div>
-                <div className="timeline-track"><label>动效</label><div className="track-lane">{isSmartCityTemplate ? ["开场", "交通", "智造", "能源", "安全", "收束"].map((label, index) => <span className={`video-clip hf-motion hf-scene-${index}`} style={{ flex: index === 0 || index === 5 ? 3 : 4 }} key={label}><b>{label}</b></span>) : <span className="video-clip hf-motion" style={{ flex: compositionDuration }}><b>HF · TITLE</b></span>}</div></div>
+                <div className="timeline-track"><label>动效</label><div className="track-lane">{isSmartCityTemplate ? ["开场", "交通", "智造", "能源", "安全", "收束"].map((label, index) => <span className={`video-clip hf-motion hf-scene-${index}`} style={{ flex: index === 0 || index === 5 ? 3 : 4 }} key={label}><b>{label}</b></span>) : isKineticCharacterTemplate ? ["标题", "数据卡", "飞行 Token", "收束"].map((label, index) => <span className={`video-clip hf-motion hf-scene-${index}`} style={{ flex: [2.6, 2.2, 1.6, 3.6][index] }} key={label}><b>{label}</b></span>) : <span className="video-clip hf-motion" style={{ flex: compositionDuration }}><b>HF · TITLE</b></span>}</div></div>
               </>
             ) : (
               <>
@@ -545,7 +559,7 @@ export function App() {
               <div className="section-heading"><strong>运行架构</strong><span>P0</span></div>
               <div className="pipeline composition-pipeline">
                 {[
-                  ["Harness 参数模型", isSmartCityTemplate ? "模板 / 场景 / 图层 / 品牌参数" : "标题 / 素材 / 品牌参数", true],
+                  ["Harness 参数模型", isSmartCityTemplate ? "模板 / 场景 / 图层 / 品牌参数" : isKineticCharacterTemplate ? "AI 底片 / 动作节拍 / 信息图层" : "标题 / 素材 / 品牌参数", true],
                   ["安全模板编译", "不接受任意 HTML 或脚本", Boolean(composition)],
                   ["HyperFrames Lint", composition ? `${composition.lint.warningCount} warning` : "等待编译", Boolean(composition)],
                   ["官方 Player 预览", "沙箱 iframe · 可播放 / seek", Boolean(composition)],

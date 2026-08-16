@@ -103,6 +103,29 @@ describe("HyperframesCompositionService", () => {
     expect(html).toContain('data-track-index="0"');
   });
 
+  it("compiles a kinetic character overlay over a generated AI video", async () => {
+    const service = new HyperframesCompositionService();
+    const preview = await service.createPreview({
+      template: "kinetic-character",
+      title: "城市正在学会提前思考",
+      subtitle: "人物表演由 Wan 生成，信息图形由 HyperFrames 精确编排。",
+      kicker: "CITY PULSE",
+      durationSeconds: 10,
+      backgroundVideoUrl: "https://assets.example.invalid/operator.mp4",
+      accentColor: "#4de2ff",
+    });
+
+    expect(preview).toMatchObject({
+      template: "kinetic-character",
+      durationSeconds: 10,
+      lint: { warningCount: 0, findings: [] },
+    });
+    const html = service.getPreviewHtml(preview.id);
+    expect(html).toContain("人物表演由 Wan 生成");
+    expect(html).toContain("系统已接管 · 实时协同");
+    expect(html).toContain('class="clip character-background"');
+  });
+
   it("rejects non-HTTPS media sources", async () => {
     await expect(
       new HyperframesCompositionService().createPreview({
