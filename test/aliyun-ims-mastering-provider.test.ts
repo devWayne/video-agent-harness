@@ -40,12 +40,14 @@ describe("AliyunImsMasteringProvider", () => {
     });
 
     const request = submitMediaProducingJob.mock.calls[0]![0];
-    expect(JSON.parse(request.outputMediaConfig!)).toMatchObject({
+    const outputMediaConfig = JSON.parse(request.outputMediaConfig!) as Record<string, unknown>;
+    expect(outputMediaConfig).toMatchObject({
       MediaURL: "https://bucket.oss-cn-beijing.aliyuncs.com/master-1080p.mp4",
       Width: 1920,
       Height: 1080,
-      Video: { Codec: "H.264", Fps: 30 },
+      Video: { Codec: "H.264", Fps: 30, Profile: "high", Crf: 18 },
     });
+    expect(outputMediaConfig).not.toHaveProperty("Bitrate");
     const timeline = JSON.parse(request.timeline!) as {
       VideoTracks: Array<{ VideoTrackClips: Array<Record<string, unknown>> }>;
       AudioTracks: Array<{ AudioTrackClips: Array<Record<string, unknown>> }>;
@@ -54,6 +56,10 @@ describe("AliyunImsMasteringProvider", () => {
       { TimelineIn: 0, TimelineOut: 5, In: 0, Out: 5 },
       { TimelineIn: 5, TimelineOut: 12, In: 0, Out: 7 },
     ]);
+    for (const clip of timeline.VideoTracks[0]!.VideoTrackClips) {
+      expect(clip).not.toHaveProperty("Width");
+      expect(clip).not.toHaveProperty("Height");
+    }
     expect(timeline.AudioTracks[0]!.AudioTrackClips).toHaveLength(2);
   });
 
@@ -77,5 +83,27 @@ describe("AliyunImsMasteringProvider", () => {
       status: "succeeded",
       outputUrl: "https://bucket.oss-cn-beijing.aliyuncs.com/master-1080p.mp4",
     });
+  });
+
+  it("rejects cross-region OSS timelines before a paid job is submitted", async () => {
+    const submitMediaProducingJob = vi.fn();
+    const provider = new AliyunImsMasteringProvider({
+      submitMediaProducingJob,
+      getMediaProducingJob: vi.fn(),
+    });
+
+    await expect(
+      provider.submit({
+        clientRequestId: "cross-region/master",
+        clips: [
+          {
+            mediaUrl: "https://bucket.oss-cn-shanghai.aliyuncs.com/shot.mp4",
+            durationSeconds: 5,
+          },
+        ],
+        outputMediaUrl: "https://bucket.oss-cn-beijing.aliyuncs.com/master.mp4",
+      }),
+    ).rejects.toMatchObject({ code: "OSS_REGION_MISMATCH", retryable: false });
+    expect(submitMediaProducingJob).not.toHaveBeenCalled();
   });
 });

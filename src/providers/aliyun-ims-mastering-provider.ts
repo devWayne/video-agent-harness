@@ -30,10 +30,17 @@ export class AliyunImsMasteringProvider implements MasteringProvider {
     if (request.clips.length === 0) {
       throw new MasteringProviderError("A master requires at least one clip", "EMPTY_TIMELINE", false);
     }
-    assertOssMediaUrl(request.outputMediaUrl, "outputMediaUrl");
+    const outputRegion = ossMediaRegion(request.outputMediaUrl, "outputMediaUrl");
     let cursor = 0;
     const videoTrackClips = request.clips.map((clip) => {
-      assertOssMediaUrl(clip.mediaUrl, "clip.mediaUrl");
+      const clipRegion = ossMediaRegion(clip.mediaUrl, "clip.mediaUrl");
+      if (clipRegion !== outputRegion) {
+        throw new MasteringProviderError(
+          "All IMS mastering inputs and outputs must use the same OSS region",
+          "OSS_REGION_MISMATCH",
+          false,
+        );
+      }
       const timelineIn = cursor;
       cursor += clip.durationSeconds;
       return {
@@ -43,10 +50,6 @@ export class AliyunImsMasteringProvider implements MasteringProvider {
         Out: clip.durationSeconds,
         TimelineIn: timelineIn,
         TimelineOut: cursor,
-        Width: 1,
-        Height: 1,
-        X: 0,
-        Y: 0,
       };
     });
     const audioTrackClips = videoTrackClips.map(({ MediaURL, In, Out, TimelineIn, TimelineOut }) => ({
@@ -69,7 +72,6 @@ export class AliyunImsMasteringProvider implements MasteringProvider {
           MediaURL: request.outputMediaUrl,
           Width: 1920,
           Height: 1080,
-          Bitrate: 5000,
           Video: { Codec: "H.264", Fps: 30, Profile: "high", Crf: 18 },
         }),
         editingProduceConfig: JSON.stringify({
@@ -140,13 +142,15 @@ function normalizeStatus(status: string): MasteringTask["status"] {
   }
 }
 
-function assertOssMediaUrl(value: string, field: string): void {
+function ossMediaRegion(value: string, field: string): string {
   const url = new URL(value);
-  if (url.protocol !== "https:" || !url.hostname.includes(".oss-")) {
+  const match = url.hostname.match(/\.oss-([a-z0-9-]+)\.aliyuncs\.com$/);
+  if (url.protocol !== "https:" || !match?.[1]) {
     throw new MasteringProviderError(
-      `${field} must be an HTTPS OSS media URL`,
+      `${field} must be a public regional HTTPS OSS media URL`,
       "INVALID_OSS_MEDIA_URL",
       false,
     );
   }
+  return match[1];
 }

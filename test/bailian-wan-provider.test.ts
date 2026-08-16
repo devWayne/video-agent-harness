@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BailianWanProvider } from "../src/providers/bailian-wan-provider.js";
 
 describe("BailianWanProvider", () => {
-  it("submits a Wan 3.0 asynchronous 16:9 1080P task", async () => {
+  it("submits a documented Wan 2.7 asynchronous 16:9 1080P task", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ output: { task_id: "task-123", task_status: "PENDING" } }), {
         status: 200,
@@ -12,7 +12,7 @@ describe("BailianWanProvider", () => {
     const provider = new BailianWanProvider({
       baseUrl: "https://workspace.cn-beijing.maas.aliyuncs.com/api/v1/",
       apiKey: "secret-for-test",
-      model: "wan3.0-video",
+      model: "wan2.7-t2v",
       fetch: fetchMock,
     });
 
@@ -23,7 +23,9 @@ describe("BailianWanProvider", () => {
       resolution: "1080P",
       ratio: "16:9",
       generateAudio: true,
-      referenceUrls: [],
+      references: [
+        { type: "audio", url: "https://assets.example.invalid/narration.mp3" },
+      ],
     });
 
     expect(task).toEqual({ provider: "bailian-wan", taskId: "task-123", status: "submitted" });
@@ -38,10 +40,34 @@ describe("BailianWanProvider", () => {
     });
     expect(typeof init?.body).toBe("string");
     expect(JSON.parse(init!.body as string)).toEqual({
-      model: "wan3.0-video",
-      input: { prompt: "电影感城市夜景" },
-      parameters: { resolution: "1080P", ratio: "16:9", duration: 5, audio: true },
+      model: "wan2.7-t2v",
+      input: {
+        prompt: "电影感城市夜景",
+        audio_url: "https://assets.example.invalid/narration.mp3",
+      },
+      parameters: { resolution: "1080P", ratio: "16:9", duration: 5 },
     });
+  });
+
+  it("rejects an image reference instead of sending an invalid T2V request", async () => {
+    const provider = new BailianWanProvider({
+      baseUrl: "https://workspace.example/api/v1",
+      apiKey: "secret-for-test",
+      model: "wan2.7-t2v",
+      fetch: vi.fn(),
+    });
+
+    await expect(
+      provider.submit({
+        clientRequestId: "job-1/shot-1/candidate-1",
+        prompt: "电影感城市夜景",
+        durationSeconds: 5,
+        resolution: "1080P",
+        ratio: "16:9",
+        generateAudio: true,
+        references: [{ type: "image", url: "https://assets.example.invalid/frame.png" }],
+      }),
+    ).rejects.toMatchObject({ code: "WAN_T2V_REFERENCE_TYPE_NOT_SUPPORTED" });
   });
 
   it("normalizes a successful task result", async () => {

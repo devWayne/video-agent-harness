@@ -190,7 +190,7 @@ export class WorkflowEngine {
         resolution: "1080P",
         ratio: "16:9",
         generateAudio: true,
-        referenceUrls: job.request.references.map((reference) => reference.url),
+        references: job.request.references,
       },
       signal,
     );

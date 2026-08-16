@@ -19,6 +19,9 @@
 - `AliyunImsUpscaleProvider`，负责提交、轮询、状态归一化和 OSS 输出定位。
 - 官方 TypeScript SDK 客户端工厂，使用阿里云默认凭据链。
 - SR5 4K 请求结构和成功响应单元测试。
+- IMS 1080P 母版使用主视频轨与同步音频轨，输出固定 1920×1080、H.264 High、30 fps、CRF 18。
+- 母版不同时传 `Bitrate` 与 `Crf`，也不把未定义的 `Width/Height=1` 写入素材片段；这些约束有回归测试。
+- 启动时强制 IMS、OSS 地域一致且使用官方公网地域端点；跨地域时间线在提交付费任务前被拒绝。
 
 ## 云端资源状态（2026-08-16）
 
@@ -40,3 +43,7 @@ ALIYUN_IMS_TEMPLATE_4K=S00000004-401070
 ```
 
 本地可以通过忽略文件提供 `ALIBABA_CLOUD_ACCESS_KEY_ID` 与 `ALIBABA_CLOUD_ACCESS_KEY_SECRET`；生产环境应使用 RAM 角色或 STS，不能把 AccessKey 写入仓库。
+
+母版合成接口与参数依据：<https://help.aliyun.com/en/ims/developer-reference/api-ice-2020-11-09-submitmediaproducingjob>、<https://help.aliyun.com/en/ims/developer-reference/timeline-configuration-description>、<https://help.aliyun.com/en/ims/developer-reference/clip-composition-parameter-description>。
+
+公开计费页当前列出的中国内地 4K 超分标准版价格为 0.014 元/帧；按 30 fps 换算约 0.42 元/输出秒。本地预算使用该换算值，实际 SR5 模板档位、订阅折扣、OSS 与流量费用以控制台账单为准：<https://help.aliyun.com/zh/ims/on-demand-media-processing-3>。

@@ -7,7 +7,11 @@ export interface VideoGenerationRequest {
   resolution: "480P" | "720P" | "1080P";
   ratio: "16:9" | "adaptive";
   generateAudio: boolean;
-  referenceUrls: string[];
+  references: Array<{
+    type: "image" | "video" | "audio";
+    url: string;
+    purpose?: string | undefined;
+  }>;
 }
 
 export interface SubmittedProviderTask {

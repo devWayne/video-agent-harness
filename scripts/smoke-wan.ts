@@ -23,7 +23,7 @@ const provider = new BailianWanProvider({
 });
 
 console.log(
-  `Submitting ${environment.BAILIAN_WAN_MODEL} smoke task: ${environment.WAN_SMOKE_DURATION_SECONDS}s, ${environment.WAN_SMOKE_RESOLUTION}, 16:9, audio disabled`,
+  `Submitting ${environment.BAILIAN_WAN_MODEL} smoke task: ${environment.WAN_SMOKE_DURATION_SECONDS}s, ${environment.WAN_SMOKE_RESOLUTION}, 16:9, model-generated audio`,
 );
 const submitted = await provider.submit({
   clientRequestId: `smoke-${Date.now()}`,
@@ -32,8 +32,8 @@ const submitted = await provider.submit({
   durationSeconds: environment.WAN_SMOKE_DURATION_SECONDS,
   ratio: "16:9",
   resolution: environment.WAN_SMOKE_RESOLUTION,
-  generateAudio: false,
-  referenceUrls: [],
+  generateAudio: true,
+  references: [],
 });
 
 console.log(`Wan task accepted: ${submitted.taskId}`);

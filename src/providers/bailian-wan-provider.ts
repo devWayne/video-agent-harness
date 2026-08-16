@@ -63,13 +63,39 @@ export class BailianWanProvider implements VideoProvider {
     request: VideoGenerationRequest,
     signal?: AbortSignal,
   ): Promise<SubmittedProviderTask> {
-    if (request.referenceUrls.length > 0) {
+    if (!/^wan2\.7-t2v(?:-|$)/.test(this.#model)) {
       throw new VideoProviderError(
-        "Wan reference media fields are not enabled until the selected model schema is verified",
-        "REFERENCE_MEDIA_NOT_CONFIGURED",
+        `The configured model ${this.#model} does not have a verified request profile`,
+        "WAN_MODEL_PROFILE_NOT_VERIFIED",
         false,
       );
     }
+    if (!request.generateAudio) {
+      throw new VideoProviderError(
+        "Wan 2.7 generates matching audio when audio_url is omitted and has no verified silent-output switch",
+        "WAN_SILENT_OUTPUT_NOT_SUPPORTED",
+        false,
+      );
+    }
+    const unsupportedReferences = request.references.filter(
+      (reference) => reference.type !== "audio",
+    );
+    if (unsupportedReferences.length > 0) {
+      throw new VideoProviderError(
+        "Wan 2.7 text-to-video accepts text and one optional audio reference; use an I2V/R2V provider for image or video references",
+        "WAN_T2V_REFERENCE_TYPE_NOT_SUPPORTED",
+        false,
+      );
+    }
+    const audioReferences = request.references.filter((reference) => reference.type === "audio");
+    if (audioReferences.length > 1) {
+      throw new VideoProviderError(
+        "Wan 2.7 text-to-video accepts at most one audio reference",
+        "WAN_T2V_TOO_MANY_AUDIO_REFERENCES",
+        false,
+      );
+    }
+    const audioReference = audioReferences[0];
 
     const response = await this.#fetch(
       `${this.#baseUrl}/services/aigc/video-generation/video-synthesis`,
@@ -82,12 +108,14 @@ export class BailianWanProvider implements VideoProvider {
         },
         body: JSON.stringify({
           model: this.#model,
-          input: { prompt: request.prompt },
+          input: {
+            prompt: request.prompt,
+            ...(audioReference ? { audio_url: audioReference.url } : {}),
+          },
           parameters: {
             resolution: request.resolution,
             ratio: request.ratio,
             duration: request.durationSeconds,
-            ...(request.generateAudio ? { audio: true } : {}),
           },
         }),
         ...(signal ? { signal } : {}),

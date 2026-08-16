@@ -75,6 +75,20 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
     if (config.UPSCALE_PROVIDER !== "aliyun-ims") {
       throw new Error("DELIVERY_MODE=cloud requires UPSCALE_PROVIDER=aliyun-ims");
     }
+    const expectedOssRegion = `oss-${config.ALIYUN_IMS_REGION}`;
+    if (config.ALIYUN_OSS_REGION !== expectedOssRegion) {
+      throw new Error(
+        `Cloud delivery requires OSS and IMS in the same region: expected ALIYUN_OSS_REGION=${expectedOssRegion}`,
+      );
+    }
+    const endpoint = config.ALIYUN_OSS_ENDPOINT.includes("://")
+      ? new URL(config.ALIYUN_OSS_ENDPOINT)
+      : new URL(`https://${config.ALIYUN_OSS_ENDPOINT}`);
+    if (endpoint.hostname !== `${expectedOssRegion}.aliyuncs.com`) {
+      throw new Error(
+        `Cloud delivery requires the public regional OSS endpoint ${expectedOssRegion}.aliyuncs.com`,
+      );
+    }
   }
 
   return {

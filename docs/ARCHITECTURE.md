@@ -9,7 +9,7 @@ flowchart LR
   Service --> Queue["WorkflowDispatcher"]
   Queue --> Workflow["WorkflowEngine"]
   Workflow --> Director["Pi / Deterministic Director"]
-  Workflow --> Provider["Wan 2.7 / Wan 3.0 / Mock Provider"]
+  Workflow --> Provider["Wan 2.7 / Mock / future model profiles"]
   Workflow --> Evaluator["Candidate Evaluator"]
   Workflow --> Store["MediaAssetStore"]
   Store --> OSS["Owned OSS Assets"]
@@ -37,9 +37,9 @@ flowchart LR
 
 | 层 | 当前实现 | 下一阶段 |
 | --- | --- | --- |
-| Director | 确定性分镜；Pi 工具提交适配器 | 接入百炼文本模型，增加脚本/角色 Bible/视觉连续性 |
+| Director | 确定性分镜；Pi Agent Core 工具提交适配器；结构与时长契约测试 | 接入独立百炼文本模型 Key，增加脚本/角色 Bible/视觉连续性 |
 | Workflow | 状态机、逐任务检查点、跨进程恢复、取消、显式重试 | 持久化队列、退避重试、供应商回调、镜头级重做 |
-| Provider | Mock；Wan 2.7/3.0 可配置；2.7 已真实验证 | 参考媒体字段、结果转存、Seedance 2.5 |
+| Provider | Mock；Wan 2.7 T2V；2.7 已真实验证 | 为 Wan 3.0、I2V/R2V 和 Seedance 2.5 分别增加经过官方契约验证的模型 Profile |
 | Evaluator | 首个成功候选 | VLM 多维评分与低置信度补抽 |
 | Delivery | OSS 转存、IMS 1080P 母版、IMS SR5 4K、原子清单 | 字幕、独立配音/BGM 与成片 QC |
 | Operations | Bearer 鉴权、OpenAPI、健康/就绪、Prometheus gauge、成本预算 | 分布式 tracing、实际账单回填与告警 |
