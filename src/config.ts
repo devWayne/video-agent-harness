@@ -25,10 +25,17 @@ const envSchema = z.object({
   BAILIAN_BASE_URL: optionalNonEmptyString,
   BAILIAN_API_KEY: optionalNonEmptyString,
   BAILIAN_WAN_MODEL: z.string().default("wan2.7-t2v"),
+  DELIVERY_MODE: z.enum(["simulation", "cloud"]).default("simulation"),
   UPSCALE_PROVIDER: z.enum(["none", "aliyun-ims"]).default("none"),
   ALIYUN_IMS_REGION: z.string().default("cn-beijing"),
   ALIYUN_IMS_ENDPOINT: optionalNonEmptyString,
   ALIYUN_IMS_TEMPLATE_4K: z.string().default("S00000004-401070"),
+  ALIYUN_OSS_REGION: z.string().default("oss-cn-beijing"),
+  ALIYUN_OSS_ENDPOINT: z.string().default("oss-cn-beijing.aliyuncs.com"),
+  ALIYUN_OSS_BUCKET: optionalNonEmptyString,
+  ALIYUN_OSS_PREFIX: z.string().default("video-agent-harness"),
+  MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES: z.string().default(".aliyuncs.com"),
+  MEDIA_IMPORT_MAX_BYTES: z.coerce.number().int().min(1).default(2 * 1024 * 1024 * 1024),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -53,8 +60,20 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
     throw new Error("DIRECTOR_MODE=pi requires DIRECTOR_BASE_URL, DIRECTOR_API_KEY");
   }
 
+  if (config.DELIVERY_MODE === "cloud") {
+    if (!config.ALIYUN_OSS_BUCKET) {
+      throw new Error("DELIVERY_MODE=cloud requires ALIYUN_OSS_BUCKET");
+    }
+    if (config.UPSCALE_PROVIDER !== "aliyun-ims") {
+      throw new Error("DELIVERY_MODE=cloud requires UPSCALE_PROVIDER=aliyun-ims");
+    }
+  }
+
   return {
     ...config,
     DATA_DIR: resolve(config.DATA_DIR),
+    MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES: config.MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES.split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0),
   };
 }

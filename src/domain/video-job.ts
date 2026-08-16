@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import type { StoredMediaAsset } from "./media-asset-store.js";
 
 export const referenceAssetSchema = z.object({
   type: z.enum(["image", "video", "audio"]),
@@ -22,6 +23,9 @@ export type VideoJobStatus =
   | "planning"
   | "generating"
   | "evaluating"
+  | "persisting"
+  | "mastering"
+  | "upscaling"
   | "composing"
   | "completed"
   | "failed"
@@ -60,9 +64,36 @@ export interface VideoShot extends ShotPlanItem {
 
 export interface VideoJobOutput {
   manifestUrl: string;
+  deliveryMode: "simulation" | "cloud";
   videoUrl?: string;
+  storageUri?: string;
+  masterVideoUrl?: string;
   width: 3840;
   height: 2160;
+}
+
+export interface DeliveryProviderTask {
+  provider: string;
+  taskId: string;
+  status: "submitted" | "running" | "succeeded" | "failed";
+  outputUrl?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export interface SelectedStoredAsset extends StoredMediaAsset {
+  shotId: string;
+  candidateId: string;
+  durationSeconds: number;
+}
+
+export interface VideoDeliveryState {
+  mode: "simulation" | "cloud";
+  assets: SelectedStoredAsset[];
+  masterTarget?: StoredMediaAsset;
+  masterTask?: DeliveryProviderTask;
+  upscaleTarget?: StoredMediaAsset;
+  upscaleTask?: DeliveryProviderTask;
 }
 
 export interface VideoJobError {
@@ -80,6 +111,7 @@ export interface VideoJob {
   updatedAt: string;
   plan?: VideoPlan;
   shots: VideoShot[];
+  delivery?: VideoDeliveryState;
   output?: VideoJobOutput;
   error?: VideoJobError;
 }
@@ -88,7 +120,10 @@ const transitions: Record<VideoJobStatus, readonly VideoJobStatus[]> = {
   queued: ["planning", "cancelled", "failed"],
   planning: ["generating", "cancelled", "failed"],
   generating: ["evaluating", "cancelled", "failed"],
-  evaluating: ["composing", "cancelled", "failed"],
+  evaluating: ["persisting", "composing", "cancelled", "failed"],
+  persisting: ["mastering", "cancelled", "failed"],
+  mastering: ["upscaling", "cancelled", "failed"],
+  upscaling: ["completed", "cancelled", "failed"],
   composing: ["completed", "cancelled", "failed"],
   completed: [],
   failed: [],
@@ -129,19 +164,4 @@ export function transitionVideoJob(
 
 export function isTerminalStatus(status: VideoJobStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
-}
-
-export function requeueInterruptedVideoJob(job: VideoJob, now = new Date()): VideoJob {
-  if (isTerminalStatus(job.status)) throw new Error(`Cannot requeue terminal job ${job.id}`);
-  const requeued: VideoJob = {
-    ...job,
-    status: "queued",
-    shots: [],
-    version: job.version + 1,
-    updatedAt: now.toISOString(),
-  };
-  delete requeued.plan;
-  delete requeued.output;
-  delete requeued.error;
-  return requeued;
 }

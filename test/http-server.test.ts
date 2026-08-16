@@ -3,8 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { FirstSuccessfulCandidateEvaluator } from "../src/application/candidate-evaluator.js";
-import { ManifestComposer } from "../src/application/composer.js";
+import { ManifestDeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import { DeterministicDirector } from "../src/application/director.js";
+import { ManifestWriter } from "../src/application/manifest-writer.js";
 import { VideoJobService } from "../src/application/video-job-service.js";
 import { WorkflowDispatcher } from "../src/application/workflow-dispatcher.js";
 import { WorkflowEngine } from "../src/application/workflow-engine.js";
@@ -28,7 +29,7 @@ describe("video job HTTP API", () => {
       director: new DeterministicDirector(),
       provider: new MockVideoProvider(0),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
-      composer: new ManifestComposer(dataDirectory),
+      deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 2,
       pollIntervalMs: 1,
       providerTimeoutMs: 1_000,

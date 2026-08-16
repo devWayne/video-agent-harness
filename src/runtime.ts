@@ -1,30 +1,37 @@
 import { join } from "node:path";
 import { FirstSuccessfulCandidateEvaluator } from "./application/candidate-evaluator.js";
-import { ManifestComposer } from "./application/composer.js";
+import {
+  CloudDeliveryPipeline,
+  ManifestDeliveryPipeline,
+  type DeliveryPipeline,
+} from "./application/delivery-pipeline.js";
 import { DeterministicDirector, PiDirector, type Director } from "./application/director.js";
+import { ManifestWriter } from "./application/manifest-writer.js";
 import { createOpenAiCompatiblePiFactory } from "./application/pi-agent-factory.js";
 import { VideoJobService } from "./application/video-job-service.js";
 import { WorkflowDispatcher } from "./application/workflow-dispatcher.js";
 import { WorkflowEngine } from "./application/workflow-engine.js";
 import type { AppConfig } from "./config.js";
-import type { UpscaleProvider } from "./domain/upscale-provider.js";
 import type { VideoProvider } from "./domain/video-provider.js";
 import { SqliteVideoJobRepository } from "./infrastructure/sqlite-video-job-repository.js";
 import { createAliyunImsClient } from "./providers/aliyun-ims-client.js";
+import { AliyunImsMasteringProvider } from "./providers/aliyun-ims-mastering-provider.js";
 import { AliyunImsUpscaleProvider } from "./providers/aliyun-ims-upscale-provider.js";
+import { createLazyAliyunOssClient } from "./providers/aliyun-oss-client.js";
+import { AliyunOssMediaAssetStore } from "./providers/aliyun-oss-media-asset-store.js";
 import { BailianWanProvider } from "./providers/bailian-wan-provider.js";
 import { MockVideoProvider } from "./providers/mock-video-provider.js";
 
 export function createRuntime(config: AppConfig) {
   const repository = new SqliteVideoJobRepository(join(config.DATA_DIR, "video-jobs.sqlite"));
   const provider = createProvider(config);
-  const upscaleProvider = createUpscaleProvider(config);
+  const deliveryPipeline = createDeliveryPipeline(config);
   const workflow = new WorkflowEngine({
     repository,
     director: createDirector(config),
     provider,
     evaluator: new FirstSuccessfulCandidateEvaluator(),
-    composer: new ManifestComposer(config.DATA_DIR),
+    deliveryPipeline,
     candidatesPerShot: config.SHOT_CANDIDATES,
     pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
     providerTimeoutMs: config.PROVIDER_TIMEOUT_MS,
@@ -32,17 +39,45 @@ export function createRuntime(config: AppConfig) {
   const dispatcher = new WorkflowDispatcher(workflow);
   const service = new VideoJobService(repository, dispatcher);
 
-  return { repository, provider, upscaleProvider, workflow, dispatcher, service };
+  return { repository, provider, deliveryPipeline, workflow, dispatcher, service };
 }
 
-function createUpscaleProvider(config: AppConfig): UpscaleProvider | undefined {
-  if (config.UPSCALE_PROVIDER === "none") return undefined;
-  return new AliyunImsUpscaleProvider({
-    client: createAliyunImsClient({
-      region: config.ALIYUN_IMS_REGION,
-      ...(config.ALIYUN_IMS_ENDPOINT ? { endpoint: config.ALIYUN_IMS_ENDPOINT } : {}),
+function createDeliveryPipeline(config: AppConfig): DeliveryPipeline {
+  const manifestWriter = new ManifestWriter(config.DATA_DIR);
+  if (config.DELIVERY_MODE === "simulation") {
+    return new ManifestDeliveryPipeline(manifestWriter);
+  }
+  if (!config.ALIYUN_OSS_BUCKET || config.UPSCALE_PROVIDER !== "aliyun-ims") {
+    throw new Error("Cloud delivery configuration was not validated");
+  }
+  const iceClient = createAliyunImsClient({
+    region: config.ALIYUN_IMS_REGION,
+    ...(config.ALIYUN_IMS_ENDPOINT ? { endpoint: config.ALIYUN_IMS_ENDPOINT } : {}),
+  });
+  const ossClient = createLazyAliyunOssClient({
+    region: config.ALIYUN_OSS_REGION,
+    bucket: config.ALIYUN_OSS_BUCKET,
+    endpoint: config.ALIYUN_OSS_ENDPOINT,
+  });
+  return new CloudDeliveryPipeline({
+    assetStore: new AliyunOssMediaAssetStore({
+      client: ossClient,
+      bucket: config.ALIYUN_OSS_BUCKET,
+      endpoint: config.ALIYUN_OSS_ENDPOINT,
+      allowedSourceHostSuffixes: config.MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES,
+      maxBytes: config.MEDIA_IMPORT_MAX_BYTES,
     }),
-    templateId: config.ALIYUN_IMS_TEMPLATE_4K,
+    masteringProvider: new AliyunImsMasteringProvider(iceClient),
+    upscaleProvider: new AliyunImsUpscaleProvider({
+      client: iceClient,
+      templateId: config.ALIYUN_IMS_TEMPLATE_4K,
+    }),
+    manifestWriter,
+    bucket: config.ALIYUN_OSS_BUCKET,
+    endpoint: config.ALIYUN_OSS_ENDPOINT,
+    objectPrefix: config.ALIYUN_OSS_PREFIX,
+    pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
+    timeoutMs: config.PROVIDER_TIMEOUT_MS,
   });
 }
 

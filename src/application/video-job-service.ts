@@ -2,7 +2,6 @@ import {
   createVideoJob,
   createVideoJobSchema,
   isTerminalStatus,
-  requeueInterruptedVideoJob,
   transitionVideoJob,
   type CreateVideoJobInput,
   type VideoJob,
@@ -47,12 +46,13 @@ export class VideoJobService {
       "planning",
       "generating",
       "evaluating",
+      "persisting",
+      "mastering",
+      "upscaling",
       "composing",
     ]);
     for (const job of jobs) {
-      const queued = job.status === "queued" ? job : requeueInterruptedVideoJob(job);
-      if (queued !== job) await this.repository.save(queued);
-      this.dispatcher.enqueue(queued.id);
+      this.dispatcher.enqueue(job.id);
     }
     return jobs.length;
   }

@@ -4,10 +4,12 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { FirstSuccessfulCandidateEvaluator } from "../src/application/candidate-evaluator.js";
-import { ManifestComposer } from "../src/application/composer.js";
+import { ManifestDeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import { DeterministicDirector } from "../src/application/director.js";
+import { ManifestWriter } from "../src/application/manifest-writer.js";
 import { WorkflowEngine } from "../src/application/workflow-engine.js";
 import { createVideoJob, createVideoJobSchema } from "../src/domain/video-job.js";
+import type { VideoProvider } from "../src/domain/video-provider.js";
 import { SqliteVideoJobRepository } from "../src/infrastructure/sqlite-video-job-repository.js";
 import { MockVideoProvider } from "../src/providers/mock-video-provider.js";
 
@@ -27,7 +29,7 @@ describe("WorkflowEngine", () => {
       director: new DeterministicDirector(),
       provider: new MockVideoProvider(0),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
-      composer: new ManifestComposer(dataDirectory),
+      deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 2,
       pollIntervalMs: 1,
       providerTimeoutMs: 1_000,
@@ -44,12 +46,87 @@ describe("WorkflowEngine", () => {
     expect(completed?.shots).toHaveLength(2);
     expect(completed?.shots.every((shot) => shot.candidates.length === 2)).toBe(true);
     expect(completed?.shots.every((shot) => shot.selectedCandidateId)).toBe(true);
-    expect(completed?.output).toMatchObject({ width: 3840, height: 2160 });
+    expect(completed?.output).toMatchObject({
+      deliveryMode: "simulation",
+      width: 3840,
+      height: 2160,
+    });
+    expect(completed?.delivery?.mode).toBe("simulation");
     const manifest = JSON.parse(
       await readFile(fileURLToPath(completed!.output!.manifestUrl), "utf8"),
     ) as { canvas: { width: number; height: number }; shots: unknown[] };
     expect(manifest.canvas).toEqual({ width: 3840, height: 2160, aspectRatio: "16:9" });
     expect(manifest.shots).toHaveLength(2);
+    repository.close();
+  });
+
+  it("resumes a submitted provider task without paying for a duplicate generation", async () => {
+    const dataDirectory = await mkdtemp(join(tmpdir(), "video-agent-harness-resume-"));
+    temporaryDirectories.push(dataDirectory);
+    const repository = new SqliteVideoJobRepository(":memory:");
+    let submitCalls = 0;
+    let getTaskCalls = 0;
+    const provider: VideoProvider = {
+      name: "recoverable-provider",
+      submit: async () => {
+        submitCalls += 1;
+        return { provider: "recoverable-provider", taskId: "unexpected", status: "submitted" };
+      },
+      getTask: async (taskId) => {
+        getTaskCalls += 1;
+        return {
+          provider: "recoverable-provider",
+          taskId,
+          status: "succeeded",
+          outputUrl: "https://provider.example/resumed.mp4",
+        };
+      },
+    };
+    const workflow = new WorkflowEngine({
+      repository,
+      director: new DeterministicDirector(),
+      provider,
+      evaluator: new FirstSuccessfulCandidateEvaluator(),
+      deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
+      candidatesPerShot: 1,
+      pollIntervalMs: 1,
+      providerTimeoutMs: 1_000,
+    });
+    const created = createVideoJob(
+      createVideoJobSchema.parse({ brief: "断点恢复测试视频", durationSeconds: 5 }),
+    );
+    await repository.save({
+      ...created,
+      status: "generating",
+      plan: {
+        title: "断点恢复",
+        creativeDirection: "测试",
+        shots: [{ id: "shot-01", index: 0, prompt: "镜头", durationSeconds: 5 }],
+      },
+      shots: [
+        {
+          id: "shot-01",
+          index: 0,
+          prompt: "镜头",
+          durationSeconds: 5,
+          status: "generating",
+          candidates: [
+            {
+              id: "shot-01-candidate-1",
+              provider: "recoverable-provider",
+              providerTaskId: "existing-task",
+              status: "submitted",
+            },
+          ],
+        },
+      ],
+    });
+
+    await workflow.run(created.id);
+
+    expect(submitCalls).toBe(0);
+    expect(getTaskCalls).toBe(1);
+    expect((await repository.findById(created.id))?.status).toBe("completed");
     repository.close();
   });
 });

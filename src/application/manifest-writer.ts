@@ -1,16 +1,12 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { VideoJob, VideoJobOutput } from "../domain/video-job.js";
+import type { VideoDeliveryState, VideoJob } from "../domain/video-job.js";
 
-export interface Composer {
-  compose(job: VideoJob): Promise<VideoJobOutput>;
-}
-
-export class ManifestComposer implements Composer {
+export class ManifestWriter {
   constructor(private readonly dataDirectory: string) {}
 
-  async compose(job: VideoJob): Promise<VideoJobOutput> {
+  async write(job: VideoJob, delivery: VideoDeliveryState): Promise<string> {
     const directory = join(this.dataDirectory, "jobs", job.id);
     await mkdir(directory, { recursive: true });
     const target = join(directory, "manifest.json");
@@ -20,12 +16,14 @@ export class ManifestComposer implements Composer {
         (candidate) => candidate.id === shot.selectedCandidateId,
       );
       if (!selected?.outputUrl) throw new Error(`Shot ${shot.id} has no selected output URL`);
+      const stored = delivery.assets.find((asset) => asset.candidateId === selected.id);
       return {
         id: shot.id,
         index: shot.index,
         durationSeconds: shot.durationSeconds,
         prompt: shot.prompt,
-        sourceUrl: selected.outputUrl,
+        providerSourceUrl: selected.outputUrl,
+        ...(stored ? { storedAsset: stored } : {}),
       };
     });
 
@@ -33,9 +31,10 @@ export class ManifestComposer implements Composer {
       temporary,
       `${JSON.stringify(
         {
-          schemaVersion: 1,
+          schemaVersion: 2,
           jobId: job.id,
           canvas: { width: 3840, height: 2160, aspectRatio: "16:9" },
+          delivery,
           shots,
         },
         null,
@@ -44,11 +43,6 @@ export class ManifestComposer implements Composer {
       { encoding: "utf8", mode: 0o600 },
     );
     await rename(temporary, target);
-
-    return {
-      manifestUrl: pathToFileURL(target).href,
-      width: 3840,
-      height: 2160,
-    };
+    return pathToFileURL(target).href;
   }
 }
