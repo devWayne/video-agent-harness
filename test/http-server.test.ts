@@ -78,6 +78,29 @@ describe("video job HTTP API", () => {
     expect((await server.inject({ method: "GET", url: "/assets/app.js" })).body).toContain(
       "__harness",
     );
+    const composition = await server.inject({
+      method: "POST",
+      url: "/v1/compositions/preview",
+      payload: {
+        title: "杭州，向未来生长",
+        subtitle: "一条可确定性预览的品牌片标题",
+        durationSeconds: 8,
+        theme: "violet",
+        motion: "fade-up",
+      },
+    });
+    expect(composition.statusCode).toBe(201);
+    const compositionBody = composition.json<{ previewUrl: string }>();
+    expect(compositionBody).toMatchObject({
+      engine: "hyperframes",
+      width: 1920,
+      height: 1080,
+      lint: { warningCount: 0 },
+    });
+    const compositionHtml = await server.inject({ method: "GET", url: compositionBody.previewUrl });
+    expect(compositionHtml.statusCode).toBe(200);
+    expect(compositionHtml.headers["content-type"]).toContain("text/html");
+    expect(compositionHtml.body).toContain("window.__timelines");
     await server.close();
     repository.close();
   });

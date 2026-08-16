@@ -113,3 +113,11 @@
 - **决定：** Wan 临时产物必须流式转存到项目专用私有 OSS，任务和 Manifest 只保存稳定的 `oss://` 定位与不含签名的规范地址。
 - **交付：** 调用方通过受 Harness Bearer 鉴权保护的下载接口获取 60–3600 秒有效的签名 URL。
 - **原因：** 供应商签名地址会过期，公共读 Bucket 会扩大泄漏和盗刷风险，而把新签名持久化也会制造过期状态与日志泄漏。
+
+## D17 — HyperFrames 融入 Harness Studio
+
+- **决定：** HyperFrames 作为 Harness 的确定性动效与合成引擎接入，不建立第二套独立产品；Studio 内与 Wan 生成并列呈现。
+- **职责：** Wan 生成基础镜头，结构化 `CompositionSpec` 描述标题、品牌、动效和媒体引用，HyperFrames Core 负责 lint，官方 Player 负责浏览器预览。正式编码由后续隔离 Render Worker 执行。
+- **安全边界：** API 不接受用户提供的 HTML 或脚本，只允许受限字段和 HTTPS 媒体 URL；服务端转义文本、生成固定模板并通过官方 lint。预览文档使用随机 ID、`no-store` 和有界内存缓存。
+- **原因：** 统一时间线和素材模型才能让生成镜头、信息动效、字幕及后续多渠道素材协同，同时避免把 HyperFrames Studio 整体嵌入后形成割裂的双工作台。
+- **可逆：** 是；未来可替换 Player 或 Render Worker，`CompositionSpec` 与上层交互保持稳定。

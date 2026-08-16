@@ -9,6 +9,7 @@
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
 - `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。
 - `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
+- `POST /v1/compositions/preview`：把标题、品牌色、动效和可选背景视频编译为安全的 HyperFrames 合成预览。
 - 默认 16:9、1080P 镜头生成、3840×2160 交付画布。
 - 每镜头默认生成两个候选并自动选片。
 - SQLite 逐步骤检查点、进程重启无重复提交恢复、原子写入生产清单。
@@ -17,6 +18,7 @@
 - Pi Director 已通过 `@earendil-works/pi-agent-core` 工具调用接入；没有规划模型凭据时使用确定性 Director。
 - OpenAPI 3.1、Bearer 鉴权、健康/就绪检查、Prometheus 指标与可配置人民币成本预算。
 - React + TypeScript 横屏创作工作台，已接入任务创建、轮询、分镜、时间线、取消、检查点重试和交付事件。
+- 同一 Studio 内提供“Wan 生成 / 动效合成”双引擎入口；官方 `@hyperframes/player` 负责 16:9 沙箱预览与 seek，`@hyperframes/core` 在服务端执行官方 lint。
 
 当前 Mock 流程输出的是 4K 合成清单，不是假装已经生成 4K MP4。真实流程采用“Wan 生成 1080P 素材 → 合成 1080P 母版 → OSS → IMS SR5 输出 4K”的独立云服务链路；FFmpeg 不用于 AI 超分。
 
@@ -51,6 +53,8 @@ curl --request POST http://127.0.0.1:3321/v1/video-jobs \
     "idempotencyKey": "campaign-001"
   }'
 ```
+
+在 Studio 中切到“动效合成”即可创建标题卡。背景视频留空时可自动使用当前 Wan 候选；若临时签名已过期或只想调试版式，可关闭“自动使用当前 Wan 候选作为背景”。当前 HyperFrames 路径是确定性浏览器预览，不会调用 IMS 或产生云渲染费用。
 
 默认 `VIDEO_PROVIDER=mock`，不会产生云端费用。启用百炼真实生成：
 

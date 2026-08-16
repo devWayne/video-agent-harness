@@ -1,4 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { HyperframesPreview } from "./HyperframesPreview";
+
+type WorkspaceMode = "wan" | "hyperframes";
+
+interface CompositionPreview {
+  id: string;
+  previewUrl: string;
+  durationSeconds: number;
+  width: 1920;
+  height: 1080;
+  engine: "hyperframes";
+  lint: { warningCount: number; findings: Array<{ code: string; message: string }> };
+}
 
 type JobStatus =
   | "queued"
@@ -104,6 +117,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export function App() {
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("wan");
   const [brief, setBrief] = useState(
     "制作一支 15 秒横屏城市品牌片：清晨航拍钱塘江与现代天际线，镜头快速掠过街道与数字产业空间，最后定格在金色余晖中的城市轮廓。电影感、克制、高级，运镜连贯。",
   );
@@ -118,6 +132,17 @@ export function App() {
   const [previewCandidateId, setPreviewCandidateId] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const [compositionTitle, setCompositionTitle] = useState("杭州，向未来生长");
+  const [compositionSubtitle, setCompositionSubtitle] = useState("科技、人文与城市理想，在此刻交汇");
+  const [compositionKicker, setCompositionKicker] = useState("CITY OF TOMORROW");
+  const [compositionBackgroundUrl, setCompositionBackgroundUrl] = useState("");
+  const [useCurrentWanBackground, setUseCurrentWanBackground] = useState(true);
+  const [compositionDuration, setCompositionDuration] = useState(8);
+  const [compositionTheme, setCompositionTheme] = useState("violet");
+  const [compositionMotion, setCompositionMotion] = useState("fade-up");
+  const [compositionAccent, setCompositionAccent] = useState("#8b7cff");
+  const [composition, setComposition] = useState<CompositionPreview>();
+  const [compositionSubmitting, setCompositionSubmitting] = useState(false);
 
   const selectedShot = job?.shots.find((shot) => shot.id === selectedShotId) ?? job?.shots[0];
   const selectedCandidate = selectedShot?.candidates.find(
@@ -234,6 +259,33 @@ export function App() {
     }
   }
 
+  async function createCompositionPreview() {
+    setCompositionSubmitting(true);
+    setError(undefined);
+    try {
+      const backgroundVideoUrl = compositionBackgroundUrl.trim() || (useCurrentWanBackground ? previewUrl : undefined);
+      const response = await fetch("/v1/compositions/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(apiKey) },
+        body: JSON.stringify({
+          title: compositionTitle,
+          subtitle: compositionSubtitle,
+          kicker: compositionKicker,
+          ...(backgroundVideoUrl ? { backgroundVideoUrl } : {}),
+          durationSeconds: compositionDuration,
+          theme: compositionTheme,
+          motion: compositionMotion,
+          accentColor: compositionAccent,
+        }),
+      });
+      setComposition(await parseResponse<CompositionPreview>(response));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "动效预览生成失败");
+    } finally {
+      setCompositionSubmitting(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -244,12 +296,19 @@ export function App() {
         </div>
         <div className="top-actions">
           <button className="connection-badge" type="button" onClick={() => setShowConnection((value) => !value)}>
-            <span className="online-dot" /> {isRealGeneration ? "百炼真实调用" : "Harness Local"}
+            <span className="online-dot" /> {workspaceMode === "hyperframes" ? "HyperFrames Ready" : isRealGeneration ? "百炼真实调用" : "Harness Local"}
           </button>
           <span className="delivery-badge">16:9 · 4K 交付</span>
           {job?.costEstimate?.totalCny !== undefined && <span className="cost">预计 ¥{job.costEstimate.totalCny.toFixed(2)}</span>}
-          <button className="primary-action" type="button" onClick={() => void createJob()} disabled={submitting || brief.trim().length < 3}>
-            {submitting ? "提交中…" : job && !isTerminal ? statusLabels[job.status] : "生成视频"}
+          <button
+            className="primary-action"
+            type="button"
+            onClick={() => workspaceMode === "hyperframes" ? void createCompositionPreview() : void createJob()}
+            disabled={workspaceMode === "hyperframes" ? compositionSubmitting || compositionTitle.trim().length < 1 : submitting || brief.trim().length < 3}
+          >
+            {workspaceMode === "hyperframes"
+              ? compositionSubmitting ? "编译中…" : "生成动效预览"
+              : submitting ? "提交中…" : job && !isTerminal ? statusLabels[job.status] : "生成视频"}
           </button>
         </div>
         {showConnection && (
@@ -270,65 +329,116 @@ export function App() {
         </nav>
 
         <aside className="control-panel">
-          <div className="panel-heading"><h1>创作指令</h1><span>{runtime?.videoModel ?? "Wan 2.7"}</span></div>
-          <div className="mode-tabs">
-            <button className="active" type="button">文生视频</button>
-            <button type="button" disabled title="待接入 wan2.7-i2v">首帧 / 首尾</button>
-            <button type="button" disabled title="待接入 wan2.7-r2v">参考生视频</button>
+          <div className="panel-heading"><h1>{workspaceMode === "wan" ? "创作指令" : "动效合成"}</h1><span>{workspaceMode === "wan" ? runtime?.videoModel ?? "Wan 2.7" : "HyperFrames"}</span></div>
+          <div className="engine-tabs" aria-label="创作引擎">
+            <button className={workspaceMode === "wan" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("wan")}>Wan 生成</button>
+            <button className={workspaceMode === "hyperframes" ? "active" : ""} type="button" onClick={() => setWorkspaceMode("hyperframes")}>动效合成</button>
           </div>
 
-          <label className="field-label" htmlFor="brief">影片目标 <span>自然语言</span></label>
-          <textarea id="brief" className="brief-input" value={brief} onChange={(event) => setBrief(event.target.value)} maxLength={4000} />
+          {workspaceMode === "wan" ? (
+            <>
+              <div className="mode-tabs">
+                <button className="active" type="button">文生视频</button>
+                <button type="button" disabled title="待接入 wan2.7-i2v">首帧 / 首尾</button>
+                <button type="button" disabled title="待接入 wan2.7-r2v">参考生视频</button>
+              </div>
 
-          <label className="field-label" htmlFor="audio-url">驱动音频 <span>可选 · 公网或 OSS URL</span></label>
-          <input id="audio-url" className="text-input" type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…/brand-theme.mp3" />
+              <label className="field-label" htmlFor="brief">影片目标 <span>自然语言</span></label>
+              <textarea id="brief" className="brief-input" value={brief} onChange={(event) => setBrief(event.target.value)} maxLength={4000} />
 
-          <div className="two-columns">
-            <div>
-              <label className="field-label" htmlFor="duration">总时长</label>
-              <select id="duration" value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))}>
-                <option value={5}>5 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option><option value={30}>30 秒</option><option value={60}>60 秒</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label" htmlFor="candidates">每镜头候选</label>
-              <select id="candidates" value="server" disabled><option value="server">服务端控制</option></select>
-            </div>
-          </div>
+              <label className="field-label" htmlFor="audio-url">驱动音频 <span>可选 · 公网或 OSS URL</span></label>
+              <input id="audio-url" className="text-input" type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…/brand-theme.mp3" />
 
-          <button className="advanced-toggle" type="button" onClick={() => setShowAdvanced((value) => !value)} aria-expanded={showAdvanced}>
-            {showAdvanced ? "收起高级参数" : "高级参数 · 生产配置"}
-          </button>
-          {showAdvanced && (
-            <div className="advanced-grid">
-              <div><span>生成模型</span><strong>{runtime?.videoModel ?? "wan2.7-t2v"}</strong></div>
-              <div><span>生成规格</span><strong>{runtime?.generationResolution ?? "1080P"} · 16:9</strong></div>
-              <div><span>交付规格</span><strong>3840 × 2160</strong></div>
-              <div><span>Prompt 增强</span><strong>Provider 默认</strong></div>
-            </div>
+              <div className="two-columns">
+                <div>
+                  <label className="field-label" htmlFor="duration">总时长</label>
+                  <select id="duration" value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))}>
+                    <option value={5}>5 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option><option value={30}>30 秒</option><option value={60}>60 秒</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="candidates">每镜头候选</label>
+                  <select id="candidates" value="server" disabled><option value="server">服务端控制</option></select>
+                </div>
+              </div>
+
+              <button className="advanced-toggle" type="button" onClick={() => setShowAdvanced((value) => !value)} aria-expanded={showAdvanced}>
+                {showAdvanced ? "收起高级参数" : "高级参数 · 生产配置"}
+              </button>
+              {showAdvanced && (
+                <div className="advanced-grid">
+                  <div><span>生成模型</span><strong>{runtime?.videoModel ?? "wan2.7-t2v"}</strong></div>
+                  <div><span>生成规格</span><strong>{runtime?.generationResolution ?? "1080P"} · 16:9</strong></div>
+                  <div><span>交付规格</span><strong>3840 × 2160</strong></div>
+                  <div><span>Prompt 增强</span><strong>Provider 默认</strong></div>
+                </div>
+              )}
+
+              <div className={`policy-note ${isRealGeneration ? "real" : ""}`}>
+                {isRealGeneration
+                  ? `已连接阿里云百炼 ${runtime?.videoModel ?? "wan2.7-t2v"}：提交任务会按成功生成的视频秒数计费。当前 4K 交付仍为模拟，不会调用 IMS。`
+                  : "当前使用 Mock 与模拟交付，不产生云费用。"}
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="field-label" htmlFor="composition-kicker">眉题 <span>品牌 / 栏目</span></label>
+              <input id="composition-kicker" className="text-input compact" value={compositionKicker} onChange={(event) => setCompositionKicker(event.target.value)} maxLength={48} />
+              <label className="field-label" htmlFor="composition-title">主标题 <span>必填</span></label>
+              <textarea id="composition-title" className="brief-input title-input" value={compositionTitle} onChange={(event) => setCompositionTitle(event.target.value)} maxLength={100} />
+              <label className="field-label" htmlFor="composition-subtitle">副标题 <span>可选</span></label>
+              <textarea id="composition-subtitle" className="brief-input subtitle-input" value={compositionSubtitle} onChange={(event) => setCompositionSubtitle(event.target.value)} maxLength={220} />
+              <label className="field-label" htmlFor="composition-background">背景视频 <span>留空则使用当前 Wan 候选</span></label>
+              <input id="composition-background" className="text-input background-input" type="url" value={compositionBackgroundUrl} onChange={(event) => setCompositionBackgroundUrl(event.target.value)} placeholder={useCurrentWanBackground && previewUrl ? "已绑定当前 Wan 素材" : "https://…/shot.mp4"} />
+              <label className="source-toggle">
+                <input type="checkbox" checked={useCurrentWanBackground} onChange={(event) => setUseCurrentWanBackground(event.target.checked)} disabled={!previewUrl} />
+                <span>自动使用当前 Wan 候选作为背景</span>
+              </label>
+              <div className="two-columns composition-grid">
+                <div>
+                  <label className="field-label" htmlFor="composition-duration">时长</label>
+                  <select id="composition-duration" value={compositionDuration} onChange={(event) => setCompositionDuration(Number(event.target.value))}>
+                    <option value={5}>5 秒</option><option value={8}>8 秒</option><option value={10}>10 秒</option><option value={15}>15 秒</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="composition-theme">视觉主题</label>
+                  <select id="composition-theme" value={compositionTheme} onChange={(event) => setCompositionTheme(event.target.value)}>
+                    <option value="violet">数字紫</option><option value="cinema">电影黑</option><option value="editorial">编辑米</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="composition-motion">进入动效</label>
+                  <select id="composition-motion" value={compositionMotion} onChange={(event) => setCompositionMotion(event.target.value)}>
+                    <option value="fade-up">淡入上移</option><option value="scale-in">聚焦缩放</option><option value="slide-left">左向滑入</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="composition-accent">品牌色</label>
+                  <input id="composition-accent" className="color-input" type="color" value={compositionAccent} onChange={(event) => setCompositionAccent(event.target.value)} />
+                </div>
+              </div>
+              <div className="policy-note hyperframes-note">结构化参数由 Harness 编译为安全的 HyperFrames HTML；官方 Player 负责逐帧预览，当前不会发起云渲染或额外计费。</div>
+            </>
           )}
-
-          <div className={`policy-note ${isRealGeneration ? "real" : ""}`}>
-            {isRealGeneration
-              ? `已连接阿里云百炼 ${runtime?.videoModel ?? "wan2.7-t2v"}：提交任务会按成功生成的视频秒数计费。当前 4K 交付仍为模拟，不会调用 IMS。`
-              : "当前使用 Mock 与模拟交付，不产生云费用。"}
-          </div>
           {error && <div className="error-banner" role="alert">{error}</div>}
         </aside>
 
         <main className="creative-stage">
-          <div className="stage-tabs"><span>1 · 指令</span><span className="active">2 · 分镜</span><span>3 · 剪辑</span><span>4 · 交付</span></div>
+          <div className="stage-tabs"><span>1 · 指令</span><span className={workspaceMode === "wan" ? "active" : ""}>2 · 分镜</span><span className={workspaceMode === "hyperframes" ? "active" : ""}>3 · 剪辑</span><span>4 · 交付</span></div>
           <section className="preview-area">
             <div className="preview-stack">
-              <div className="video-frame">
-                {previewUrl ? <video key={previewUrl} controls playsInline src={previewUrl} /> : (
+              <div className={`video-frame ${workspaceMode === "hyperframes" ? "composition-frame" : ""}`}>
+                {workspaceMode === "hyperframes" ? (
+                  <HyperframesPreview previewUrl={composition?.previewUrl} compositionId={composition?.id} />
+                ) : previewUrl ? <video key={previewUrl} controls playsInline src={previewUrl} /> : (
                   <>
                     <div className="frame-toolbar"><span>{selectedShot ? `镜头 ${String(selectedShot.index + 1).padStart(2, "0")} · ${selectedShot.durationSeconds} 秒` : "16:9 预览"}</span><span>1920 × 1080</span></div>
                     <div className="frame-copy"><strong>{job?.plan?.title ?? "等待创建视频任务"}</strong><span>{selectedShot?.prompt ?? "提交创作指令后，Agent 会规划分镜并生成候选。"}</span></div>
                   </>
                 )}
               </div>
-              {selectedShot && selectedShot.candidates.filter((candidate) => candidate.outputUrl).length > 1 && (
+              {workspaceMode === "wan" && selectedShot && selectedShot.candidates.filter((candidate) => candidate.outputUrl).length > 1 && (
                 <div className="candidate-switcher" aria-label="视频候选">
                   {selectedShot.candidates.filter((candidate) => candidate.outputUrl).map((candidate, index) => (
                     <button
@@ -346,9 +456,18 @@ export function App() {
           </section>
 
           <section className="storyboard-section">
-            <div className="section-heading"><strong>分镜候选</strong><span>{job ? `${job.shots.filter((shot) => shot.selectedCandidateId).length} / ${job.shots.length} 已选择` : "尚未生成"}</span></div>
+            <div className="section-heading"><strong>{workspaceMode === "wan" ? "分镜候选" : "合成图层"}</strong><span>{workspaceMode === "wan" ? job ? `${job.shots.filter((shot) => shot.selectedCandidateId).length} / ${job.shots.length} 已选择` : "尚未生成" : composition ? "编译并校验完成" : "等待预览"}</span></div>
             <div className="shot-grid">
-              {job?.shots.length ? job.shots.map((shot) => (
+              {workspaceMode === "hyperframes" ? [
+                ["01", "背景素材", compositionBackgroundUrl || useCurrentWanBackground && previewUrl ? "当前 Wan / URL 视频" : "纯色主题背景"],
+                ["02", "标题动效", `${compositionMotion} · ${compositionDuration} 秒`],
+                ["03", "品牌签名", `${compositionTheme} · ${compositionAccent}`],
+              ].map(([index, title, detail], cardIndex) => (
+                <div className={`shot-card composition-card ${composition ? "selected" : ""}`} key={title}>
+                  <div className={`shot-visual shot-${cardIndex}`}><span>{index}</span></div>
+                  <strong>{title}</strong><small>{detail}</small>
+                </div>
+              )) : job?.shots.length ? job.shots.map((shot) => (
                 <button key={shot.id} type="button" className={`shot-card ${selectedShot?.id === shot.id ? "selected" : ""}`} onClick={() => { setSelectedShotId(shot.id); setPreviewCandidateId(undefined); }}>
                   <div className={`shot-visual shot-${shot.index % 3}`}><span>{shot.status === "completed" ? "✓" : "…"}</span></div>
                   <strong>{String(shot.index + 1).padStart(2, "0")} · {shot.prompt}</strong>
@@ -362,14 +481,52 @@ export function App() {
 
           <section className="timeline-section">
             <div className="timeline-ruler"><span /><span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span></div>
-            <div className="timeline-track"><label>视频</label><div className="track-lane">
-              {(job?.shots.length ? job.shots : [{ id: "empty", durationSeconds: 15 }]).map((shot, index) => <span key={shot.id} style={{ flex: shot.durationSeconds }} className={`video-clip clip-${index % 3}`} />)}
-            </div></div>
-            <div className="timeline-track"><label>音频</label><div className="track-lane"><span className="audio-clip" /></div></div>
+            {workspaceMode === "hyperframes" ? (
+              <>
+                <div className="timeline-track"><label>背景</label><div className="track-lane"><span className="video-clip hf-background" style={{ flex: compositionDuration }} /></div></div>
+                <div className="timeline-track"><label>动效</label><div className="track-lane"><span className="video-clip hf-motion" style={{ flex: compositionDuration }}><b>HF · TITLE</b></span></div></div>
+              </>
+            ) : (
+              <>
+                <div className="timeline-track"><label>视频</label><div className="track-lane">
+                  {(job?.shots.length ? job.shots : [{ id: "empty", durationSeconds: 15 }]).map((shot, index) => <span key={shot.id} style={{ flex: shot.durationSeconds }} className={`video-clip clip-${index % 3}`} />)}
+                </div></div>
+                <div className="timeline-track"><label>音频</label><div className="track-lane"><span className="audio-clip" /></div></div>
+              </>
+            )}
           </section>
         </main>
 
         <aside className="job-panel">
+          {workspaceMode === "hyperframes" ? (
+            <>
+              <div className="panel-heading"><h2>合成检查</h2><span>实时</span></div>
+              <div className="job-summary composition-summary">
+                <div><strong>{composition ? `comp_${composition.id.slice(-8)}` : "尚无预览"}</strong><span className={`status ${composition ? "completed" : ""}`}>{composition ? "可播放" : "待编译"}</span></div>
+                <div className="progress-track"><span style={{ width: composition ? "100%" : "18%" }} /></div>
+                <small>{composition ? `${composition.width} × ${composition.height} · ${composition.durationSeconds} 秒` : "结构化参数尚未提交"}</small>
+              </div>
+              <div className="section-heading"><strong>运行架构</strong><span>P0</span></div>
+              <div className="pipeline composition-pipeline">
+                {[
+                  ["Harness 参数模型", "标题 / 素材 / 品牌参数", true],
+                  ["安全模板编译", "不接受任意 HTML 或脚本", Boolean(composition)],
+                  ["HyperFrames Lint", composition ? `${composition.lint.warningCount} warning` : "等待编译", Boolean(composition)],
+                  ["官方 Player 预览", "沙箱 iframe · 可播放 / seek", Boolean(composition)],
+                  ["云端成片渲染", "下一阶段接 Render Worker", false],
+                ].map(([label, detail, done], index) => (
+                  <div className={`pipeline-step ${done ? "done" : index === 1 && !composition ? "current" : ""}`} key={String(label)}>
+                    <i>{done ? "✓" : index + 1}</i><div><strong>{label}</strong><small>{detail}</small></div>
+                  </div>
+                ))}
+              </div>
+              {composition?.lint.findings.length ? (
+                <div className="job-error"><strong>模板警告</strong><span>{composition.lint.findings.map((finding) => finding.message).join("；")}</span></div>
+              ) : composition ? <div className="lint-clean">✓ HyperFrames 官方 lint 无警告</div> : null}
+              <div className="delivery-note">当前是确定性浏览器预览，不调用 FFmpeg、不调用阿里云 IMS。正式成片会把同一份 CompositionSpec 投递到隔离的 Render Worker。</div>
+            </>
+          ) : (
+            <>
           <div className="panel-heading"><h2>任务与交付</h2><span>实时</span></div>
           <div className="job-summary">
             <div><strong>{job ? `job_${job.id.slice(0, 8)}` : "尚无任务"}</strong><span className={`status ${job?.status ?? "idle"}`}>{job ? statusLabels[job.status] : "待创建"}</span></div>
@@ -406,6 +563,8 @@ export function App() {
           <div className="delivery-note">{job?.output
             ? `${activeJobIsReal ? "真实 Wan 素材已生成" : "模拟生成完成"} · ${job.output.deliveryMode === "cloud" ? "云端 4K 已交付" : "4K 交付待接入"}`
             : "目标交付：真实 Wan 素材、4K MP4、1080P 母版、分镜参数与任务事件。"}</div>
+            </>
+          )}
         </aside>
       </div>
     </div>

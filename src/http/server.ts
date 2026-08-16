@@ -8,10 +8,17 @@ import {
   VideoJobDownloadError,
   type VideoJobService,
 } from "../application/video-job-service.js";
+import {
+  HyperframesCompositionError,
+  HyperframesCompositionService,
+} from "../application/hyperframes-composition-service.js";
 import { VideoJobRetryError } from "../domain/video-job.js";
 import { openApiDocument } from "./openapi.js";
 
 const jobParamsSchema = z.object({ id: z.uuid() });
+const compositionPreviewParamsSchema = z.object({
+  id: z.string().regex(/^harness-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+});
 const downloadQuerySchema = z.object({
   expiresSeconds: z.coerce.number().int().min(60).max(3_600).default(900),
 });
@@ -27,6 +34,7 @@ export interface BuildServerOptions {
     deliveryMode: "simulation" | "cloud";
     generationResolution: "1080P";
   };
+  compositionService?: HyperframesCompositionService;
 }
 
 export function buildServer(options: BuildServerOptions) {
@@ -45,6 +53,7 @@ export function buildServer(options: BuildServerOptions) {
     logger,
     requestIdHeader: "x-request-id",
   });
+  const compositionService = options.compositionService ?? new HyperframesCompositionService();
 
   if (options.uiDirectory && existsSync(join(options.uiDirectory, "index.html"))) {
     void server.register(fastifyStatic, {
@@ -73,6 +82,16 @@ export function buildServer(options: BuildServerOptions) {
     });
   });
   server.get("/openapi.json", () => openApiDocument);
+  server.get("/compositions/previews/:id.html", async (request, reply) => {
+    const { id } = compositionPreviewParamsSchema.parse(request.params);
+    const html = compositionService.getPreviewHtml(id);
+    if (!html) return reply.code(404).send({ code: "COMPOSITION_NOT_FOUND", message: "Composition preview not found" });
+    return reply
+      .header("cache-control", "no-store")
+      .header("x-content-type-options", "nosniff")
+      .type("text/html; charset=utf-8")
+      .send(html);
+  });
   server.get("/metrics", async (_request, reply) => {
     const counts = await options.service.statistics();
     const lines = [
@@ -88,6 +107,11 @@ export function buildServer(options: BuildServerOptions) {
   server.post("/v1/video-jobs", async (request, reply) => {
     const job = await options.service.create(request.body);
     return reply.code(202).send(job);
+  });
+
+  server.post("/v1/compositions/preview", async (request, reply) => {
+    const preview = await compositionService.createPreview(request.body);
+    return reply.code(201).send(preview);
   });
 
   server.get("/v1/video-jobs/:id", async (request, reply) => {
@@ -132,6 +156,13 @@ export function buildServer(options: BuildServerOptions) {
     }
     if (error instanceof VideoJobDownloadError) {
       return reply.code(409).send({ code: error.code, message: error.message });
+    }
+    if (error instanceof HyperframesCompositionError) {
+      return reply.code(422).send({
+        code: error.code,
+        message: error.message,
+        findings: error.findings,
+      });
     }
     server.log.error(error);
     return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Internal server error" });

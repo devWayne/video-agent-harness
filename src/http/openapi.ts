@@ -6,7 +6,7 @@ export const openApiDocument = {
     description: "TypeScript/Node.js control plane for recoverable, production-oriented video jobs.",
   },
   servers: [{ url: "/" }],
-  tags: [{ name: "Jobs" }, { name: "Operations" }],
+  tags: [{ name: "Jobs" }, { name: "Compositions" }, { name: "Operations" }],
   paths: {
     "/health/live": {
       get: {
@@ -50,6 +50,24 @@ export const openApiDocument = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+    "/v1/compositions/preview": {
+      post: {
+        tags: ["Compositions"],
+        summary: "Compile and lint a safe HyperFrames preview composition",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateCompositionPreview" } },
+          },
+        },
+        responses: {
+          "201": { description: "Compiled HyperFrames HTML and preview metadata" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "422": { description: "Generated composition failed HyperFrames lint" },
         },
       },
     },
@@ -141,6 +159,20 @@ export const openApiDocument = {
             default: [],
           },
           idempotencyKey: { type: "string", minLength: 1, maxLength: 200 },
+        },
+      },
+      CreateCompositionPreview: {
+        type: "object",
+        required: ["title"],
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 100 },
+          subtitle: { type: "string", maxLength: 220, default: "" },
+          kicker: { type: "string", maxLength: 48, default: "VIDEO AGENT HARNESS" },
+          backgroundVideoUrl: { type: "string", format: "uri", pattern: "^https://" },
+          durationSeconds: { type: "number", minimum: 3, maximum: 30, default: 8 },
+          theme: { type: "string", enum: ["violet", "cinema", "editorial"], default: "violet" },
+          motion: { type: "string", enum: ["fade-up", "scale-in", "slide-left"], default: "fade-up" },
+          accentColor: { type: "string", pattern: "^#[0-9a-fA-F]{6}$", default: "#8b7cff" },
         },
       },
       VideoJob: {
