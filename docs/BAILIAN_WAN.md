@@ -46,7 +46,7 @@ BAILIAN_WAN_MODEL=wan2.7-t2v
 - 控制台存在 `wan3.0-video`、API 示例、价格和 30 秒能力说明，但账号页面仍显示“申请中”。
 - 使用正确地域、Workspace 专属 endpoint 和完整项目 Key，且把 Key 权限从模型限定临时放宽为全部后，两次提交均返回 `AccessDenied`。
 - 随后用同一套 endpoint 与 Key 调用 Wan 2.7 成功，因此当前阻塞点是 Wan 3.0 模型权限尚未生效，而不是代码协议或 Key 无效。
-- 项目继续以 Wan 2.7 开发；Wan 3.0 授权生效后只需改 `BAILIAN_WAN_MODEL` 并重跑烟测。
+- 项目继续以 Wan 2.7 开发；Wan 3.0 授权生效后仍需先实现并测试独立请求 Profile，当前 Provider 会拒绝仅修改 `BAILIAN_WAN_MODEL` 的未验证切换。
 
 ## 生产画质策略
 

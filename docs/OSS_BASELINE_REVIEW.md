@@ -8,7 +8,7 @@
 
 - TypeScript + Node.js 主栈；
 - Pi Agent Core 控制面；
-- 阿里云百炼 Wan 3.0 官方直连；
+- 阿里云百炼 Wan 官方直连；当前真实 Profile 为 Wan 2.7；
 - 默认自主生成、自动候选与质量评估；
 - 16:9 横屏、4K 生产母版；
 - 可恢复的服务端长任务、幂等、回调、重试和成本审计。
@@ -41,7 +41,7 @@
 ## 不复制、只借鉴的边界
 
 - 自行定义 `ProjectManifest`、`ShotSpec`、`GenerationJob`、`Timeline`、`QCReport` 和事件协议。
-- 自行实现 Wan 3.0 Provider、持久化状态机、自动重试与选片逻辑。
+- 自行实现经过官方契约验证的 Wan Provider、持久化状态机、自动重试与选片逻辑。
 - 从 MIT/Apache 项目移植具体代码时保留许可证与归属；AGPL 项目只做概念参考。
 - 所有外部依赖固定版本、记录许可证，并通过适配接口可替换。
 
@@ -52,7 +52,7 @@ apps/api                 HTTP/SSE/WebSocket API
 apps/worker              durable job + media worker
 packages/agent-runtime   Pi adapter and director tools
 packages/domain          project/shot/job/timeline contracts
-packages/providers       Wan 3.0 and future video providers
+packages/providers       verified Wan profiles and future video providers
 packages/workflows       deterministic production state machine
 packages/media           media probing, cloud upscale and mastering
 packages/renderers       HyperFrames primary, Remotion optional

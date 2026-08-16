@@ -9,7 +9,7 @@ const smokeConfigSchema = z.object({
   BAILIAN_BASE_URL: z.url(),
   BAILIAN_API_KEY: z.string().min(1),
   BAILIAN_WAN_MODEL: z.string().min(1).default("wan2.7-t2v"),
-  WAN_SMOKE_RESOLUTION: z.enum(["480P", "720P", "1080P"]).default("720P"),
+  WAN_SMOKE_RESOLUTION: z.enum(["720P", "1080P"]).default("720P"),
   WAN_SMOKE_DURATION_SECONDS: z.coerce.number().int().min(2).max(30).default(2),
   WAN_SMOKE_TIMEOUT_MS: z.coerce.number().int().min(60_000).default(10 * 60 * 1_000),
   WAN_SMOKE_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).default(8_000),

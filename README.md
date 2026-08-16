@@ -4,7 +4,7 @@
 
 ## 当前能力
 
-- `POST /v1/video-jobs`：以一句 Brief 创建 15–60 秒视频任务，支持幂等键。
+- `POST /v1/video-jobs`：以一句 Brief 创建 5–60 秒视频任务，支持幂等键。
 - `GET /v1/video-jobs/:id`：查询统一任务、分镜、候选和产物状态。
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
 - `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。

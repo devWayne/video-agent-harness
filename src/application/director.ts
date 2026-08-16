@@ -39,7 +39,7 @@ const submitPlanParameters = Type.Object({
   shots: Type.Array(
     Type.Object({
       prompt: Type.String({ minLength: 3, maxLength: 4_000 }),
-      durationSeconds: Type.Integer({ minimum: 5, maximum: 30 }),
+      durationSeconds: Type.Integer({ minimum: 5, maximum: 15 }),
     }),
     { minItems: 1, maxItems: 12 },
   ),
@@ -104,7 +104,7 @@ function buildDirectorPrompt(input: CreateVideoJobInput): string {
     "画幅：16:9 横屏",
     "最终交付：3840×2160；生成素材按 1080P 设计。",
     `参考素材：${input.references.length} 个`,
-    "要求：角色、场景、美术和光线连续；单镜头 5–30 秒；不要在画面中生成字幕或水印。",
+    "要求：角色、场景、美术和光线连续；单镜头 5–15 秒；不要在画面中生成字幕或水印。",
     "必须调用 submit_video_plan 工具提交最终方案，不要只输出自然语言。",
   ].join("\n");
 }

@@ -70,6 +70,27 @@ export class BailianWanProvider implements VideoProvider {
         false,
       );
     }
+    if (request.durationSeconds < 2 || request.durationSeconds > 15) {
+      throw new VideoProviderError(
+        "Wan 2.7 text-to-video duration must be between 2 and 15 seconds",
+        "WAN_T2V_DURATION_NOT_SUPPORTED",
+        false,
+      );
+    }
+    if (request.resolution !== "720P" && request.resolution !== "1080P") {
+      throw new VideoProviderError(
+        "Wan 2.7 text-to-video supports 720P or 1080P",
+        "WAN_T2V_RESOLUTION_NOT_SUPPORTED",
+        false,
+      );
+    }
+    if (request.ratio !== "16:9") {
+      throw new VideoProviderError(
+        "The verified Wan 2.7 production profile only supports 16:9",
+        "WAN_T2V_RATIO_NOT_SUPPORTED",
+        false,
+      );
+    }
     if (!request.generateAudio) {
       throw new VideoProviderError(
         "Wan 2.7 generates matching audio when audio_url is omitted and has no verified silent-output switch",

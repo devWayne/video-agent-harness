@@ -70,6 +70,31 @@ describe("BailianWanProvider", () => {
     ).rejects.toMatchObject({ code: "WAN_T2V_REFERENCE_TYPE_NOT_SUPPORTED" });
   });
 
+  it("rejects unverified duration and resolution values before submission", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const provider = new BailianWanProvider({
+      baseUrl: "https://workspace.example/api/v1",
+      apiKey: "secret-for-test",
+      model: "wan2.7-t2v",
+      fetch: fetchMock,
+    });
+    const baseRequest = {
+      clientRequestId: "job-1/shot-1/candidate-1",
+      prompt: "Production shot",
+      ratio: "16:9" as const,
+      generateAudio: true,
+      references: [],
+    };
+
+    await expect(
+      provider.submit({ ...baseRequest, durationSeconds: 16, resolution: "1080P" }),
+    ).rejects.toMatchObject({ code: "WAN_T2V_DURATION_NOT_SUPPORTED" });
+    await expect(
+      provider.submit({ ...baseRequest, durationSeconds: 5, resolution: "480P" }),
+    ).rejects.toMatchObject({ code: "WAN_T2V_RESOLUTION_NOT_SUPPORTED" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("normalizes a successful task result", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
