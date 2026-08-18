@@ -1,186 +1,393 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1700" viewBox="0 0 2400 1700" role="img" aria-labelledby="title desc">
-  <title id="title">Video Agent Harness 端到端生产架构</title>
-  <desc id="desc">从创意脚本到分镜、ComfyUI H3 控制、LibTV 在线精修、质量循环、后期和 4K 交付的分层架构图。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2050" viewBox="0 0 2400 2050" role="img" aria-labelledby="title desc">
+  <title id="title">Video Agent Harness ownership-first architecture</title>
+  <desc id="desc">Ownership-first architecture showing the components implemented in this repository, local third-party services, cloud services, and the end-to-end video production stages.</desc>
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07101a"/>
-      <stop offset="0.58" stop-color="#090d14"/>
-      <stop offset="1" stop-color="#101019"/>
-    </linearGradient>
-    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#11352f" stop-opacity="0.9"/>
-      <stop offset="0.52" stop-color="#12212b" stop-opacity="0.72"/>
-      <stop offset="1" stop-color="#1b1430" stop-opacity="0.72"/>
+    <linearGradient id="headerGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#10352f"/>
+      <stop offset="0.48" stop-color="#10222b"/>
+      <stop offset="1" stop-color="#1b1730"/>
     </linearGradient>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.24"/>
     </filter>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,5 L0,10 z" fill="#72e6aa"/>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#69e6a3"/>
     </marker>
-    <marker id="arrow-muted" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,5 L0,10 z" fill="#81909f"/>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8494a8"/>
+    </marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#efc76e"/>
+    </marker>
+    <marker id="arrowPink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ec86ad"/>
     </marker>
     <style>
-      text { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
-      .title { fill: #f3f7fb; font-size: 48px; font-weight: 760; letter-spacing: -1px; }
-      .subtitle { fill: #9eacb9; font-size: 20px; }
-      .term { fill: #78e8ad; font-size: 16px; font-weight: 650; }
-      .stage-no { fill: #6c7a88; font-size: 15px; font-weight: 800; letter-spacing: 2px; }
-      .stage-title { fill: #eff5fa; font-size: 21px; font-weight: 720; }
-      .lane-title { fill: #f2f5f7; font-size: 20px; font-weight: 750; }
-      .lane-sub { fill: #788795; font-size: 14px; }
-      .box-kicker { font-size: 12px; font-weight: 850; letter-spacing: 1.4px; }
-      .box-title { fill: #f3f6f8; font-size: 18px; font-weight: 720; }
-      .box-copy { fill: #a5b0bb; font-size: 14px; }
-      .box-code { fill: #d7e2ea; font-size: 13px; font-family: "SFMono-Regular", Consolas, monospace; }
-      .status { font-size: 12px; font-weight: 800; letter-spacing: 0.8px; }
-      .ui-stroke { stroke: #5ac8fa; }
-      .skill-stroke { stroke: #b49cff; }
-      .runtime-stroke { stroke: #71e8a5; }
-      .workbench-stroke { stroke: #f1c66d; }
-      .infra-stroke { stroke: #ff8dad; }
-      .ui-fill { fill: #0d2231; }
-      .skill-fill { fill: #1b1730; }
-      .runtime-fill { fill: #10271f; }
-      .workbench-fill { fill: #282115; }
-      .infra-fill { fill: #2b1720; }
-      .implemented { stroke-width: 2; }
-      .baseline { stroke-width: 2; stroke-dasharray: 8 6; }
-      .pending { stroke-width: 1.5; stroke-dasharray: 4 7; opacity: 0.78; }
-      .arrow { fill: none; stroke: #72e6aa; stroke-width: 3; marker-end: url(#arrow); }
-      .arrow-muted { fill: none; stroke: #81909f; stroke-width: 2; stroke-dasharray: 7 6; marker-end: url(#arrow-muted); }
-      .vertical { fill: none; stroke: #566674; stroke-width: 2; stroke-dasharray: 5 6; marker-end: url(#arrow-muted); }
-      .divider { stroke: #23303b; stroke-width: 1; }
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #edf4f7; }
+      .title { font-size: 46px; font-weight: 750; letter-spacing: -1px; }
+      .subtitle { font-size: 20px; fill: #a7b5bf; }
+      .zone-title { font-size: 23px; font-weight: 750; }
+      .zone-sub { font-size: 15px; fill: #8999a9; }
+      .box-title { font-size: 20px; font-weight: 720; }
+      .box-copy { font-size: 15px; fill: #aab6c0; }
+      .box-code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; fill: #cad4da; }
+      .kicker { font-size: 12px; font-weight: 750; letter-spacing: 1.2px; }
+      .status { font-size: 12px; font-weight: 760; letter-spacing: .4px; }
+      .note { font-size: 14px; fill: #9facb6; }
+      .stage-title { font-size: 17px; font-weight: 730; }
+      .stage-copy { font-size: 13px; fill: #a8b4bd; }
+      .ours-fill { fill: #0d2a20; }
+      .ours-stroke { stroke: #64e3a0; stroke-width: 2; }
+      .ui-fill { fill: #10283a; }
+      .ui-stroke { stroke: #57c9fa; stroke-width: 2; }
+      .skill-fill { fill: #211936; }
+      .skill-stroke { stroke: #b091ff; stroke-width: 2; }
+      .local-fill { fill: #302715; }
+      .local-stroke { stroke: #edc46b; stroke-width: 2; }
+      .cloud-fill { fill: #321725; }
+      .cloud-stroke { stroke: #eb82a9; stroke-width: 2; }
+      .external-fill { fill: #171929; }
+      .external-stroke { stroke: #8f82cc; stroke-width: 2; }
+      .implemented { stroke-dasharray: none; }
+      .baseline { stroke-dasharray: 10 7; }
+      .pending { stroke-dasharray: 3 8; }
+      .arrow-green { fill: none; stroke: #69e6a3; stroke-width: 3; marker-end: url(#arrowGreen); }
+      .arrow-gray { fill: none; stroke: #8494a8; stroke-width: 2.5; marker-end: url(#arrowGray); }
+      .arrow-gold { fill: none; stroke: #efc76e; stroke-width: 2.5; marker-end: url(#arrowGold); }
+      .arrow-pink { fill: none; stroke: #ec86ad; stroke-width: 2.5; marker-end: url(#arrowPink); }
+      .dashed { stroke-dasharray: 9 8; }
+      .divider { stroke: #ffffff; stroke-opacity: .1; }
     </style>
   </defs>
 
-  <rect width="2400" height="1700" fill="url(#background)"/>
-  <circle cx="355" cy="80" r="330" fill="#2a8a67" opacity="0.08"/>
-  <circle cx="2200" cy="110" r="390" fill="#7255be" opacity="0.08"/>
+  <rect width="2400" height="2050" fill="#070c14"/>
+  <circle cx="310" cy="70" r="390" fill="#0c5a4b" opacity=".11"/>
+  <circle cx="2210" cy="110" r="360" fill="#6c3fb5" opacity=".10"/>
 
   <!-- Header -->
-  <rect x="42" y="34" width="2316" height="112" rx="18" fill="url(#hero)" stroke="#2a3a44"/>
-  <text x="78" y="88" class="title">Video Agent Harness · 端到端 AI 视频生产架构</text>
-  <text x="80" y="122" class="subtitle">从创意脚本到分镜、H3 动作骨架、在线精修、质量闭环、确定性后期与 4K 交付</text>
-  <text x="1590" y="77" class="term">术语校正</text>
-  <text x="1590" y="103" class="subtitle">Harness ≠ HarmonyOS　·　ComfyUI ≠ Comfort UI</text>
-  <text x="1590" y="129" class="subtitle">LibTV CLI 是无限画布的自动化接口，不是画布本身</text>
+  <g filter="url(#shadow)">
+    <rect x="42" y="28" width="2316" height="136" rx="22" fill="url(#headerGradient)" stroke="#263647"/>
+    <text x="78" y="84" class="title">Video Agent Harness · 谁负责什么</text>
+    <text x="78" y="121" class="subtitle">从创意、脚本、分镜、H3 动作骨架，到 LibTV 最终候选、质量闭环与交付</text>
+    <text x="1640" y="67" class="kicker" fill="#70e5a6">术语</text>
+    <text x="1640" y="95" class="box-copy">Harness ≠ HarmonyOS　·　ComfyUI ≠ Comfort UI</text>
+    <text x="1640" y="122" class="box-copy">Studio 与 Runtime 都是本仓库自研模块，不是第三方产品。</text>
+  </g>
 
   <!-- Legend -->
-  <g transform="translate(1840,160)">
-    <rect width="518" height="46" rx="12" fill="#0d141c" stroke="#263641"/>
-    <circle cx="26" cy="23" r="6" fill="#71e8a5"/><text x="42" y="29" class="box-copy">已实现</text>
-    <circle cx="142" cy="23" r="6" fill="#f1c66d"/><text x="158" y="29" class="box-copy">基线 / 可选</text>
-    <circle cx="305" cy="23" r="6" fill="#81909f"/><text x="321" y="29" class="box-copy">待配置 / 待增强</text>
+  <g transform="translate(52,181)">
+    <rect width="2296" height="48" rx="14" fill="#0d141f" stroke="#253344"/>
+    <circle cx="28" cy="24" r="8" fill="#64e3a0"/><text x="46" y="29" class="note">我们实现：仓库代码</text>
+    <circle cx="310" cy="24" r="8" fill="#57c9fa"/><text x="328" y="29" class="note">我们实现：Studio UI</text>
+    <circle cx="630" cy="24" r="8" fill="#b091ff"/><text x="648" y="29" class="note">Agent Host 外部；Repo Skill 自研</text>
+    <circle cx="1055" cy="24" r="8" fill="#edc46b"/><text x="1073" y="29" class="note">本地第三方软件 / 模型</text>
+    <circle cx="1465" cy="24" r="8" fill="#eb82a9"/><text x="1483" y="29" class="note">第三方云服务</text>
+    <line x1="1780" y1="24" x2="1840" y2="24" stroke="#aab6c0" stroke-width="2"/><text x="1855" y="29" class="note">已实现 / 已接入</text>
+    <line x1="2100" y1="24" x2="2160" y2="24" stroke="#aab6c0" stroke-width="2" stroke-dasharray="8 7"/><text x="2175" y="29" class="note">基线 / 未配置</text>
   </g>
 
-  <!-- Stage headers -->
-  <g filter="url(#shadow)">
-    <g transform="translate(300,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">01 · INTENT</text><text x="18" y="53" class="stage-title">创意与项目建立</text></g>
-    <g transform="translate(628,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">02 · STORY</text><text x="18" y="53" class="stage-title">剧本与分镜</text></g>
-    <g transform="translate(956,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">03 · CONTROL PLAN</text><text x="18" y="53" class="stage-title">一致性与镜头配方</text></g>
-    <g transform="translate(1284,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">04 · CONTROL PASS</text><text x="18" y="53" class="stage-title">H3 动作骨架</text></g>
-    <g transform="translate(1612,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">05 · FINAL GEN</text><text x="18" y="53" class="stage-title">LibTV 在线精修</text></g>
-    <g transform="translate(1940,164)"><rect width="310" height="70" rx="14" fill="#101923" stroke="#2b3b47"/><text x="18" y="25" class="stage-no">06 · DELIVERY</text><text x="18" y="53" class="stage-title">评审、后期与交付</text></g>
-  </g>
-
-  <!-- Lane backgrounds and labels -->
+  <!-- External host zone -->
   <g>
-    <rect x="42" y="254" width="2316" height="176" rx="16" fill="#0b151e" stroke="#223441"/>
-    <rect x="42" y="448" width="2316" height="222" rx="16" fill="#121020" stroke="#302847"/>
-    <rect x="42" y="688" width="2316" height="296" rx="16" fill="#0b1813" stroke="#234033"/>
-    <rect x="42" y="1002" width="2316" height="232" rx="16" fill="#1c170e" stroke="#473a20"/>
-    <rect x="42" y="1252" width="2316" height="186" rx="16" fill="#211019" stroke="#4b2432"/>
-
-    <g transform="translate(66,283)"><rect width="204" height="118" rx="14" class="ui-fill ui-stroke implemented"/><text x="18" y="30" class="box-kicker" fill="#5ac8fa">PRODUCT EXPERIENCE</text><text x="18" y="61" class="lane-title">Harness Studio</text><text x="18" y="84" class="lane-sub">项目与资产总控</text><text x="18" y="105" class="lane-sub">唯一事实来源</text></g>
-    <g transform="translate(66,485)"><rect width="204" height="142" rx="14" class="skill-fill skill-stroke implemented"/><text x="18" y="30" class="box-kicker" fill="#b49cff">KNOWLEDGE LAYER</text><text x="18" y="61" class="lane-title">Skill / Agent</text><text x="18" y="84" class="lane-sub">创作知识与决策</text><text x="18" y="105" class="lane-sub">可替换 Agent Host</text><text x="18" y="126" class="lane-sub">Codex / Claude Code</text></g>
-    <g transform="translate(66,753)"><rect width="204" height="162" rx="14" class="runtime-fill runtime-stroke implemented"/><text x="18" y="30" class="box-kicker" fill="#71e8a5">CONTROL PLANE</text><text x="18" y="61" class="lane-title">Harness Runtime</text><text x="18" y="84" class="lane-sub">TypeScript / Node.js</text><text x="18" y="105" class="lane-sub">状态、血缘、恢复</text><text x="18" y="126" class="lane-sub">质量、成本、审计</text><text x="18" y="147" class="lane-sub">SQLite / REST API</text></g>
-    <g transform="translate(66,1040)"><rect width="204" height="156" rx="14" class="workbench-fill workbench-stroke implemented"/><text x="18" y="30" class="box-kicker" fill="#f1c66d">WORKBENCH / PROVIDER</text><text x="18" y="61" class="lane-title">专业工作台</text><text x="18" y="84" class="lane-sub">ComfyUI Web / API</text><text x="18" y="105" class="lane-sub">LibTV Canvas / CLI</text><text x="18" y="126" class="lane-sub">HyperFrames</text></g>
-    <g transform="translate(66,1284)"><rect width="204" height="122" rx="14" class="infra-fill infra-stroke implemented"/><text x="18" y="30" class="box-kicker" fill="#ff8dad">MODEL / DELIVERY</text><text x="18" y="61" class="lane-title">模型与基础设施</text><text x="18" y="84" class="lane-sub">H3 / 在线模型</text><text x="18" y="105" class="lane-sub">OSS / IMS / Archive</text></g>
+    <rect x="42" y="250" width="2316" height="190" rx="20" fill="#10121f" stroke="#443b67" stroke-width="2"/>
+    <g transform="translate(66,278)">
+      <rect width="205" height="134" rx="14" class="external-fill external-stroke"/>
+      <text x="18" y="30" class="kicker" fill="#b091ff">不属于仓库</text>
+      <text x="18" y="62" class="zone-title">操作人与 Agent Host</text>
+      <text x="18" y="89" class="zone-sub">可替换调用入口</text>
+      <text x="18" y="113" class="zone-sub">不保存生产真相</text>
+    </g>
+    <g transform="translate(308,286)">
+      <rect width="278" height="118" rx="14" class="external-fill external-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#b091ff">USER / CREATIVE BRIEF</text>
+      <text x="18" y="58" class="box-title">创作者</text>
+      <text x="18" y="83" class="box-copy">主题、风格、角色、参考素材</text>
+      <text x="18" y="105" class="box-copy">验收目标与产品判断</text>
+    </g>
+    <g transform="translate(664,286)">
+      <rect width="400" height="118" rx="14" class="external-fill external-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#b091ff">EXTERNAL AGENT HOST</text>
+      <text x="18" y="58" class="box-title">Codex / Claude Code / 其他 Agent</text>
+      <text x="18" y="83" class="box-copy">理解意图、读取仓库 Skill、调用 Harness API</text>
+      <text x="18" y="105" class="box-copy">可以替换，不应成为项目状态数据库</text>
+    </g>
+    <path d="M586 345 L654 345" class="arrow-gray"/>
+    <g transform="translate(1135,278)">
+      <rect width="1178" height="134" rx="14" fill="#141a26" stroke="#2f3a4b"/>
+      <text x="20" y="32" class="kicker" fill="#8fa0b2">这一层只提供交互与推理</text>
+      <text x="20" y="65" class="box-copy">当前用 Codex 发起创作流程；将来换成 Claude Code，仍然读取同一套仓库 Skill，调用同一套 REST API。</text>
+      <text x="20" y="91" class="box-copy">脚本、分镜、素材版本、任务状态、质量结果全部落在 Harness Runtime / SQLite，不依赖聊天记录。</text>
+      <text x="20" y="117" class="box-copy">创作者也可以绕过 Agent，直接进入 Harness Studio 手工建立项目和分镜。</text>
+    </g>
   </g>
 
-  <!-- Lane 1: Studio -->
-  <g filter="url(#shadow)">
-    <g transform="translate(300,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Project + Brief</text><text x="18" y="80" class="box-copy">项目目标、故事梗概、交付规格</text><text x="18" y="103" class="box-copy">角色/场景/素材统一入口</text></g>
-    <g transform="translate(628,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Story Scene / Storyboard</text><text x="18" y="80" class="box-copy">场景、时长、镜头意图列表</text><text x="18" y="103" class="box-copy">关联 Character / Scene Pack</text></g>
-    <g transform="translate(956,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Project Asset Graph</text><text x="18" y="80" class="box-copy">素材角色、版本、URI 与来源</text><text x="18" y="103" class="box-copy">绑定 Profile / Canvas UUID</text></g>
-    <g transform="translate(1284,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Control Draft Monitor</text><text x="18" y="80" class="box-copy">Prompt ID、步骤状态、控制视频</text><text x="18" y="103" class="box-copy">打开 ComfyUI 专业工作台</text></g>
-    <g transform="translate(1612,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Candidate Comparison</text><text x="18" y="80" class="box-copy">候选、评价、Provider Task ID</text><text x="18" y="103" class="box-copy">打开 LibTV 无限画布</text></g>
-    <g transform="translate(1940,278)"><rect width="310" height="128" rx="13" class="ui-fill ui-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#5ac8fa">STUDIO · 已实现</text><text x="18" y="56" class="box-title">Accepted + Delivery</text><text x="18" y="80" class="box-copy">合格镜头、母版、QC、成本</text><text x="18" y="103" class="box-copy">Manifest 与可追溯交付</text></g>
-  </g>
-
-  <!-- Lane 2: Skills -->
+  <!-- Our repository zone -->
   <g>
-    <g transform="translate(300,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#b49cff">SKILL · 仓库内</text><text x="18" y="56" class="box-title">grill-me（显式可选）</text><text x="18" y="81" class="box-copy">压力测试目标、范围与验收</text><text x="18" y="105" class="box-title">create-production-video</text><text x="18" y="130" class="box-copy">拥有整条创作状态机</text></g>
-    <g transform="translate(628,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#b49cff">SKILL · 仓库内</text><text x="18" y="56" class="box-title">Creative Director Rules</text><text x="18" y="81" class="box-copy">剧本拆解、场景划分、镜头意图</text><text x="18" y="105" class="box-title">libtv-cli（可选创意）</text><text x="18" y="130" class="box-copy">Script / Storyboard 节点操作</text></g>
-    <g transform="translate(956,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#b49cff">SKILL · 仓库内</text><text x="18" y="56" class="box-title">generate-minimax-h3-shot</text><text x="18" y="81" class="box-copy">场景能力路由、参考素材职责</text><text x="18" y="105" class="box-copy">Profile、显存、帧数与参数边界</text><text x="18" y="134" class="box-code">T2V / FL2VA / REF2VA</text></g>
-    <g transform="translate(1284,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke baseline"/><text x="18" y="27" class="box-kicker" fill="#f1c66d">SKILL · 控制草稿标准</text><text x="18" y="56" class="box-title">review-video-candidate</text><text x="18" y="81" class="box-copy">只严格检查动作、构图、运镜</text><text x="18" y="105" class="box-copy">脸部材质漂移先告警，不阻断</text><text x="18" y="134" class="status" fill="#f1c66d">RELAXED GATE</text></g>
-    <g transform="translate(1612,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke implemented"/><text x="18" y="27" class="box-kicker" fill="#b49cff">SKILL · 官方快照</text><text x="18" y="56" class="box-title">libtv-cli</text><text x="18" y="81" class="box-copy">Upload、Canvas、Node、Model Schema</text><text x="18" y="105" class="box-copy">创建 V2V 节点并运行在线模型</text><text x="18" y="134" class="box-code">官方 CLI 1.1.3</text></g>
-    <g transform="translate(1940,478)"><rect width="310" height="162" rx="13" class="skill-fill skill-stroke baseline"/><text x="18" y="27" class="box-kicker" fill="#f1c66d">SKILL · 最终候选标准</text><text x="18" y="56" class="box-title">review-video-candidate</text><text x="18" y="81" class="box-copy">身份、外观、语义、时序、技术质量</text><text x="18" y="105" class="box-copy">诊断责任阶段并建议局部重试</text><text x="18" y="134" class="status" fill="#f1c66d">STRICT GATE</text></g>
+    <rect x="42" y="468" width="2316" height="716" rx="22" fill="#081c16" stroke="#3f9a70" stroke-width="2.5"/>
+    <rect x="42" y="468" width="2316" height="58" rx="22" fill="#0d3226"/>
+    <text x="70" y="505" class="zone-title" fill="#6ae6a3">我们的工程：video-agent-harness 仓库</text>
+    <text x="610" y="505" class="zone-sub">TypeScript / Node.js · React · Fastify · SQLite · Repo-local Skills · Provider Adapters</text>
+    <g transform="translate(2045,482)"><rect width="275" height="30" rx="15" fill="#123f30" stroke="#64e3a0"/><text x="18" y="21" class="status" fill="#75e9ab">核心已实现，生产链部分待配置</text></g>
+
+    <!-- top-level modules -->
+    <g transform="translate(286,558)">
+      <rect width="520" height="168" rx="16" class="skill-fill skill-stroke implemented"/>
+      <text x="20" y="30" class="kicker" fill="#b496ff">仓库内自研 · 已实现</text>
+      <text x="20" y="63" class="box-title">Repo Skills</text>
+      <text x="20" y="91" class="box-copy">create-production-video：总创作流程</text>
+      <text x="20" y="116" class="box-copy">generate-minimax-h3-shot：H3 场景与参数策略</text>
+      <text x="20" y="141" class="box-copy">review-video-candidate：阶段化评审标准</text>
+    </g>
+    <g transform="translate(834,558)">
+      <rect width="520" height="168" rx="16" class="ui-fill ui-stroke implemented"/>
+      <text x="20" y="30" class="kicker" fill="#5ac8fa">仓库内自研 · 基线已实现</text>
+      <text x="20" y="63" class="box-title">Harness Studio</text>
+      <text x="20" y="91" class="box-copy">React 控制台：项目、素材、角色包、场景包、分镜</text>
+      <text x="20" y="116" class="box-copy">任务状态、产物聚合、工作台绑定、后期预览</text>
+      <text x="20" y="141" class="box-code">web/　→ build 后由 Fastify 同端口提供</text>
+    </g>
+    <g transform="translate(1382,558)">
+      <rect width="890" height="168" rx="16" class="ours-fill ours-stroke implemented"/>
+      <text x="20" y="30" class="kicker" fill="#71e8a5">仓库内自研 · 核心已实现</text>
+      <text x="20" y="63" class="box-title">Harness Runtime</text>
+      <text x="20" y="91" class="box-copy">Node.js 控制面：把脚本和分镜编译成可恢复的镜头执行任务</text>
+      <text x="20" y="116" class="box-copy">保存资产血缘、Provider Task ID、执行检查点、成本、质量与交付 Manifest</text>
+      <text x="20" y="141" class="box-code">src/　Fastify REST API + Workflow Engine + SQLite</text>
+    </g>
+
+    <!-- arrows from entry -->
+    <path d="M864 404 L864 534 L546 534 L546 548" class="arrow-gray"/>
+    <path d="M447 404 L447 520 L1094 520 L1094 548" class="arrow-gray"/>
+    <path d="M806 642 L824 642" class="arrow-green"/>
+    <path d="M1354 642 L1372 642" class="arrow-green"/>
+
+    <!-- Runtime internals -->
+    <text x="286" y="762" class="kicker" fill="#71e8a5">HARNESS RUNTIME 内部模块</text>
+    <g transform="translate(286,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke"/>
+      <text x="18" y="29" class="kicker" fill="#71e8a5">01 · PROJECT STATE</text>
+      <text x="18" y="61" class="box-title">ProductionProjectService</text>
+      <text x="18" y="89" class="box-code">Project / StoryScene</text>
+      <text x="18" y="113" class="box-code">Asset / CharacterPack / ScenePack</text>
+      <line x1="18" y1="136" x2="292" y2="136" class="divider"/>
+      <text x="18" y="164" class="box-copy">项目结构与引用校验</text>
+      <text x="18" y="190" class="box-copy">不是生成模型</text>
+    </g>
+    <g transform="translate(620,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke"/>
+      <text x="18" y="29" class="kicker" fill="#71e8a5">02 · PLAN</text>
+      <text x="18" y="61" class="box-title">Director + Shot Planner</text>
+      <text x="18" y="89" class="box-copy">拆分场景与镜头意图</text>
+      <text x="18" y="113" class="box-copy">选择 Profile、Seed、时长与参数边界</text>
+      <line x1="18" y1="136" x2="292" y2="136" class="divider"/>
+      <text x="18" y="164" class="box-copy">确定性 Director 已实现</text>
+      <text x="18" y="190" class="box-copy">Pi 模型为可选增强</text>
+    </g>
+    <g transform="translate(954,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke"/>
+      <text x="18" y="29" class="kicker" fill="#71e8a5">03 · EXECUTE</text>
+      <text x="18" y="61" class="box-title">Router + Provider Adapters</text>
+      <text x="18" y="89" class="box-copy">ComfyUI 执行器</text>
+      <text x="18" y="113" class="box-copy">LibTV CLI 执行器</text>
+      <text x="18" y="137" class="box-copy">Bailian / IMS / OSS 适配器</text>
+      <line x1="18" y1="158" x2="292" y2="158" class="divider"/>
+      <text x="18" y="188" class="box-copy">适配器是我们的，服务不是</text>
+    </g>
+    <g transform="translate(1288,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke"/>
+      <text x="18" y="29" class="kicker" fill="#71e8a5">04 · PERSIST</text>
+      <text x="18" y="61" class="box-title">SQLite + Asset Graph</text>
+      <text x="18" y="89" class="box-copy">输入、控制片、候选与母版血缘</text>
+      <text x="18" y="113" class="box-copy">任务状态、检查点、版本和审计</text>
+      <line x1="18" y1="136" x2="292" y2="136" class="divider"/>
+      <text x="18" y="164" class="box-copy">项目唯一事实来源</text>
+      <text x="18" y="190" class="box-copy">敏感本机配置不进 Git</text>
+    </g>
+    <g transform="translate(1622,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke baseline"/>
+      <text x="18" y="29" class="kicker" fill="#f0c86e">05 · EVALUATE · 基线</text>
+      <text x="18" y="61" class="box-title">Quality Loop</text>
+      <text x="18" y="89" class="box-copy">阶段门禁、失败诊断、局部重试</text>
+      <text x="18" y="113" class="box-copy">AcceptedShotManifest</text>
+      <line x1="18" y1="136" x2="292" y2="136" class="divider"/>
+      <text x="18" y="164" class="box-copy">当前为首个成功候选基线</text>
+      <text x="18" y="190" class="box-copy">真实 VLM 评分待增强</text>
+    </g>
+    <g transform="translate(1956,784)">
+      <rect width="310" height="218" rx="14" class="ours-fill ours-stroke baseline"/>
+      <text x="18" y="29" class="kicker" fill="#f0c86e">06 · ASSEMBLE / DELIVER</text>
+      <text x="18" y="61" class="box-title">Post + Delivery Pipeline</text>
+      <text x="18" y="89" class="box-copy">自研编排 + 外部 HyperFrames SDK</text>
+      <text x="18" y="113" class="box-copy">字幕、包装、拼接与交付 Manifest</text>
+      <line x1="18" y1="136" x2="292" y2="136" class="divider"/>
+      <text x="18" y="164" class="box-copy">本地预览已实现</text>
+      <text x="18" y="190" class="box-copy">IMS 云交付当前未启用</text>
+    </g>
+    <path d="M596 893 L610 893" class="arrow-green"/>
+    <path d="M930 893 L944 893" class="arrow-green"/>
+    <path d="M1264 893 L1278 893" class="arrow-green"/>
+    <path d="M1598 893 L1612 893" class="arrow-green"/>
+    <path d="M1932 893 L1946 893" class="arrow-green"/>
+    <path d="M1777 1002 C1777 1085 775 1085 775 1012" class="arrow-green dashed"/>
+    <text x="1050" y="1062" class="note">不合格：回到镜头配方或指定 Provider 局部重跑</text>
+
+    <g transform="translate(286,1110)">
+      <rect width="1980" height="46" rx="13" fill="#0c271e" stroke="#28553f"/>
+      <text x="18" y="29" class="status" fill="#72e7a7">当前实际运行状态</text>
+      <text x="208" y="29" class="note">Studio + Runtime 可运行；当前进程为 direct / simulation。ComfyUI → LibTV 受控主链代码已存在，但要启用仍需本机 .env、批准 Workflow Profile 与 LibTV Canvas UUID。</text>
+    </g>
   </g>
 
-  <!-- Lane 3: Harness Runtime -->
+  <!-- Local third-party zone -->
   <g>
-    <g transform="translate(300,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#71e8a5">RUNTIME · 已实现</text><text x="18" y="58" class="box-title">ProductionProjectService</text><text x="18" y="85" class="box-code">Project / AssetVersion</text><text x="18" y="108" class="box-code">CharacterPack / ScenePack</text><text x="18" y="131" class="box-code">StoryScene / WorkbenchBinding</text><line x1="18" y1="151" x2="292" y2="151" class="divider"/><text x="18" y="178" class="box-copy">SQLite 持久化、跨项目引用校验</text><text x="18" y="202" class="box-copy">不依赖聊天历史保存状态</text></g>
-    <g transform="translate(628,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke baseline"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">RUNTIME · 基线已实现</text><text x="18" y="58" class="box-title">Director</text><text x="18" y="85" class="box-code">DeterministicDirector</text><text x="18" y="108" class="box-code">PiDirector (optional)</text><text x="18" y="137" class="box-copy">输出 VideoPlan 与 ShotIntent</text><text x="18" y="161" class="box-copy">Pi 模型 Key 未配置时使用确定性规划</text><text x="18" y="196" class="status" fill="#f1c66d">LIBTV SCRIPT 尚未默认接入</text></g>
-    <g transform="translate(956,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#71e8a5">RUNTIME · 已实现</text><text x="18" y="58" class="box-title">ShotRecipePlanner</text><text x="18" y="85" class="box-code">control-pass</text><text x="18" y="108" class="box-code">final-generation</text><text x="18" y="137" class="box-copy">按 Profile 编译可恢复执行图</text><text x="18" y="161" class="box-copy">白名单参数、Seed、帧数、分辨率</text><text x="18" y="196" class="box-code">comfyui-libtv / direct</text></g>
-    <g transform="translate(1284,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#71e8a5">RUNTIME · 已实现</text><text x="18" y="58" class="box-title">ComfyUiControlStepExecutor</text><text x="18" y="85" class="box-copy">预检 → /prompt → /history</text><text x="18" y="109" class="box-copy">保存 prompt_id 与检查点</text><text x="18" y="133" class="box-copy">下载控制视频到本地资产库</text><text x="18" y="162" class="box-code">output: motion-reference</text><text x="18" y="196" class="status" fill="#81909f">生产图片上传槽待增强</text></g>
-    <g transform="translate(1612,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#71e8a5">RUNTIME · 已实现</text><text x="18" y="58" class="box-title">LibTvGenerationStepExecutor</text><text x="18" y="85" class="box-copy">官方 CLI 上传 motion-reference</text><text x="18" y="109" class="box-copy">创建 video2video 节点并运行</text><text x="18" y="133" class="box-copy">保存 Canvas Node / Task / URL</text><text x="18" y="162" class="box-code">output: final-video</text><text x="18" y="196" class="status" fill="#81909f">当前本机 Canvas 未配置</text></g>
-    <g transform="translate(1940,720)"><rect width="310" height="226" rx="13" class="runtime-fill runtime-stroke baseline"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">RUNTIME · 契约已实现</text><text x="18" y="58" class="box-title">Quality Loop + Delivery</text><text x="18" y="85" class="box-copy">EvaluationReport / 责任阶段诊断</text><text x="18" y="109" class="box-copy">Accepted Shot Manifest</text><text x="18" y="133" class="box-copy">恢复、重试、成本与交付状态</text><text x="18" y="162" class="status" fill="#f1c66d">首成功候选评价基线</text><text x="18" y="196" class="status" fill="#81909f">真实 VLM + 自动回跳待增强</text></g>
+    <rect x="42" y="1214" width="2316" height="228" rx="22" fill="#241e11" stroke="#9a793d" stroke-width="2"/>
+    <g transform="translate(66,1246)">
+      <rect width="205" height="164" rx="14" class="local-fill local-stroke"/>
+      <text x="18" y="30" class="kicker" fill="#efc76e">本地第三方</text>
+      <text x="18" y="62" class="zone-title">不是我们的代码</text>
+      <text x="18" y="90" class="zone-sub">由 Harness 调用</text>
+      <text x="18" y="115" class="zone-sub">地址写入 .env.local</text>
+      <text x="18" y="140" class="zone-sub">不提交 GitHub</text>
+    </g>
+    <g transform="translate(320,1242)">
+      <rect width="720" height="170" rx="15" class="local-fill local-stroke implemented"/>
+      <text x="20" y="30" class="kicker" fill="#efc76e">EXTERNAL LOCAL SERVICE · 已使用 / 已测试</text>
+      <text x="20" y="63" class="box-title">ComfyUI Web / API</text>
+      <text x="20" y="91" class="box-copy">节点画布、Workflow 执行、/prompt、/history、素材上传与结果下载</text>
+      <text x="20" y="118" class="box-copy">Harness 只保存 URL、Profile 与执行结果，不复制 ComfyUI 的画布能力</text>
+      <text x="20" y="145" class="box-code">COMFYUI_BASE_URL + COMFYUI_WORKFLOW_PATH</text>
+    </g>
+    <g transform="translate(1080,1242)">
+      <rect width="600" height="170" rx="15" class="local-fill local-stroke implemented"/>
+      <text x="20" y="30" class="kicker" fill="#efc76e">MODEL / CUSTOM NODES · 外部</text>
+      <text x="20" y="63" class="box-title">MiniMax H3 / REF2VA / LoRA / ControlNet</text>
+      <text x="20" y="91" class="box-copy">生成动作、机位、构图与节奏骨架</text>
+      <text x="20" y="118" class="box-copy">模型权重、节点和 GPU 环境属于 ComfyUI 服务端</text>
+      <text x="20" y="145" class="box-copy">输出 motion-reference，回收到 Harness Asset Graph</text>
+    </g>
+    <g transform="translate(1720,1242)">
+      <rect width="546" height="170" rx="15" fill="#181b20" stroke="#6d7781"/>
+      <text x="20" y="30" class="kicker" fill="#aab6c0">边界说明</text>
+      <text x="20" y="63" class="box-copy">我们实现：参数配方、调用、轮询、下载、血缘。</text>
+      <text x="20" y="91" class="box-copy">外部实现：节点执行、模型推理、GPU 调度。</text>
+      <text x="20" y="119" class="box-copy">所以“ComfyUI 工作台”不是我们的模块，</text>
+      <text x="20" y="145" class="box-copy">只是 Studio 中可以打开和绑定的外部工具。</text>
+    </g>
+    <path d="M1109 1002 L1109 1200 L680 1200 L680 1232" class="arrow-gold"/>
+    <text x="715" y="1192" class="status" fill="#efc76e">① Harness ComfyUI Adapter 发起控制任务</text>
+    <path d="M1040 1327 L1070 1327" class="arrow-gold"/>
+    <path d="M1380 1242 C1380 1178 1443 1178 1443 1012" class="arrow-gold"/>
+    <text x="1458" y="1192" class="status" fill="#efc76e">② motion-reference 回收入库</text>
   </g>
 
-  <!-- Runtime data flow arrows -->
-  <path d="M610 835 H620" class="arrow"/><path d="M938 835 H948" class="arrow"/><path d="M1266 835 H1276" class="arrow"/><path d="M1594 835 H1604" class="arrow"/><path d="M1922 835 H1932" class="arrow"/>
-  <path d="M2070 953 C2070 982 1460 982 1460 952" class="arrow-muted"/>
-  <text x="1585" y="974" class="box-copy">骨架问题 → 只回跳 ComfyUI　｜　精修问题 → 只重跑 LibTV</text>
-
-  <!-- Lane 4: Workbenches -->
+  <!-- Cloud third-party zone -->
   <g>
-    <g transform="translate(300,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">STUDIO MODULE</text><text x="18" y="58" class="box-title">项目内容空间</text><text x="18" y="84" class="box-copy">创建项目、登记素材、组织 Pack</text><text x="18" y="108" class="box-copy">本机账号/端口仍由 .env.local 注入</text><text x="18" y="140" class="box-code">GET/POST /v1/projects</text></g>
-    <g transform="translate(628,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke baseline"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">LIBTV WORKBENCH · 可选</text><text x="18" y="58" class="box-title">无限画布：创意规划</text><text x="18" y="84" class="box-copy">Script → Storyboard → 素材关系</text><text x="18" y="108" class="box-copy">适合人参与的发散与空间化整理</text><text x="18" y="140" class="box-code">CLI: script storyboard</text></g>
-    <g transform="translate(956,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">PROFILE REGISTRY</text><text x="18" y="58" class="box-title">Approved H3 Workflows</text><text x="18" y="84" class="box-code">FL2VA 首尾帧</text><text x="18" y="107" class="box-code">REF2VA 四图身份控制</text><text x="18" y="140" class="box-copy">版本、哈希、参数边界与回归样本</text></g>
-    <g transform="translate(1284,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">COMFYUI WORKBENCH / API</text><text x="18" y="58" class="box-title">底层生成控制</text><text x="18" y="84" class="box-copy">H3、LoRA、ControlNet、Sampler、VAE</text><text x="18" y="108" class="box-copy">开发期可搭图；生产期只运行批准 Profile</text><text x="18" y="140" class="box-code">Web UI + /prompt + /history</text></g>
-    <g transform="translate(1612,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke baseline"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">LIBTV CANVAS / CLI</text><text x="18" y="58" class="box-title">在线最终生成</text><text x="18" y="84" class="box-copy">控制视频作为 Reference Video</text><text x="18" y="108" class="box-copy">模型参数受实时 Schema 限制</text><text x="18" y="140" class="box-code">upload → node create --run</text></g>
-    <g transform="translate(1940,1033)"><rect width="310" height="170" rx="13" class="workbench-fill workbench-stroke implemented"/><text x="18" y="28" class="box-kicker" fill="#f1c66d">POST-PRODUCTION</text><text x="18" y="58" class="box-title">LibTV Assembly / HyperFrames</text><text x="18" y="84" class="box-copy">创意组装、剪辑、字幕、品牌动效</text><text x="18" y="108" class="box-copy">HyperFrames 可复现并执行 Lint</text><text x="18" y="140" class="box-code">Accepted clips → 1080P master</text></g>
+    <rect x="42" y="1470" width="2316" height="242" rx="22" fill="#25121d" stroke="#9d4f6e" stroke-width="2"/>
+    <g transform="translate(66,1507)">
+      <rect width="205" height="164" rx="14" class="cloud-fill cloud-stroke"/>
+      <text x="18" y="30" class="kicker" fill="#ec86ad">第三方云服务</text>
+      <text x="18" y="62" class="zone-title">不是我们的代码</text>
+      <text x="18" y="90" class="zone-sub">账号、计费、模型</text>
+      <text x="18" y="115" class="zone-sub">由服务商负责</text>
+      <text x="18" y="140" class="zone-sub">Harness 只做适配</text>
+    </g>
+    <g transform="translate(320,1494)">
+      <rect width="920" height="192" rx="15" class="cloud-fill cloud-stroke baseline"/>
+      <text x="20" y="30" class="kicker" fill="#ec86ad">LIBTV · CLI 已安装，CANVAS 尚未绑定</text>
+      <text x="20" y="63" class="box-title">官方 LibTV CLI + 无限画布 + 在线 V2V 模型</text>
+      <text x="20" y="91" class="box-copy">官方 CLI 接收 Harness 上传的 motion-reference，创建节点并运行线上模型</text>
+      <text x="20" y="118" class="box-copy">无限画布用于人工创意规划、候选观察和模型补充；它不是 Harness Runtime</text>
+      <text x="20" y="145" class="box-copy">返回 final-video URL、Canvas Node ID、Task ID，再由 Harness 入库和评审</text>
+      <text x="20" y="172" class="box-code">LIBTV_PROJECT_UUID / Canvas URL：本地配置，不进入仓库</text>
+    </g>
+    <g transform="translate(1280,1494)">
+      <rect width="470" height="192" rx="15" class="cloud-fill cloud-stroke pending"/>
+      <text x="20" y="30" class="kicker" fill="#ec86ad">OPTIONAL · 待增强</text>
+      <text x="20" y="63" class="box-title">VLM / 人脸与运动评测服务</text>
+      <text x="20" y="91" class="box-copy">身份、动作、构图、时序与技术质量评分</text>
+      <text x="20" y="118" class="box-copy">结果回到我们的 Quality Loop</text>
+      <text x="20" y="145" class="box-copy">当前尚未接真实自动视觉评测</text>
+      <text x="20" y="172" class="box-copy">不是 Codex 必须常驻执行</text>
+    </g>
+    <g transform="translate(1790,1494)">
+      <rect width="476" height="192" rx="15" class="cloud-fill cloud-stroke pending"/>
+      <text x="20" y="30" class="kicker" fill="#ec86ad">OPTIONAL DELIVERY · 当前未启用</text>
+      <text x="20" y="63" class="box-title">阿里云 OSS / IMS / 4K / QC</text>
+      <text x="20" y="91" class="box-copy">上传、超分、媒体处理、签发与归档</text>
+      <text x="20" y="118" class="box-copy">Provider 适配器代码已经存在</text>
+      <text x="20" y="145" class="box-copy">当前运行模式为 simulation</text>
+      <text x="20" y="172" class="box-copy">无需购买服务也可先验证本地链路</text>
+    </g>
+    <path d="M1109 1002 C1109 1448 780 1448 780 1484" class="arrow-pink dashed"/>
+    <text x="820" y="1457" class="status" fill="#ec86ad">③ LibTV Adapter 上传控制片并请求在线精修</text>
+    <path d="M1240 1588 C1325 1588 1325 1092 1443 1092 L1443 1012" class="arrow-pink dashed"/>
+    <text x="1265" y="1419" class="status" fill="#ec86ad">④ final-video 回收入库</text>
+    <path d="M1515 1494 C1515 1435 1777 1435 1777 1012" class="arrow-pink dashed"/>
+    <path d="M2028 1494 C2028 1435 2111 1435 2111 1012" class="arrow-pink dashed"/>
   </g>
 
-  <!-- Vertical ownership links -->
-  <path d="M455 406 V468" class="vertical"/><path d="M783 406 V468" class="vertical"/><path d="M1111 406 V468" class="vertical"/><path d="M1439 640 V710" class="vertical"/><path d="M1767 640 V710" class="vertical"/><path d="M2095 640 V710" class="vertical"/>
-  <path d="M455 946 V1023" class="vertical"/><path d="M783 946 V1023" class="vertical"/><path d="M1111 946 V1023" class="vertical"/><path d="M1439 946 V1023" class="vertical"/><path d="M1767 946 V1023" class="vertical"/><path d="M2095 946 V1023" class="vertical"/>
-
-  <!-- Lane 5: Models and delivery -->
+  <!-- Stage ownership map -->
   <g>
-    <g transform="translate(300,1281)"><rect width="638" height="126" rx="13" class="infra-fill infra-stroke implemented"/><text x="18" y="29" class="box-kicker" fill="#ff8dad">DURABLE LOCAL STATE · 已实现</text><text x="18" y="59" class="box-title">SQLite + .data + Manifest</text><text x="18" y="85" class="box-copy">项目、任务、检查点、控制资产、候选、评价和交付血缘</text><text x="18" y="108" class="box-copy">全部被 Git 忽略；不会把素材、账号或本机路径提交到远程仓库</text></g>
-    <g transform="translate(956,1281)"><rect width="310" height="126" rx="13" class="infra-fill infra-stroke implemented"/><text x="18" y="29" class="box-kicker" fill="#ff8dad">LOCAL MODEL</text><text x="18" y="59" class="box-title">MiniMax H3</text><text x="18" y="85" class="box-copy">动作、机位、构图与节奏骨架</text><text x="18" y="108" class="box-copy">不承担最终商业画面门禁</text></g>
-    <g transform="translate(1284,1281)"><rect width="310" height="126" rx="13" class="infra-fill infra-stroke implemented"/><text x="18" y="29" class="box-kicker" fill="#ff8dad">LAN EXECUTION</text><text x="18" y="59" class="box-title">ComfyUI GPU Runtime</text><text x="18" y="85" class="box-copy">本地显存策略与 Workflow 执行</text><text x="18" y="108" class="box-copy">当前通过局域网 API 接入</text></g>
-    <g transform="translate(1612,1281)"><rect width="310" height="126" rx="13" class="infra-fill infra-stroke baseline"/><text x="18" y="29" class="box-kicker" fill="#f1c66d">ONLINE MODEL</text><text x="18" y="59" class="box-title">LibTV Selected V2V</text><text x="18" y="85" class="box-copy">当前已验证 Wan 2.7 Schema</text><text x="18" y="108" class="box-copy">模型可替换，不写死架构</text></g>
-    <g transform="translate(1940,1281)"><rect width="310" height="126" rx="13" class="infra-fill infra-stroke pending"/><text x="18" y="29" class="box-kicker" fill="#81909f">DELIVERY · Provider 已实现</text><text x="18" y="59" class="box-title">OSS → IMS SR5 → QC</text><text x="18" y="85" class="box-copy">1080P 母版 → 4K → 签发归档</text><text x="18" y="108" class="box-copy">当前本机仍为 simulation</text></g>
+    <rect x="42" y="1740" width="2316" height="274" rx="22" fill="#0c121c" stroke="#263546" stroke-width="2"/>
+    <text x="70" y="1781" class="zone-title">端到端阶段归属</text>
+    <text x="275" y="1781" class="zone-sub">每个阶段同时写清“谁决策、谁编排、谁真正执行”</text>
+    <g transform="translate(66,1804)">
+      <rect width="300" height="174" rx="14" class="skill-fill skill-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#b091ff">01 · 创意输入</text>
+      <text x="18" y="58" class="stage-title">Agent Host + Repo Skill</text>
+      <text x="18" y="86" class="stage-copy">外部 Agent 理解需求</text>
+      <text x="18" y="109" class="stage-copy">我们的 Skill 约束流程</text>
+      <text x="18" y="143" class="status" fill="#70e5a6">项目数据写入我们的 Runtime</text>
+    </g>
+    <g transform="translate(390,1804)">
+      <rect width="300" height="174" rx="14" class="ui-fill ui-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#57c9fa">02 · 脚本与分镜</text>
+      <text x="18" y="58" class="stage-title">Studio + Director</text>
+      <text x="18" y="86" class="stage-copy">我们的 UI 与服务保存 StoryScene</text>
+      <text x="18" y="109" class="stage-copy">LibTV 画布只是可选创意辅助</text>
+      <text x="18" y="143" class="status" fill="#70e5a6">主体由我们实现</text>
+    </g>
+    <g transform="translate(714,1804)">
+      <rect width="300" height="174" rx="14" class="ours-fill ours-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#71e8a5">03 · 镜头配方</text>
+      <text x="18" y="58" class="stage-title">ShotRecipePlanner</text>
+      <text x="18" y="86" class="stage-copy">角色/场景引用、Profile、Seed</text>
+      <text x="18" y="109" class="stage-copy">帧数、分辨率、重试边界</text>
+      <text x="18" y="143" class="status" fill="#70e5a6">完全属于我们的控制面</text>
+    </g>
+    <g transform="translate(1038,1804)">
+      <rect width="300" height="174" rx="14" class="local-fill local-stroke"/>
+      <text x="18" y="28" class="kicker" fill="#efc76e">04 · H3 动作骨架</text>
+      <text x="18" y="58" class="stage-title">ComfyUI + MiniMax H3</text>
+      <text x="18" y="86" class="stage-copy">外部本地服务负责 GPU 推理</text>
+      <text x="18" y="109" class="stage-copy">我们的 Adapter 负责调用与收回</text>
+      <text x="18" y="143" class="status" fill="#efc76e">服务外部，编排自研</text>
+    </g>
+    <g transform="translate(1362,1804)">
+      <rect width="300" height="174" rx="14" class="cloud-fill cloud-stroke baseline"/>
+      <text x="18" y="28" class="kicker" fill="#ec86ad">05 · 最终候选</text>
+      <text x="18" y="58" class="stage-title">LibTV 在线生成</text>
+      <text x="18" y="86" class="stage-copy">外部云模型负责最终 V2V</text>
+      <text x="18" y="109" class="stage-copy">我们的 CLI Adapter 保存任务血缘</text>
+      <text x="18" y="143" class="status" fill="#ec86ad">适配器有了，Canvas 未配置</text>
+    </g>
+    <g transform="translate(1686,1804)">
+      <rect width="300" height="174" rx="14" class="ours-fill ours-stroke baseline"/>
+      <text x="18" y="28" class="kicker" fill="#f0c86e">06 · 质量闭环</text>
+      <text x="18" y="58" class="stage-title">Harness Quality Loop</text>
+      <text x="18" y="86" class="stage-copy">我们的门禁、诊断与重试策略</text>
+      <text x="18" y="109" class="stage-copy">可调用外部 VLM 给出画面评分</text>
+      <text x="18" y="143" class="status" fill="#f0c86e">基线已实现，智能评分待增强</text>
+    </g>
+    <g transform="translate(2010,1804)">
+      <rect width="300" height="174" rx="14" class="ours-fill ours-stroke baseline"/>
+      <text x="18" y="28" class="kicker" fill="#f0c86e">07 · 后期与交付</text>
+      <text x="18" y="58" class="stage-title">Harness 编排</text>
+      <text x="18" y="86" class="stage-copy">HyperFrames 是嵌入式外部 SDK</text>
+      <text x="18" y="109" class="stage-copy">IMS/OSS 是可选外部云服务</text>
+      <text x="18" y="143" class="status" fill="#f0c86e">本地基线可用，云交付未启用</text>
+    </g>
+    <path d="M366 1891 L380 1891" class="arrow-gray"/><path d="M690 1891 L704 1891" class="arrow-gray"/><path d="M1014 1891 L1028 1891" class="arrow-gray"/><path d="M1338 1891 L1352 1891" class="arrow-gray"/><path d="M1662 1891 L1676 1891" class="arrow-gray"/><path d="M1986 1891 L2000 1891" class="arrow-gray"/>
   </g>
-  <path d="M1439 1203 V1271" class="vertical"/><path d="M1767 1203 V1271" class="vertical"/><path d="M2095 1203 V1271" class="vertical"/>
 
-  <!-- Canonical data chain -->
-  <rect x="42" y="1462" width="2316" height="92" rx="16" fill="#0c151a" stroke="#2c4440"/>
-  <text x="70" y="1493" class="box-kicker" fill="#71e8a5">HARNESS CANONICAL DATA CHAIN</text>
-  <g transform="translate(70,1510)">
-    <text x="0" y="26" class="box-code">Project</text><text x="116" y="26" class="box-copy">→</text>
-    <text x="148" y="26" class="box-code">StoryScene</text><text x="286" y="26" class="box-copy">→</text>
-    <text x="318" y="26" class="box-code">ShotIntent</text><text x="450" y="26" class="box-copy">→</text>
-    <text x="482" y="26" class="box-code">ShotRecipe</text><text x="622" y="26" class="box-copy">→</text>
-    <text x="654" y="26" class="box-code">motion-reference</text><text x="850" y="26" class="box-copy">→</text>
-    <text x="882" y="26" class="box-code">final-video Candidate</text><text x="1120" y="26" class="box-copy">→</text>
-    <text x="1152" y="26" class="box-code">EvaluationReport</text><text x="1352" y="26" class="box-copy">→</text>
-    <text x="1384" y="26" class="box-code">AcceptedShotManifest</text><text x="1628" y="26" class="box-copy">→</text>
-    <text x="1660" y="26" class="box-code">Master / 4K Delivery</text>
-  </g>
-
-  <!-- Bottom notes -->
-  <g transform="translate(42,1580)">
-    <rect width="2316" height="78" rx="14" fill="#11131b" stroke="#303442"/>
-    <text x="26" y="29" class="box-kicker" fill="#b49cff">ARCHITECTURE RULE</text>
-    <text x="26" y="55" class="box-copy">Harness Studio 统一入口、项目数据、状态、质量和交付；ComfyUI 与 LibTV 保留各自专业画布。合并的是身份、资产与任务，不是把三个编辑器做成一个。</text>
-    <text x="1890" y="29" class="box-kicker" fill="#71e8a5">UPDATED</text>
-    <text x="1890" y="55" class="box-copy">2026-08-18 · repository main</text>
-  </g>
+  <text x="66" y="2035" class="note">更新：2026-08-18 · 架构原则：Harness 保存生产真相并做跨工具编排；ComfyUI、LibTV、模型服务继续保留各自专业能力。</text>
 </svg>

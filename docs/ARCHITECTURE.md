@@ -2,6 +2,16 @@
 
 完整的 SVG 分层大图见 [`VIDEO_AGENT_HARNESS_ARCHITECTURE.svg`](./VIDEO_AGENT_HARNESS_ARCHITECTURE.svg)。它同时展示生产阶段、Skill、Harness Runtime、ComfyUI/LibTV 工作台以及模型/交付基础设施之间的职责映射。
 
+图中的所有权边界必须按以下方式理解：
+
+- **本仓库自研**：Repo-local Skills、Harness Studio、Harness Runtime、SQLite/Asset Graph、质量门禁、ComfyUI/LibTV/IMS/OSS Provider 适配器，以及后期与交付编排。
+- **外部 Agent Host**：Codex、Claude Code 等负责理解需求并调用 Skill/API，可以替换，不保存项目生产真相。
+- **本地第三方服务**：ComfyUI、MiniMax H3、REF2VA、LoRA、ControlNet、Sampler、VAE 和 GPU 执行环境。我们只实现参数配方、调用、轮询、结果回收与血缘管理。
+- **第三方云服务**：LibTV Canvas/在线模型，以及可选的阿里云 OSS/IMS。官方 LibTV CLI 是我们适配器调用的第三方客户端，不是本仓库实现。
+- **嵌入式第三方依赖**：HyperFrames 运行在我们的后期模块中，但 SDK 本身不是本仓库开发。
+
+当前 `Harness Studio` 与 `Harness Runtime` 位于同一仓库：前者是 `web/` 下的 React UI，后者是 `src/` 下的 TypeScript/Node.js 控制面；生产构建后由同一个 Fastify 进程提供 UI 和 REST API。二者均已有可运行实现，但 Studio、质量评测和云交付仍处于不同成熟阶段，不能把“代码已存在”等同于“真实生产链已经配置完成”。
+
 ## 1. 系统定位
 
 本项目中的 **Video Agent Harness** 是 TypeScript/Node.js 控制面，不等同于 ComfyUI，也不包含 4K 编码、字幕包装等全部后期工作。它负责把创作目标转换成可持久化的镜头执行配方，调用不同执行器，保存任务与素材血缘，并把结果送入质量门禁。
