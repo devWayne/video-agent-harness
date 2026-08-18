@@ -170,6 +170,7 @@ npm run check
 - [`VISION.md`](./VISION.md)：产品目标和验收标准。
 - [`DECISIONS.md`](./DECISIONS.md)：已锁定的产品与架构决策。
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)：当前模块和后续演进边界。
+- [`docs/VIDEO_AGENT_HARNESS_ARCHITECTURE.svg`](./docs/VIDEO_AGENT_HARNESS_ARCHITECTURE.svg)：从创意、分镜、H3 控制、LibTV 精修到质量与 4K 交付的分层大图。
 - [`docs/SKILLS_AND_SYSTEM_MAP.md`](./docs/SKILLS_AND_SYSTEM_MAP.md)：Skill、开发期 MCP、生产 Harness、ComfyUI、LibTV、质量循环与交付层的完整映射。
 - [`docs/LOCAL_CONFIGURATION.md`](./docs/LOCAL_CONFIGURATION.md)：仓库内 Skill、Codex/Claude Code 项目级安装，以及密钥、账号、内网地址和端口的提交边界。
 - [`docs/COMFYUI_LIBTV_PIPELINE.md`](./docs/COMFYUI_LIBTV_PIPELINE.md)：本地控制骨架进入 LibTV 在线 V2V 的配置、协议与验收方法。

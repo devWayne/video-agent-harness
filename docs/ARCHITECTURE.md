@@ -1,5 +1,7 @@
 # Architecture
 
+完整的 SVG 分层大图见 [`VIDEO_AGENT_HARNESS_ARCHITECTURE.svg`](./VIDEO_AGENT_HARNESS_ARCHITECTURE.svg)。它同时展示生产阶段、Skill、Harness Runtime、ComfyUI/LibTV 工作台以及模型/交付基础设施之间的职责映射。
+
 ## 1. 系统定位
 
 本项目中的 **Video Agent Harness** 是 TypeScript/Node.js 控制面，不等同于 ComfyUI，也不包含 4K 编码、字幕包装等全部后期工作。它负责把创作目标转换成可持久化的镜头执行配方，调用不同执行器，保存任务与素材血缘，并把结果送入质量门禁。
