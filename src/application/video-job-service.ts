@@ -40,6 +40,10 @@ export class VideoJobService {
     return this.repository.findById(id);
   }
 
+  async listRecent(limit = 20): Promise<VideoJob[]> {
+    return this.repository.listRecent(limit);
+  }
+
   async cancel(id: string): Promise<VideoJob | undefined> {
     const job = await this.repository.findById(id);
     if (!job || isTerminalStatus(job.status)) return job;

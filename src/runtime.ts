@@ -4,15 +4,21 @@ import {
   ListMediaProducingJobsRequest,
 } from "@alicloud/ice20201109";
 import { FirstSuccessfulCandidateEvaluator } from "./application/candidate-evaluator.js";
+import { RecipeCandidateGenerationPipeline } from "./application/candidate-generation-pipeline.js";
 import {
   CloudDeliveryPipeline,
   ManifestDeliveryPipeline,
   type DeliveryPipeline,
 } from "./application/delivery-pipeline.js";
 import { DeterministicDirector, PiDirector, type Director } from "./application/director.js";
+import {
+  ComfyUiLibTvShotRecipePlanner,
+  DirectShotRecipePlanner,
+} from "./application/shot-recipe-planner.js";
 import { ManifestWriter } from "./application/manifest-writer.js";
 import { createOpenAiCompatiblePiFactory } from "./application/pi-agent-factory.js";
 import { VideoJobService } from "./application/video-job-service.js";
+import { ProductionProjectService } from "./application/production-project-service.js";
 import { WorkflowDispatcher } from "./application/workflow-dispatcher.js";
 import { WorkflowEngine } from "./application/workflow-engine.js";
 import type { AppConfig } from "./config.js";
@@ -29,26 +35,33 @@ import {
 } from "./providers/aliyun-oss-client.js";
 import { AliyunOssMediaAssetStore } from "./providers/aliyun-oss-media-asset-store.js";
 import { BailianWanProvider } from "./providers/bailian-wan-provider.js";
+import { ComfyUiClient } from "./providers/comfyui-client.js";
+import { ComfyUiControlStepExecutor } from "./providers/comfyui-control-step-executor.js";
+import { DirectVideoStepExecutor } from "./providers/direct-video-step-executor.js";
+import { LibTvCliClient } from "./providers/libtv-cli-client.js";
+import { LibTvGenerationStepExecutor } from "./providers/libtv-generation-step-executor.js";
 import { MockVideoProvider } from "./providers/mock-video-provider.js";
 
 export function createRuntime(config: AppConfig) {
   const repository = new SqliteVideoJobRepository(join(config.DATA_DIR, "video-jobs.sqlite"));
-  const provider = createProvider(config);
+  const provider =
+    config.GENERATION_PIPELINE === "direct"
+      ? createProvider(config)
+      : new MockVideoProvider(config.MOCK_LATENCY_MS);
+  const candidatePipeline = createCandidatePipeline(config, provider);
   const { deliveryPipeline, deliverySigner } = createDeliveryPipeline(config);
   const workflow = new WorkflowEngine({
     repository,
     director: createDirector(config),
-    provider,
+    candidatePipeline,
     evaluator: new FirstSuccessfulCandidateEvaluator(),
     deliveryPipeline,
     candidatesPerShot: config.SHOT_CANDIDATES,
-    pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
-    providerTimeoutMs: config.PROVIDER_TIMEOUT_MS,
   });
   const dispatcher = new WorkflowDispatcher(workflow);
   const service = new VideoJobService(repository, dispatcher, {
     candidatesPerShot: config.SHOT_CANDIDATES,
-    ...(config.COST_WAN_CNY_PER_SECOND === undefined
+    ...(config.GENERATION_PIPELINE !== "direct" || config.COST_WAN_CNY_PER_SECOND === undefined
       ? {}
       : { wanCnyPerSecond: config.COST_WAN_CNY_PER_SECOND }),
     ...(config.COST_4K_CNY_PER_SECOND === undefined
@@ -56,8 +69,63 @@ export function createRuntime(config: AppConfig) {
       : { upscaleCnyPerSecond: config.COST_4K_CNY_PER_SECOND }),
     ...(deliverySigner ? { deliverySigner } : {}),
   });
+  const projectService = new ProductionProjectService(repository, repository);
 
-  return { repository, provider, deliveryPipeline, workflow, dispatcher, service };
+  return {
+    repository,
+    provider,
+    candidatePipeline,
+    deliveryPipeline,
+    workflow,
+    dispatcher,
+    service,
+    projectService,
+  };
+}
+
+function createCandidatePipeline(config: AppConfig, provider: VideoProvider) {
+  if (config.GENERATION_PIPELINE === "direct") {
+    return new RecipeCandidateGenerationPipeline(
+      new DirectShotRecipePlanner(),
+      [
+        new DirectVideoStepExecutor({
+          provider,
+          pollIntervalMs: config.PROVIDER_POLL_INTERVAL_MS,
+          timeoutMs: config.PROVIDER_TIMEOUT_MS,
+        }),
+      ],
+      "direct",
+    );
+  }
+  if (!config.COMFYUI_BASE_URL || !config.COMFYUI_WORKFLOW_PATH || !config.LIBTV_PROJECT_UUID) {
+    throw new Error("ComfyUI -> LibTV pipeline configuration was not validated");
+  }
+  const libtvClient = new LibTvCliClient({
+    executable: config.LIBTV_CLI_PATH,
+    projectUuid: config.LIBTV_PROJECT_UUID,
+    workingDirectory: process.cwd(),
+  });
+  return new RecipeCandidateGenerationPipeline(
+    new ComfyUiLibTvShotRecipePlanner(),
+    [
+      new ComfyUiControlStepExecutor({
+        client: new ComfyUiClient({ baseUrl: config.COMFYUI_BASE_URL }),
+        workflowPath: config.COMFYUI_WORKFLOW_PATH,
+        outputDirectory: join(config.DATA_DIR, "control-assets"),
+        pollIntervalMs: config.COMFYUI_POLL_INTERVAL_MS,
+        timeoutMs: config.COMFYUI_TIMEOUT_MS,
+      }),
+      new LibTvGenerationStepExecutor({
+        client: libtvClient,
+        modelName: config.LIBTV_MODEL_NAME,
+        modeType: config.LIBTV_MODE_TYPE,
+        resolution: "1080P",
+        enableSound: true,
+        maximumDurationSeconds: config.LIBTV_MAX_DURATION_SECONDS,
+      }),
+    ],
+    "controlled",
+  );
 }
 
 function createDeliveryPipeline(config: AppConfig): {
@@ -148,6 +216,9 @@ function createDirector(config: AppConfig): Director {
       apiKey: config.DIRECTOR_API_KEY,
       modelId: config.DIRECTOR_MODEL,
     }),
+    config.GENERATION_PIPELINE === "comfyui-libtv"
+      ? config.LIBTV_MAX_DURATION_SECONDS
+      : 15,
   );
 }
 

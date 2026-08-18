@@ -1,21 +1,35 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { StoredMediaAsset } from "./media-asset-store.js";
+import type {
+  EvaluationReport,
+  GenerationAsset,
+  RecipeStepExecution,
+  ShotRecipe,
+} from "./execution-recipe.js";
 
 export const referenceAssetSchema = z.object({
   type: z.enum(["image", "video", "audio"]),
   url: z.url(),
+  assetId: z.uuid().optional(),
   purpose: z.string().max(200).optional(),
 });
 
-export const createVideoJobSchema = z.object({
-  brief: z.string().trim().min(3).max(4_000),
-  durationSeconds: z.number().int().min(5).max(60).default(15),
-  aspectRatio: z.literal("16:9").default("16:9"),
-  outputResolution: z.literal("3840x2160").default("3840x2160"),
-  references: z.array(referenceAssetSchema).max(20).default([]),
-  idempotencyKey: z.string().trim().min(1).max(200).optional(),
-});
+export const createVideoJobSchema = z
+  .object({
+    projectId: z.uuid().optional(),
+    sceneId: z.uuid().optional(),
+    brief: z.string().trim().min(3).max(4_000),
+    durationSeconds: z.number().int().min(5).max(60).default(15),
+    aspectRatio: z.literal("16:9").default("16:9"),
+    outputResolution: z.literal("3840x2160").default("3840x2160"),
+    references: z.array(referenceAssetSchema).max(20).default([]),
+    idempotencyKey: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((value) => !value.sceneId || value.projectId, {
+    message: "sceneId requires projectId",
+    path: ["sceneId"],
+  });
 
 export type CreateVideoJobInput = z.infer<typeof createVideoJobSchema>;
 export type VideoJobStatus =
@@ -32,7 +46,7 @@ export type VideoJobStatus =
   | "cancelled";
 export type TerminalVideoJobStatus = "completed" | "failed" | "cancelled";
 
-export type ShotStatus = "queued" | "generating" | "completed" | "failed";
+export type ShotStatus = "queued" | "generating" | "evaluating" | "completed" | "failed";
 export type CandidateStatus = "submitted" | "running" | "succeeded" | "failed";
 
 export interface ShotPlanItem {
@@ -55,6 +69,10 @@ export interface ShotCandidate {
   status: CandidateStatus;
   outputUrl?: string;
   error?: string;
+  recipe?: ShotRecipe;
+  executions?: RecipeStepExecution[];
+  assets?: GenerationAsset[];
+  evaluation?: EvaluationReport;
 }
 
 export interface VideoShot extends ShotPlanItem {

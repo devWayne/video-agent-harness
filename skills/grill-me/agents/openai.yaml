@@ -1,0 +1,6 @@
+interface:
+  display_name: "Grill Me"
+  short_description: "Sharpen a plan through interview"
+  default_prompt: "Use $grill-me to pressure-test this plan one high-leverage question at a time, then return an actionable brief."
+policy:
+  allow_implicit_invocation: false

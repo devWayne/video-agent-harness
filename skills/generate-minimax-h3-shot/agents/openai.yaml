@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniMax H3 镜头控制"
+  short_description: "为单个镜头规划并执行可复现的 H3 控制资产生成流程"
+  default_prompt: "Use $generate-minimax-h3-shot to plan a controlled H3 shot from this shot intent."

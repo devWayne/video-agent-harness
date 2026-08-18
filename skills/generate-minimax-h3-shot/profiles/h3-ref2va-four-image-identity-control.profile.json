@@ -1,0 +1,157 @@
+{
+  "id": "h3-ref2va-four-image-identity-control",
+  "version": "0.1.0",
+  "status": "development-validated",
+  "modelAffinity": "minimax-h3-ref2va-fp8",
+  "workflowFile": "h3-ref2va-four-image-identity-control.workflow.json",
+  "workflowSha256": "3ee0383fd26d57b8c62b50de3a0c49755605fa4d26b233e13fd77e42cd1f6975",
+  "purpose": "Create a five-second local control draft with per-shot Character Pack reinjection and a separate prior-shot scene-state reference.",
+  "compatibleRuntime": {
+    "comfyui": "0.33.1",
+    "frontend": "1.48.7",
+    "workflowTemplates": "0.11.41",
+    "gpuClass": "NVIDIA RTX 4090 Laptop 16GB",
+    "memoryPolicy": "dynamic-vram-with-cpu-offload-and-96GiB-pagefile",
+    "customNodes": []
+  },
+  "requiredModels": [
+    "diffusion_models/minimax_h3_ref2va_pruned_fp8_scaled.safetensors",
+    "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+    "vae/minimax_h3_video_vae_fp16.safetensors",
+    "vae/minimax_h3_audio_vae_fp32.safetensors"
+  ],
+  "referenceRoles": {
+    "picture-1": "Primary identity evidence; use an original Character Pack image.",
+    "picture-2": "Second primary identity angle or the second character's authoritative identity image.",
+    "picture-3": "Third primary identity angle or secondary-character identity and wardrobe evidence.",
+    "picture-4": "Accepted prior-shot scene state for pose, blocking, camera, environment, lighting and object state; never the sole identity source."
+  },
+  "outputRole": "motion-reference",
+  "limits": {
+    "width": 864,
+    "height": 480,
+    "fps": 24,
+    "frames": 124,
+    "nominalDurationSeconds": 5,
+    "encodedDurationSeconds": 5.167,
+    "steps": 20,
+    "sampler": "res_multistep",
+    "scheduler": "normal",
+    "refImageSize": "match",
+    "referenceImageCount": 4,
+    "turboLora": false
+  },
+  "exposedSlots": [
+    {
+      "name": "prompt",
+      "token": "HARNESS_PROMPT",
+      "type": "string",
+      "agentWritable": true,
+      "constraints": "Map every <Picture N> tag to one declared role and describe one continuous shot."
+    },
+    {
+      "name": "referenceImage1ComfyName",
+      "token": "HARNESS_REF_IMAGE_1",
+      "type": "string",
+      "agentWritable": false,
+      "constraints": "Filename returned by the trusted ComfyUI upload API; arbitrary local paths are forbidden."
+    },
+    {
+      "name": "referenceImage2ComfyName",
+      "token": "HARNESS_REF_IMAGE_2",
+      "type": "string",
+      "agentWritable": false,
+      "constraints": "Filename returned by the trusted ComfyUI upload API; arbitrary local paths are forbidden."
+    },
+    {
+      "name": "referenceImage3ComfyName",
+      "token": "HARNESS_REF_IMAGE_3",
+      "type": "string",
+      "agentWritable": false,
+      "constraints": "Filename returned by the trusted ComfyUI upload API; arbitrary local paths are forbidden."
+    },
+    {
+      "name": "referenceImage4ComfyName",
+      "token": "HARNESS_REF_IMAGE_4",
+      "type": "string",
+      "agentWritable": false,
+      "constraints": "Filename returned by the trusted ComfyUI upload API; arbitrary local paths are forbidden."
+    },
+    {
+      "name": "seed",
+      "token": "HARNESS_SEED",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295,
+      "agentWritable": true
+    },
+    {
+      "name": "clientRequestId",
+      "token": "HARNESS_CLIENT_REQUEST_ID",
+      "type": "string",
+      "agentWritable": false
+    }
+  ],
+  "immutableControls": [
+    "graph topology",
+    "model files",
+    "VAE files",
+    "dynamic reference key syntax",
+    "sampler and scheduler",
+    "step count",
+    "resolution and frame count",
+    "ref_image_size",
+    "codec"
+  ],
+  "forbiddenOperations": [
+    "model download",
+    "paid Partner API node",
+    "custom-node installation",
+    "server restart",
+    "arbitrary local file path",
+    "ref_images JSON array",
+    "ref_image_size=max",
+    "unvalidated fifth through ninth reference image"
+  ],
+  "estimatedRuntime": {
+    "warmRunSeconds": 250,
+    "peakVramMiB": 16376,
+    "peakCommittedMemoryGiB": 86,
+    "note": "Four-reference business regression completed without OOM; schedule REF2VA shots as one model-affinity batch."
+  },
+  "validationChecks": [
+    "video is landscape 864x480 at 24fps",
+    "duration is one valid H3 124-frame block",
+    "H.264 video and AAC stereo audio are present",
+    "REF2VA and sampler nodes execute and do not silently reuse a malformed cached graph",
+    "primary identity matches the original Character Pack rather than only the previous tail frame",
+    "secondary character identity and wardrobe remain readable when used",
+    "scene-state reference controls blocking and environment without overriding identity",
+    "no obvious face replacement, duplicated person, black frame or frozen interval"
+  ],
+  "knownFailureSignatures": [
+    "sending ref_images as an array silently ignores references and can return a cached result",
+    "recursive tail-frame identity transfer accumulates facial drift",
+    "four references leave little VRAM headroom; higher resolution or more images can OOM",
+    "generated speech or subtitles can still be wrong and should move to deterministic post-production",
+    "REF2VA and FL2VA cannot remain resident together on the current host"
+  ],
+  "safeRetryPatches": [
+    "change seed once while preserving reference roles and immutable controls",
+    "reduce requested facial or hand motion",
+    "replace the scene-state image with a cleaner accepted frame",
+    "tighten explicit <Picture N> identity authority in the prompt",
+    "fall back to two identity images plus one scene-state image if memory pressure appears"
+  ],
+  "lastValidation": {
+    "date": "2026-08-18",
+    "result": "passed-local-control-stage-and-business-regression",
+    "promptIds": [
+      "3f1c74ca-f167-4cce-942a-e47446ffb1ea",
+      "d986ac73-73eb-495c-a6b0-4ecdc9c9076e",
+      "aa1df026-8cad-424b-8083-98a397905fa0"
+    ],
+    "nodeErrors": 0,
+    "observations": "The single-character baseline preserved the original face and wardrobe. Door-story shots 05 and 06 restored the original male identity while retaining the secondary character and doorway state."
+  }
+}

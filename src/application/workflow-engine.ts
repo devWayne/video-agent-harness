@@ -9,47 +9,38 @@ import {
 import { MasteringProviderError } from "../domain/mastering-provider.js";
 import { MediaAssetStoreError } from "../domain/media-asset-store.js";
 import { UpscaleProviderError } from "../domain/upscale-provider.js";
-import {
-  VideoProviderError,
-  type ProviderTask,
-  type VideoProvider,
-} from "../domain/video-provider.js";
+import { VideoProviderError } from "../domain/video-provider.js";
 import type { VideoJobRepository } from "../infrastructure/video-job-repository.js";
 import { redactUrlSecrets } from "../security/url-redaction.js";
 import type { CandidateEvaluator } from "./candidate-evaluator.js";
+import type { CandidateGenerationPipeline } from "./candidate-generation-pipeline.js";
 import type { DeliveryPipeline, DeliveryStage } from "./delivery-pipeline.js";
 import type { Director } from "./director.js";
 
 export interface WorkflowEngineOptions {
   repository: VideoJobRepository;
   director: Director;
-  provider: VideoProvider;
+  candidatePipeline: CandidateGenerationPipeline;
   evaluator: CandidateEvaluator;
   deliveryPipeline: DeliveryPipeline;
   candidatesPerShot: number;
-  pollIntervalMs: number;
-  providerTimeoutMs: number;
 }
 
 export class WorkflowEngine {
   readonly #repository: VideoJobRepository;
   readonly #director: Director;
-  readonly #provider: VideoProvider;
+  readonly #candidatePipeline: CandidateGenerationPipeline;
   readonly #evaluator: CandidateEvaluator;
   readonly #deliveryPipeline: DeliveryPipeline;
   readonly #candidatesPerShot: number;
-  readonly #pollIntervalMs: number;
-  readonly #providerTimeoutMs: number;
 
   constructor(options: WorkflowEngineOptions) {
     this.#repository = options.repository;
     this.#director = options.director;
-    this.#provider = options.provider;
+    this.#candidatePipeline = options.candidatePipeline;
     this.#evaluator = options.evaluator;
     this.#deliveryPipeline = options.deliveryPipeline;
     this.#candidatesPerShot = options.candidatesPerShot;
-    this.#pollIntervalMs = options.pollIntervalMs;
-    this.#providerTimeoutMs = options.providerTimeoutMs;
   }
 
   async run(jobId: string, signal?: AbortSignal): Promise<void> {
@@ -60,6 +51,9 @@ export class WorkflowEngine {
       // Validate cloud identity and read-only provider access before any paid
       // generation request is submitted.
       await this.#deliveryPipeline.preflight(signal);
+      if (["queued", "planning", "generating"].includes(job.status)) {
+        await this.#candidatePipeline.preflight(signal);
+      }
 
       if (job.status === "queued") {
         job = transitionVideoJob(job, "planning");
@@ -85,6 +79,12 @@ export class WorkflowEngine {
         job = await this.#requireRunnableJob(jobId);
         job = transitionVideoJob(job, "evaluating");
         await this.#repository.save(job);
+      }
+
+      if (job.status === "evaluating") {
+        for (const shot of job.shots) {
+          await this.#evaluateShot(jobId, shot.id);
+        }
       }
 
       job = await this.#requireRunnableJob(jobId);
@@ -123,7 +123,11 @@ export class WorkflowEngine {
       shot = this.#findShot(job, shotId);
       if (shot.candidates.some((candidate) => candidate.id === candidateId)) continue;
 
-      const submitted = await this.#submitCandidate(job, shot, candidateId, signal);
+      const submitted = await this.#candidatePipeline.initialize({
+        job,
+        shot,
+        candidateId,
+      });
       await this.#replaceShot(job, {
         ...shot,
         candidates: [...shot.candidates, submitted],
@@ -134,31 +138,12 @@ export class WorkflowEngine {
     shot = this.#findShot(job, shotId);
     for (const current of shot.candidates) {
       if (current.status === "succeeded" || current.status === "failed") continue;
-      const result = await this.#waitForProviderTask(current.providerTaskId, signal);
-      const completed: ShotCandidate =
-        result.status === "succeeded" && result.outputUrl
-          ? {
-              ...current,
-              provider: result.provider,
-              providerTaskId: result.taskId,
-              status: "succeeded",
-              outputUrl: result.outputUrl,
-            }
-          : {
-              ...current,
-              provider: result.provider,
-              providerTaskId: result.taskId,
-              status: "failed",
-              error: result.errorMessage ?? "Provider task failed without an error message",
-            };
-      job = await this.#requireRunnableJob(jobId);
-      shot = this.#findShot(job, shotId);
-      await this.#replaceShot(job, {
-        ...shot,
-        candidates: shot.candidates.map((candidate) =>
-          candidate.id === completed.id ? completed : candidate,
-        ),
-      });
+      await this.#candidatePipeline.execute(
+        { job, shot, candidateId: current.id },
+        current,
+        (candidate) => this.#checkpointCandidate(jobId, shotId, candidate),
+        signal,
+      );
     }
 
     job = await this.#requireRunnableJob(jobId);
@@ -172,55 +157,49 @@ export class WorkflowEngine {
       );
     }
 
-    const selectedCandidateId =
-      shot.selectedCandidateId ?? (await this.#evaluator.select(shot));
     await this.#replaceShot(job, {
       ...shot,
-      selectedCandidateId,
-      status: "completed",
+      status: "evaluating",
     });
   }
 
-  async #submitCandidate(
-    job: VideoJob,
-    shot: VideoShot,
-    candidateId: string,
-    signal?: AbortSignal,
-  ): Promise<ShotCandidate> {
-    const submitted = await this.#provider.submit(
-      {
-        clientRequestId: `${job.id}/${candidateId}`,
-        prompt: shot.prompt,
-        durationSeconds: shot.durationSeconds,
-        resolution: "1080P",
-        ratio: "16:9",
-        generateAudio: true,
-        references: job.request.references,
-      },
-      signal,
-    );
-    return {
-      id: candidateId,
-      provider: submitted.provider,
-      providerTaskId: submitted.taskId,
-      status: submitted.status,
-    };
+  async #checkpointCandidate(
+    jobId: string,
+    shotId: string,
+    replacement: ShotCandidate,
+  ): Promise<void> {
+    const job = await this.#requireRunnableJob(jobId);
+    const shot = this.#findShot(job, shotId);
+    await this.#replaceShot(job, {
+      ...shot,
+      candidates: shot.candidates.map((candidate) =>
+        candidate.id === replacement.id ? replacement : candidate,
+      ),
+    });
   }
 
-  async #waitForProviderTask(taskId: string, signal?: AbortSignal): Promise<ProviderTask> {
-    const deadline = Date.now() + this.#providerTimeoutMs;
-    while (Date.now() < deadline) {
-      signal?.throwIfAborted();
-      const task = await this.#provider.getTask(taskId, signal);
-      if (task.status === "succeeded" || task.status === "failed") return task;
-      await delay(this.#pollIntervalMs, signal);
+  async #evaluateShot(jobId: string, shotId: string): Promise<void> {
+    const job = await this.#requireRunnableJob(jobId);
+    const shot = this.#findShot(job, shotId);
+    if (shot.status === "completed") return;
+    const result = await this.#evaluator.evaluate(shot);
+    const selectedReport = result.reports[result.selectedCandidateId];
+    if (!selectedReport || selectedReport.decision !== "accept") {
+      throw new VideoProviderError(
+        `Shot ${shot.id} did not pass the quality gate`,
+        "SHOT_QUALITY_GATE_REJECTED",
+        true,
+      );
     }
-
-    throw new VideoProviderError(
-      `Provider task ${taskId} timed out after ${this.#providerTimeoutMs}ms`,
-      "PROVIDER_TIMEOUT",
-      true,
-    );
+    await this.#replaceShot(job, {
+      ...shot,
+      candidates: shot.candidates.map((candidate) => {
+        const report = result.reports[candidate.id];
+        return report ? { ...candidate, evaluation: report } : candidate;
+      }),
+      selectedCandidateId: result.selectedCandidateId,
+      status: "completed",
+    });
   }
 
   async #replaceShot(job: VideoJob, replacement: VideoShot): Promise<VideoJob> {
@@ -324,19 +303,15 @@ function getOperationalError(
   ) {
     return error;
   }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    "retryable" in error &&
+    typeof error.retryable === "boolean"
+  ) {
+    return { code: error.code, retryable: error.retryable };
+  }
   return undefined;
-}
-
-function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(resolve, milliseconds);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        reject(new DOMException("Operation aborted", "AbortError"));
-      },
-      { once: true },
-    );
-  });
 }

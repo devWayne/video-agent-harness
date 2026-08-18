@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { FirstSuccessfulCandidateEvaluator } from "../src/application/candidate-evaluator.js";
+import { RecipeCandidateGenerationPipeline } from "../src/application/candidate-generation-pipeline.js";
 import { ManifestDeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import { DeterministicDirector } from "../src/application/director.js";
+import { DirectShotRecipePlanner } from "../src/application/shot-recipe-planner.js";
 import { ManifestWriter } from "../src/application/manifest-writer.js";
 import { VideoJobService } from "../src/application/video-job-service.js";
 import { WorkflowDispatcher } from "../src/application/workflow-dispatcher.js";
@@ -12,6 +14,7 @@ import { WorkflowEngine } from "../src/application/workflow-engine.js";
 import { buildServer } from "../src/http/server.js";
 import { SqliteVideoJobRepository } from "../src/infrastructure/sqlite-video-job-repository.js";
 import { MockVideoProvider } from "../src/providers/mock-video-provider.js";
+import { DirectVideoStepExecutor } from "../src/providers/direct-video-step-executor.js";
 import type { VideoProvider } from "../src/domain/video-provider.js";
 
 const temporaryDirectories: string[] = [];
@@ -28,12 +31,10 @@ describe("video job HTTP API", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider: new MockVideoProvider(0),
+      candidatePipeline: directPipeline(new MockVideoProvider(0)),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 2,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const dispatcher = new WorkflowDispatcher(workflow);
     const service = new VideoJobService(repository, dispatcher, {
@@ -46,7 +47,30 @@ describe("video job HTTP API", () => {
     await mkdir(join(uiDirectory, "assets"));
     await writeFile(join(uiDirectory, "index.html"), "<title>Video Agent Harness</title>");
     await writeFile(join(uiDirectory, "assets", "app.js"), "globalThis.__harness = true;");
-    const server = buildServer({ service, uiDirectory });
+    const server = buildServer({
+      service,
+      uiDirectory,
+      runtimeInfo: {
+        videoProvider: "mock",
+        videoModel: "mock-video-v1",
+        generationPipeline: "direct",
+        deliveryMode: "simulation",
+        generationResolution: "1080P",
+      },
+      workspaceInfo: {
+        name: "Test Production",
+        controlSurfaces: [
+          {
+            id: "comfyui",
+            name: "ComfyUI",
+            role: "H3 control",
+            status: "configured",
+            kind: "external",
+            url: "http://comfyui.test:8188",
+          },
+        ],
+      },
+    });
     const body = {
       brief: "雨夜里一间温暖的独立书店",
       durationSeconds: 10,
@@ -65,6 +89,12 @@ describe("video job HTTP API", () => {
     expect(fetched.statusCode).toBe(200);
     expect(fetched.json<{ status: string }>().status).toBe("completed");
     expect((await server.inject({ method: "GET", url: "/health/ready" })).statusCode).toBe(200);
+    expect((await server.inject({ method: "GET", url: "/v1/workspace" })).json()).toMatchObject({
+      workspace: {
+        name: "Test Production",
+        controlSurfaces: [{ id: "comfyui", status: "configured" }],
+      },
+    });
     expect((await server.inject({ method: "GET", url: "/metrics" })).body).toContain(
       'video_agent_harness_jobs{status="completed"} 1',
     );
@@ -110,12 +140,10 @@ describe("video job HTTP API", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider: new MockVideoProvider(0),
+      candidatePipeline: directPipeline(new MockVideoProvider(0)),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(tmpdir())),
       candidatesPerShot: 1,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const dispatcher = new WorkflowDispatcher(workflow);
     const server = buildServer({
@@ -165,12 +193,10 @@ describe("video job HTTP API", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider,
+      candidatePipeline: directPipeline(provider),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 1,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const dispatcher = new WorkflowDispatcher(workflow);
     const server = buildServer({ service: new VideoJobService(repository, dispatcher) });
@@ -194,3 +220,11 @@ describe("video job HTTP API", () => {
     repository.close();
   });
 });
+
+function directPipeline(provider: VideoProvider) {
+  return new RecipeCandidateGenerationPipeline(
+    new DirectShotRecipePlanner(),
+    [new DirectVideoStepExecutor({ provider, pollIntervalMs: 1, timeoutMs: 1_000 })],
+    "direct",
+  );
+}

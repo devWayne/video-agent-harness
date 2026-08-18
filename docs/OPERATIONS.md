@@ -15,13 +15,15 @@ for an internal ingress or monitoring network.
 
 ## Checkpoints and recovery
 
-The service checkpoints provider task IDs and output locations after every paid or
-long-running step:
+The service checkpoints recipe step task IDs, assets and output locations after
+every paid or long-running step:
 
-1. Wan candidate task submitted;
-2. selected candidate copied to owned OSS;
-3. IMS 1080P mastering task submitted;
-4. IMS SR5 4K task submitted.
+1. Direct Wan candidate submitted, or ComfyUI `prompt_id` submitted;
+2. ComfyUI control video downloaded and registered as `motion-reference`;
+3. LibTV reference node uploaded and V2V output node created;
+4. selected candidate copied to owned OSS;
+5. IMS 1080P mastering task submitted;
+6. IMS SR5 4K task submitted.
 
 Before step 1, cloud mode performs read-only `GetBucketInfo`,
 `ListMediaProducingJobs`, and `ListMediaConvertJobs` checks. Missing or
@@ -30,7 +32,8 @@ generation is submitted.
 
 On process restart, `resumePending()` enqueues the non-terminal jobs at their
 existing state. It polls an existing provider task instead of submitting another
-one. A retryable failure can be continued with:
+one. ComfyUI resumes by `prompt_id`; LibTV resumes by deterministic canvas node
+names and reuses an existing URL. A retryable failure can be continued with:
 
 ```bash
 curl --request POST http://127.0.0.1:3321/v1/video-jobs/JOB_ID/retry \
@@ -58,6 +61,25 @@ COST_4K_CNY_PER_SECOND=
 The estimate uses `duration × SHOT_CANDIDATES` for generated seconds and the target
 duration once for 4K. The cloud provider bill remains the accounting source of
 truth.
+
+The current estimate covers Bailian generation and IMS only. LibTV model billing
+is not yet returned by the CLI adapter, so `comfyui-libtv` jobs must not present
+`costEstimate.totalCny` as a complete accounting figure. Add LibTV usage/billing
+reconciliation before enforcing enterprise budget policy on this profile.
+
+## Controlled pipeline network boundary
+
+`GENERATION_PIPELINE=comfyui-libtv` adds two data transfers that do not exist in
+the direct Profile:
+
+1. ComfyUI output is downloaded over the configured local/LAN URL;
+2. the local MP4 is uploaded to LibTV through the official CLI.
+
+No upload is triggered by service startup, health checks or tests. It happens
+only after a real video job reaches the `control-pass` and `final-generation`
+steps. Use `SHOT_CANDIDATES=1` for the first live validation on a metered link.
+Before the first step, the candidate pipeline performs read-only ComfyUI and
+LibTV checks; failure stops the job before a Workflow submission or media upload.
 
 ## Container deployment
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频候选评测"
+  short_description: "评估候选镜头的一致性、动作、技术质量与结构化重试路径"
+  default_prompt: "Use $review-video-candidate to score this candidate and return a structured retry decision."

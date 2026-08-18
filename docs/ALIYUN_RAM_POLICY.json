@@ -7,7 +7,7 @@
         "oss:GetBucketInfo"
       ],
       "Resource": [
-        "acs:oss:*:*:jarvan-video-agent-harness"
+        "acs:oss:*:*:your-video-bucket"
       ]
     },
     {
@@ -17,7 +17,7 @@
         "oss:PutObject"
       ],
       "Resource": [
-        "acs:oss:*:*:jarvan-video-agent-harness/video-agent-harness/*"
+        "acs:oss:*:*:your-video-bucket/video-agent-harness/*"
       ]
     },
     {

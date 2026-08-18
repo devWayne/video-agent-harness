@@ -25,7 +25,7 @@
 
 ## 云端资源状态（2026-08-16）
 
-- 已创建北京地域专用 Bucket：`jarvan-video-agent-harness`。
+- 已创建北京地域专用 Bucket；真实名称只保存在本地配置和云端资源清单中。
 - Bucket 为标准存储、同城冗余、私有访问、阻止公共访问、OSS 托管 AES-256 加密。
 - 代码与本地忽略配置已指向该 Bucket；在 RAM/STS 运行身份完成前继续保持 `DELIVERY_MODE=simulation`，避免半配置状态误触发付费任务。
 

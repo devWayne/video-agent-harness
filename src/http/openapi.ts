@@ -6,13 +6,103 @@ export const openApiDocument = {
     description: "TypeScript/Node.js control plane for recoverable, production-oriented video jobs.",
   },
   servers: [{ url: "/" }],
-  tags: [{ name: "Jobs" }, { name: "Compositions" }, { name: "Operations" }],
+  tags: [{ name: "Workspace" }, { name: "Projects" }, { name: "Jobs" }, { name: "Compositions" }, { name: "Operations" }],
   paths: {
+    "/v1/workspace": {
+      get: {
+        tags: ["Workspace"],
+        summary: "Read the agent-neutral production workspace and control-surface links",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Runtime profile and non-secret control-surface metadata" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
     "/health/live": {
       get: {
         tags: ["Operations"],
         summary: "Process liveness",
         responses: { "200": { description: "Process is alive" } },
+      },
+    },
+    "/v1/projects": {
+      get: {
+        tags: ["Projects"],
+        summary: "List production projects",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Projects ordered by last update" } },
+      },
+      post: {
+        tags: ["Projects"],
+        summary: "Create a project-level production workspace",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateProductionProject" } } },
+        },
+        responses: { "201": { description: "Project created" } },
+      },
+    },
+    "/v1/projects/{id}": {
+      get: {
+        tags: ["Projects"],
+        summary: "Get a project with its video jobs",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "200": { description: "Project detail" }, "404": { $ref: "#/components/responses/NotFound" } },
+      },
+      patch: {
+        tags: ["Projects"],
+        summary: "Update project metadata, delivery spec or workbench bindings",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "200": { description: "Updated project" } },
+      },
+    },
+    "/v1/projects/{id}/assets": {
+      post: {
+        tags: ["Projects"],
+        summary: "Register a versioned project asset",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "201": { description: "Asset registered" } },
+      },
+    },
+    "/v1/projects/{id}/character-packs": {
+      post: {
+        tags: ["Projects"],
+        summary: "Create a character consistency pack",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "201": { description: "Character pack created" } },
+      },
+    },
+    "/v1/projects/{id}/scene-packs": {
+      post: {
+        tags: ["Projects"],
+        summary: "Create a scene continuity pack",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "201": { description: "Scene pack created" } },
+      },
+    },
+    "/v1/projects/{id}/scenes": {
+      post: {
+        tags: ["Projects"],
+        summary: "Add a story scene and its shot briefs",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "201": { description: "Story scene created" } },
+      },
+    },
+    "/v1/projects/{id}/video-jobs": {
+      post: {
+        tags: ["Projects", "Jobs"],
+        summary: "Create and attach a video job to a project or story scene",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "202": { description: "Project video job accepted" } },
       },
     },
     "/health/ready": {
@@ -33,6 +123,12 @@ export const openApiDocument = {
       },
     },
     "/v1/video-jobs": {
+      get: {
+        tags: ["Jobs"],
+        summary: "List recent video jobs",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Recent jobs" } },
+      },
       post: {
         tags: ["Jobs"],
         summary: "Create a video production job",
@@ -133,14 +229,43 @@ export const openApiDocument = {
     },
     parameters: {
       JobId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      ProjectId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
     },
     schemas: {
+      CreateProductionProject: {
+        type: "object",
+        required: ["name", "brief"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 120 },
+          brief: { type: "string", minLength: 3, maxLength: 4000 },
+          storySynopsis: { type: "string", maxLength: 4000, default: "" },
+          deliverySpec: {
+            type: "object",
+            properties: {
+              aspectRatio: { type: "string", const: "16:9" },
+              width: { type: "integer", const: 3840 },
+              height: { type: "integer", const: 2160 },
+              fps: { type: "integer", minimum: 12, maximum: 60, default: 24 },
+            },
+          },
+          workbenchBindings: {
+            type: "object",
+            properties: {
+              comfyuiProfileId: { type: "string", maxLength: 200 },
+              comfyuiUrl: { type: "string", format: "uri" },
+              libtvCanvasUuid: { type: "string", format: "uuid" },
+              libtvCanvasUrl: { type: "string", format: "uri" },
+            },
+          },
+        },
+      },
       ReferenceAsset: {
         type: "object",
         required: ["type", "url"],
         properties: {
           type: { type: "string", enum: ["image", "video", "audio"] },
           url: { type: "string", format: "uri" },
+          assetId: { type: "string", format: "uuid" },
           purpose: { type: "string", maxLength: 200 },
         },
       },
@@ -148,6 +273,8 @@ export const openApiDocument = {
         type: "object",
         required: ["brief"],
         properties: {
+          projectId: { type: "string", format: "uuid" },
+          sceneId: { type: "string", format: "uuid" },
           brief: { type: "string", minLength: 3, maxLength: 4000 },
           durationSeconds: { type: "integer", minimum: 5, maximum: 60, default: 15 },
           aspectRatio: { type: "string", const: "16:9", default: "16:9" },

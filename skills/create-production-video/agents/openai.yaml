@@ -1,0 +1,4 @@
+interface:
+  display_name: "创作总导演"
+  short_description: "编排从需求、分镜到质量评测与成片交付的完整视频生产流程"
+  default_prompt: "Use $create-production-video to turn this brief and its references into a controlled production run."

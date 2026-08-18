@@ -4,15 +4,18 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FirstSuccessfulCandidateEvaluator } from "../src/application/candidate-evaluator.js";
+import { RecipeCandidateGenerationPipeline } from "../src/application/candidate-generation-pipeline.js";
 import { ManifestDeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import type { DeliveryPipeline } from "../src/application/delivery-pipeline.js";
 import { DeterministicDirector } from "../src/application/director.js";
+import { DirectShotRecipePlanner } from "../src/application/shot-recipe-planner.js";
 import { ManifestWriter } from "../src/application/manifest-writer.js";
 import { WorkflowEngine } from "../src/application/workflow-engine.js";
 import { createVideoJob, createVideoJobSchema } from "../src/domain/video-job.js";
 import type { VideoProvider } from "../src/domain/video-provider.js";
 import { SqliteVideoJobRepository } from "../src/infrastructure/sqlite-video-job-repository.js";
 import { MockVideoProvider } from "../src/providers/mock-video-provider.js";
+import { DirectVideoStepExecutor } from "../src/providers/direct-video-step-executor.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -28,12 +31,10 @@ describe("WorkflowEngine", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider: new MockVideoProvider(0),
+      candidatePipeline: directPipeline(new MockVideoProvider(0)),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 2,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const job = createVideoJob(
       createVideoJobSchema.parse({ brief: "一辆复古跑车沿海岸公路驶向日落", durationSeconds: 15 }),
@@ -47,6 +48,15 @@ describe("WorkflowEngine", () => {
     expect(completed?.shots).toHaveLength(2);
     expect(completed?.shots.every((shot) => shot.candidates.length === 2)).toBe(true);
     expect(completed?.shots.every((shot) => shot.selectedCandidateId)).toBe(true);
+    expect(
+      completed?.shots.every((shot) =>
+        shot.candidates.some(
+          (candidate) =>
+            candidate.id === shot.selectedCandidateId &&
+            candidate.evaluation?.decision === "accept",
+        ),
+      ),
+    ).toBe(true);
     expect(completed?.output).toMatchObject({
       deliveryMode: "simulation",
       width: 3840,
@@ -55,7 +65,8 @@ describe("WorkflowEngine", () => {
     expect(completed?.delivery?.mode).toBe("simulation");
     const manifest = JSON.parse(
       await readFile(fileURLToPath(completed!.output!.manifestUrl), "utf8"),
-    ) as { canvas: { width: number; height: number }; shots: unknown[] };
+    ) as { schemaVersion: number; canvas: { width: number; height: number }; shots: unknown[] };
+    expect(manifest.schemaVersion).toBe(3);
     expect(manifest.canvas).toEqual({ width: 3840, height: 2160, aspectRatio: "16:9" });
     expect(manifest.shots).toHaveLength(2);
     repository.close();
@@ -86,12 +97,10 @@ describe("WorkflowEngine", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider,
+      candidatePipeline: directPipeline(provider),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
       candidatesPerShot: 1,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const created = createVideoJob(
       createVideoJobSchema.parse({ brief: "断点恢复测试视频", durationSeconds: 5 }),
@@ -114,9 +123,34 @@ describe("WorkflowEngine", () => {
           candidates: [
             {
               id: "shot-01-candidate-1",
-              provider: "recoverable-provider",
+              provider: "direct:direct",
               providerTaskId: "existing-task",
-              status: "submitted",
+              status: "running",
+              recipe: {
+                id: "shot-01-candidate-1/direct",
+                profile: "direct",
+                steps: [
+                  {
+                    id: "final-generation",
+                    kind: "direct-generation",
+                    executor: "video-provider",
+                    dependsOn: [],
+                    inputRoles: [],
+                    outputRole: "final-video",
+                  },
+                ],
+              },
+              executions: [
+                {
+                  stepId: "final-generation",
+                  executor: "video-provider",
+                  status: "running",
+                  attempt: 1,
+                  taskId: "existing-task",
+                  assets: [],
+                },
+              ],
+              assets: [],
             },
           ],
         },
@@ -143,12 +177,10 @@ describe("WorkflowEngine", () => {
     const workflow = new WorkflowEngine({
       repository,
       director: new DeterministicDirector(),
-      provider: { name: "paid-provider", submit, getTask: vi.fn() },
+      candidatePipeline: directPipeline({ name: "paid-provider", submit, getTask: vi.fn() }),
       evaluator: new FirstSuccessfulCandidateEvaluator(),
       deliveryPipeline,
       candidatesPerShot: 1,
-      pollIntervalMs: 1,
-      providerTimeoutMs: 1_000,
     });
     const job = createVideoJob(
       createVideoJobSchema.parse({ brief: "云凭据预检测试视频", durationSeconds: 5 }),
@@ -165,3 +197,11 @@ describe("WorkflowEngine", () => {
     repository.close();
   });
 });
+
+function directPipeline(provider: VideoProvider) {
+  return new RecipeCandidateGenerationPipeline(
+    new DirectShotRecipePlanner(),
+    [new DirectVideoStepExecutor({ provider, pollIntervalMs: 1, timeoutMs: 1_000 })],
+    "direct",
+  );
+}

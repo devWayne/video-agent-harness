@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { VideoJob, VideoJobStatus } from "../domain/video-job.js";
+import type { ProductionProject } from "../domain/production-project.js";
+import type { ProductionProjectRepository } from "./production-project-repository.js";
 import type { VideoJobRepository } from "./video-job-repository.js";
 
 interface JobRow {
@@ -27,7 +29,7 @@ const videoJobStatuses: readonly VideoJobStatus[] = [
   "cancelled",
 ];
 
-export class SqliteVideoJobRepository implements VideoJobRepository {
+export class SqliteVideoJobRepository implements VideoJobRepository, ProductionProjectRepository {
   readonly #database: DatabaseSync;
 
   constructor(filename: string) {
@@ -39,21 +41,35 @@ export class SqliteVideoJobRepository implements VideoJobRepository {
       CREATE TABLE IF NOT EXISTS video_jobs (
         id TEXT PRIMARY KEY,
         idempotency_key TEXT UNIQUE,
+        project_id TEXT,
         status TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         payload TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS video_jobs_status_idx ON video_jobs(status);
+      CREATE TABLE IF NOT EXISTS production_projects (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        payload TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS production_projects_updated_idx ON production_projects(updated_at);
     `);
+    const columns = this.#database.prepare("PRAGMA table_info(video_jobs)").all() as unknown as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "project_id")) {
+      this.#database.exec("ALTER TABLE video_jobs ADD COLUMN project_id TEXT;");
+    }
+    this.#database.exec("CREATE INDEX IF NOT EXISTS video_jobs_project_idx ON video_jobs(project_id, updated_at);");
   }
 
   async save(job: VideoJob): Promise<void> {
     this.#database
       .prepare(`
-        INSERT INTO video_jobs (id, idempotency_key, status, updated_at, payload)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO video_jobs (id, idempotency_key, project_id, status, updated_at, payload)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           idempotency_key = excluded.idempotency_key,
+          project_id = excluded.project_id,
           status = excluded.status,
           updated_at = excluded.updated_at,
           payload = excluded.payload
@@ -61,6 +77,7 @@ export class SqliteVideoJobRepository implements VideoJobRepository {
       .run(
         job.id,
         job.request.idempotencyKey ?? null,
+        job.request.projectId ?? null,
         job.status,
         job.updatedAt,
         JSON.stringify(job),
@@ -88,6 +105,47 @@ export class SqliteVideoJobRepository implements VideoJobRepository {
       .prepare(`SELECT payload FROM video_jobs WHERE status IN (${placeholders}) ORDER BY updated_at`)
       .all(...statuses) as unknown as JobRow[];
     return rows.map((row) => JSON.parse(row.payload) as VideoJob);
+  }
+
+  async listByProjectId(projectId: string): Promise<VideoJob[]> {
+    const rows = this.#database
+      .prepare("SELECT payload FROM video_jobs WHERE project_id = ? ORDER BY updated_at DESC")
+      .all(projectId) as unknown as JobRow[];
+    return rows.map((row) => JSON.parse(row.payload) as VideoJob);
+  }
+
+  async listRecent(limit: number): Promise<VideoJob[]> {
+    const rows = this.#database
+      .prepare("SELECT payload FROM video_jobs ORDER BY updated_at DESC LIMIT ?")
+      .all(limit) as unknown as JobRow[];
+    return rows.map((row) => JSON.parse(row.payload) as VideoJob);
+  }
+
+  async saveProject(project: ProductionProject): Promise<void> {
+    this.#database
+      .prepare(`
+        INSERT INTO production_projects (id, status, updated_at, payload)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          status = excluded.status,
+          updated_at = excluded.updated_at,
+          payload = excluded.payload
+      `)
+      .run(project.id, project.status, project.updatedAt, JSON.stringify(project));
+  }
+
+  async findProjectById(id: string): Promise<ProductionProject | undefined> {
+    const row = this.#database
+      .prepare("SELECT payload FROM production_projects WHERE id = ?")
+      .get(id) as JobRow | undefined;
+    return row ? (JSON.parse(row.payload) as ProductionProject) : undefined;
+  }
+
+  async listProjects(): Promise<ProductionProject[]> {
+    const rows = this.#database
+      .prepare("SELECT payload FROM production_projects ORDER BY updated_at DESC")
+      .all() as unknown as JobRow[];
+    return rows.map((row) => JSON.parse(row.payload) as ProductionProject);
   }
 
   async isReady(): Promise<boolean> {

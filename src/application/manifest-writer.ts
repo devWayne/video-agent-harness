@@ -25,6 +25,9 @@ export class ManifestWriter {
         prompt: shot.prompt,
         // Keep lineage without persisting provider query signatures.
         providerSourceUrl: redactUrlSecrets(selected.outputUrl),
+        ...(selected.recipe ? { recipe: selected.recipe } : {}),
+        ...(selected.executions ? { executions: selected.executions } : {}),
+        ...(selected.evaluation ? { evaluation: selected.evaluation } : {}),
         ...(stored ? { storedAsset: stored } : {}),
       };
     });
@@ -33,7 +36,7 @@ export class ManifestWriter {
       temporary,
       `${JSON.stringify(
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           jobId: job.id,
           canvas: { width: 3840, height: 2160, aspectRatio: "16:9" },
           delivery,

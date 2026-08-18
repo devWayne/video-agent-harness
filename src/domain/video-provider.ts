@@ -30,6 +30,7 @@ export interface ProviderTask {
 }
 
 export interface VideoProvider {
+  /** Low-level direct generation port used by the one-step `direct` ShotRecipe. */
   readonly name: string;
   submit(request: VideoGenerationRequest, signal?: AbortSignal): Promise<SubmittedProviderTask>;
   getTask(taskId: string, signal?: AbortSignal): Promise<ProviderTask>;

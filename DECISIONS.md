@@ -127,3 +127,70 @@
 - **决定：** 将参考视频的多场景推进、时间牌、数据卡、地图路径和节奏化转场抽象为安全模板能力；首个非金融主题预设为 24 秒《智慧城市的一天》。不复用参考片人物、金融叙事或画面素材。
 - **分工：** HyperFrames 负责确定性信息图形与时间线，Wan 负责后续可替换的写实人物和环境底片；遮挡关系由未来的蒙版/跟踪层解决。
 - **产品策略：** 先沉淀可配置的场景原语，再扩展自由时间线编辑器，避免每支片都生成不可维护的任意 HTML。
+
+## D19 — 从单 Provider 路由升级为 Shot Recipe
+
+- **决定：** Execution Router 不再为一个镜头只返回一个 Provider，而是返回一张可持久化 `ShotRecipe`；Provider 是配方步骤执行器，可以并列也可以串联。
+- **首批 Profile：** `direct` 保留 Mock/百炼直连；`comfyui-libtv` 串联本地控制视频与 LibTV 在线 V2V。
+- **原因：** 高控制视频并不是在 ComfyUI 和在线模型之间二选一，而是先用底层节点工作流确定骨架，再用线上模型提高最终观感。
+- **可逆：** 是；领域模型允许增加 ComfyUI-only、LibTV-only 和更多 DAG 配方。
+
+## D20 — ComfyUI 输出作为有角色的控制资产
+
+- **决定：** ComfyUI control-pass 的输出登记为 `motion-reference` 等 `GenerationAsset`，而不是直接当作最终镜头或无语义临时文件。
+- **血缘：** 保存 Workflow、Prompt ID、本地文件、来源执行器和下游输入关系；Manifest v3 保存 Recipe、步骤与评价。
+- **原因：** Harness 必须知道资产约束的是动作、相机、姿态、深度还是首尾帧，才能评价失败原因并只重跑正确阶段。
+- **可逆：** 否；这是实现局部回跳、一致性治理和审计的基础领域语义。
+
+## D21 — LibTV 的三角色与官方 CLI 边界
+
+- **决定：** LibTV 分为 `LibTvScriptAdapter`、`LibTvGenerationStepExecutor` 和 `LibTvAssemblyAdapter`，分别承担创意规划、在线模型生成和创意组装；三者只通过官方 `libtv` CLI 运行。
+- **参数边界：** 在线生成只能使用实时模型 Schema 暴露的高层参数；ComfyUI LoRA、ControlNet、Sampler、VAE 等深层参数不能通过 LibTV CLI 冒充控制。
+- **原因：** 同一产品在流程中出现多次不等于同一架构职责，拆开后才能独立替换、测试和审计。
+- **可逆：** 是；未来官方稳定 API 可以在保持端口契约的情况下替换 CLI 传输实现。
+
+## D22 — Agent Harness 与生成后生产管线分离
+
+- **决定：** AI Harness 以规划、Shot Recipe、生成执行、评价和重试闭环为边界；LibTV Assembly、HyperFrames、IMS、编码、音轨 QC 和归档归入 Post-production/Delivery。
+- **术语：** 不再使用“Agent Harness 收回剪辑决策”描述生成后流程。
+- **原因：** 自动化后期可以被 Harness 调度，但并不因此成为 AI Agent 决策循环本身；清晰术语有助于产品定位与代码所有权。
+- **可逆：** 否，属于架构职责定义。
+
+## D23 — 结构化质量报告先于自动回跳
+
+- **决定：** Candidate Evaluator 返回多维 `EvaluationReport` 和 `accept / revise-control / regenerate-final / human-review` 决策，不再只返回候选 ID。
+- **当前状态：** 默认评价器仍是首个成功候选基线，只是按新契约写入 `accept`；真实 VLM 评分和参数补丁驱动的局部回跳尚未完成。
+- **原因：** 先稳定评价数据契约和持久化格式，再替换评价模型，避免把尚未实现的视觉判断包装成现有能力。
+- **可逆：** 是；评价器可以按场景和合规要求替换。
+
+## D24 — Wan 2.7 百炼直连退出产品主流程
+
+- **决定：** 当前产品主流程固定为“ComfyUI 控制骨架 → LibTV Profile 选择的在线 V2V 模型 → 质量门”。百炼 `wan2.7-t2v` 直连只保留为供应商回退、效果对照和协议烟测，不进入默认生产路由。
+- **模型边界：** LibTV 当前已验证的在线模型仍可以是 Wan 2.7，但它属于 `LibTvGenerationStepExecutor` 的可替换 Profile 参数，不等同于百炼直连流程，也不是架构硬编码依赖。
+- **安全默认：** 未配置 ComfyUI Workflow 或 LibTV 画布时仍以 `direct + mock` 启动，避免自动上传素材或产生费用；安全启动默认不代表产品主路径。
+- **保留原因：** 已验证的百炼 Provider、异步恢复和成本防护具有回归测试与容灾价值，暂不删除代码和文档证据。
+- **可逆：** 是；当 LibTV 不满足某类镜头、成本或 SLA 时，Execution Router 可以显式选择该回退 Profile。
+
+## D25 — 项目级 Skill 与可替换 Agent Host
+
+- **决定：** 项目自有 Skill 的唯一源文件保存在仓库 `skills/`，Codex 与 Claude Code 仅通过项目级安装副本加载；Harness Runtime 不依赖某个 Agent Host。
+- **决定：** `.env.local`、账号、密钥、项目 UUID、内网地址、端口、本机 Workflow 路径、登录状态、SQLite 和媒体产物不得进入远程仓库。
+- **原因：** Skill 需要像代码一样被版本化和评审，而执行身份与机器配置必须独立注入；这样可在不同 Agent Host 和环境之间迁移同一生产体系。
+- **可逆：** 否；宿主可替换性是企业交付和长期维护的基础边界。
+
+## D26 — Studio 是生产控制终端
+
+- **决定：** 3321 Studio 呈现创作规划、H3、LibTV、质量门、后期和交付的阶段状态，提供原生画布跳转，并聚合所有产物与血缘。
+- **决定：** Studio 不复制 ComfyUI 节点编辑器和 LibTV 无限画布；专业参数仍在对应工具中编辑，Harness 只保存批准后的 Profile、任务、结果和决策。
+- **原因：** 企业价值来自跨工具编排、可追溯质量闭环和交付控制，而不是再造两个成熟的专业画布。
+- **可逆：** 是；未来可以嵌入受控的画布视图，但职责边界保持不变。
+
+## D27 — Studio 与 ComfyUI / LibTV 只合并入口和数据
+
+- **日期：** 2026-08-18。
+- **决定：** Harness Studio 是项目控制面与资产事实来源；ComfyUI Web UI 是底层生成工作台；LibTV 无限画布是空间化创意工作台。三者共享 Project/Shot/Asset 标识、状态、产物血缘与深链接，但不合并成一个编辑器。
+- **决定：** ComfyUI 和 LibTV 在架构中都拆成“面向人或开发期 Agent 的 Workbench”与“面向 Harness Runtime 的 API/CLI Provider”两个身份。
+- **决定：** 早期“杭州 / 智慧城市”内容只保留为 HyperFrames 回归模板，不再作为 3321 Studio 的默认 Brief、默认成片标题或产品身份。
+- **实现状态：** 2026-08-18 已落地 `Project / Story Scene / Character Pack / Scene Pack / Asset Version`、项目级 ComfyUI/LibTV 绑定、关联 VideoJob API 与 Studio 管理界面；二进制直传、按 Shot 深链接和 Provider 自动回收版本仍属后续增强。
+- **原因：** 企业价值来自跨工具的项目治理、统一资产、评价重试、成本审计和交付，而不是复制 ComfyUI 节点编辑器或 LibTV 无限画布。
+- **可逆：** 专业画布未来可以嵌入只读预览或受控子视图，但职责和数据所有权边界不变。

@@ -48,7 +48,10 @@ const submitPlanParameters = Type.Object({
 export type PiPlanningAgentFactory = (tools: AgentTool[]) => Agent;
 
 export class PiDirector implements Director {
-  constructor(private readonly createAgent: PiPlanningAgentFactory) {}
+  constructor(
+    private readonly createAgent: PiPlanningAgentFactory,
+    private readonly maximumShotDurationSeconds = 15,
+  ) {}
 
   async createPlan(input: CreateVideoJobInput, signal?: AbortSignal): Promise<VideoPlan> {
     let submittedPlan: VideoPlan | undefined;
@@ -66,6 +69,14 @@ export class PiDirector implements Director {
         if (totalDuration !== input.durationSeconds) {
           throw new Error(
             `Shot durations total ${totalDuration}s, expected ${input.durationSeconds}s`,
+          );
+        }
+        const overlong = parameters.shots.find(
+          (shot) => shot.durationSeconds > this.maximumShotDurationSeconds,
+        );
+        if (overlong) {
+          throw new Error(
+            `Shot duration ${overlong.durationSeconds}s exceeds the active recipe maximum of ${this.maximumShotDurationSeconds}s`,
           );
         }
 
@@ -90,13 +101,16 @@ export class PiDirector implements Director {
 
     const agent = this.createAgent([submitPlanTool]);
     if (signal) signal.addEventListener("abort", () => agent.abort(), { once: true });
-    await agent.prompt(buildDirectorPrompt(input));
+    await agent.prompt(buildDirectorPrompt(input, this.maximumShotDurationSeconds));
     if (!submittedPlan) throw new Error("Pi Director finished without submitting a video plan");
     return submittedPlan;
   }
 }
 
-function buildDirectorPrompt(input: CreateVideoJobInput): string {
+function buildDirectorPrompt(
+  input: CreateVideoJobInput,
+  maximumShotDurationSeconds: number,
+): string {
   return [
     "请把下面的创作需求规划为可直接用于视频生成模型的分镜。",
     `创作 Brief：${input.brief}`,
@@ -104,7 +118,7 @@ function buildDirectorPrompt(input: CreateVideoJobInput): string {
     "画幅：16:9 横屏",
     "最终交付：3840×2160；生成素材按 1080P 设计。",
     `参考素材：${input.references.length} 个`,
-    "要求：角色、场景、美术和光线连续；单镜头 5–15 秒；不要在画面中生成字幕或水印。",
+    `要求：角色、场景、美术和光线连续；单镜头 5–${maximumShotDurationSeconds} 秒；不要在画面中生成字幕或水印。`,
     "必须调用 submit_video_plan 工具提交最终方案，不要只输出自然语言。",
   ].join("\n");
 }

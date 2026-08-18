@@ -11,12 +11,20 @@ const optionalNonNegativeNumber = z.preprocess(
   z.coerce.number().min(0).optional(),
 );
 
+const optionalHttpUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+    message: "Control-surface URLs must use http or https",
+  }).optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_321),
   DATA_DIR: z.string().default(".data"),
   HARNESS_API_KEY: optionalNonEmptyString,
+  GENERATION_PIPELINE: z.enum(["direct", "comfyui-libtv"]).default("direct"),
   VIDEO_PROVIDER: z.enum(["mock", "bailian"]).default("mock"),
   MOCK_LATENCY_MS: z.coerce.number().int().min(0).default(25),
   PROVIDER_POLL_INTERVAL_MS: z.coerce.number().int().min(10).default(2_000),
@@ -31,6 +39,17 @@ const envSchema = z.object({
   BAILIAN_BASE_URL: optionalNonEmptyString,
   BAILIAN_API_KEY: optionalNonEmptyString,
   BAILIAN_WAN_MODEL: z.string().default("wan2.7-t2v"),
+  COMFYUI_BASE_URL: optionalNonEmptyString,
+  COMFYUI_STUDIO_URL: optionalHttpUrl,
+  COMFYUI_WORKFLOW_PATH: optionalNonEmptyString,
+  COMFYUI_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(2_000),
+  COMFYUI_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(30 * 60 * 1_000),
+  LIBTV_CLI_PATH: z.string().min(1).default("libtv"),
+  LIBTV_PROJECT_UUID: optionalNonEmptyString,
+  LIBTV_STUDIO_URL: optionalHttpUrl,
+  LIBTV_MODEL_NAME: z.string().min(1).default("Wan 2.7"),
+  LIBTV_MODE_TYPE: z.enum(["video2video", "mixed2video"]).default("video2video"),
+  LIBTV_MAX_DURATION_SECONDS: z.coerce.number().int().min(5).max(15).default(10),
   COST_WAN_CNY_PER_SECOND: optionalNonNegativeNumber,
   COST_4K_CNY_PER_SECOND: optionalNonNegativeNumber,
   DELIVERY_MODE: z.enum(["simulation", "cloud"]).default("simulation"),
@@ -51,7 +70,7 @@ export type AppConfig = ReturnType<typeof loadConfig>;
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
   const config = envSchema.parse(environment);
 
-  if (config.VIDEO_PROVIDER === "bailian") {
+  if (config.GENERATION_PIPELINE === "direct" && config.VIDEO_PROVIDER === "bailian") {
     const missing = [
       ["BAILIAN_BASE_URL", config.BAILIAN_BASE_URL],
       ["BAILIAN_API_KEY", config.BAILIAN_API_KEY],
@@ -61,6 +80,19 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
 
     if (missing.length > 0) {
       throw new Error(`VIDEO_PROVIDER=bailian requires ${missing.join(", ")}`);
+    }
+  }
+
+  if (config.GENERATION_PIPELINE === "comfyui-libtv") {
+    const missing = [
+      ["COMFYUI_BASE_URL", config.COMFYUI_BASE_URL],
+      ["COMFYUI_WORKFLOW_PATH", config.COMFYUI_WORKFLOW_PATH],
+      ["LIBTV_PROJECT_UUID", config.LIBTV_PROJECT_UUID],
+    ]
+      .filter(([, value]) => value === undefined)
+      .map(([name]) => name);
+    if (missing.length > 0) {
+      throw new Error(`GENERATION_PIPELINE=comfyui-libtv requires ${missing.join(", ")}`);
     }
   }
 
@@ -94,6 +126,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
   return {
     ...config,
     DATA_DIR: resolve(config.DATA_DIR),
+    ...(config.COMFYUI_WORKFLOW_PATH
+      ? { COMFYUI_WORKFLOW_PATH: resolve(config.COMFYUI_WORKFLOW_PATH) }
+      : {}),
     MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES: config.MEDIA_IMPORT_ALLOWED_HOST_SUFFIXES.split(",")
       .map((item) => item.trim())
       .filter((item) => item.length > 0),
