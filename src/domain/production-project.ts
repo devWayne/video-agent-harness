@@ -1,5 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import {
+  completeProductionOperation,
+  createProductionOperation,
+  failProductionOperation,
+  reviewProductionOperation,
+  startProductionOperation,
+  type CompleteProductionOperationInput,
+  type CreateProductionOperationInput,
+  type FailProductionOperationInput,
+  type ProductionOperation,
+  type ReviewProductionOperationInput,
+  type StartProductionOperationInput,
+} from "./production-operation.js";
+import type { StoryProductionPlan } from "./story-production.js";
 
 const shortText = z.string().trim().min(1).max(200);
 const optionalLongText = z.string().trim().max(4_000).optional();
@@ -23,6 +37,8 @@ export const projectAssetRoleSchema = z.enum([
   "music",
   "control-asset",
   "final-candidate",
+  "accepted-shot",
+  "assembly-master",
   "delivery-master",
   "other",
 ]);
@@ -70,7 +86,7 @@ export const addProjectAssetSchema = z.object({
   mediaType: projectAssetMediaTypeSchema,
   role: projectAssetRoleSchema,
   uri: z.url(),
-  source: z.enum(["user", "comfyui", "libtv", "hyperframes", "delivery"]).default("user"),
+  source: z.enum(["user", "comfyui", "libtv", "online-video", "hyperframes", "delivery"]).default("user"),
   tags: z.array(shortText).max(20).default([]),
   notes: optionalLongText,
   parentAssetId: z.uuid().optional(),
@@ -120,7 +136,7 @@ export interface ProjectAsset {
   mediaType: ProjectAssetMediaType;
   role: ProjectAssetRole;
   uri: string;
-  source: "user" | "comfyui" | "libtv" | "hyperframes" | "delivery";
+  source: "user" | "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery";
   tags: string[];
   notes?: string;
   parentAssetId?: string;
@@ -174,6 +190,10 @@ export interface ProductionProject {
   updatedAt: string;
   deliverySpec: DeliverySpec;
   workbenchBindings: WorkbenchBindings;
+  orchestrationMode: "agent-directed";
+  agentHost?: string;
+  productionPlan?: StoryProductionPlan;
+  operations: ProductionOperation[];
   assets: ProjectAsset[];
   characterPacks: CharacterPack[];
   scenePacks: ScenePack[];
@@ -197,12 +217,74 @@ export function createProductionProject(
     updatedAt: timestamp,
     deliverySpec: input.deliverySpec,
     workbenchBindings: input.workbenchBindings,
+    orchestrationMode: "agent-directed",
+    operations: [],
     assets: [],
     characterPacks: [],
     scenePacks: [],
     scenes: [],
     videoJobIds: [],
   };
+}
+
+export function saveProductionPlan(
+  project: ProductionProject,
+  productionPlan: StoryProductionPlan,
+  agentHost: string,
+  now = new Date(),
+): ProductionProject {
+  return touchProject({ ...project, productionPlan, agentHost }, now);
+}
+
+export function appendProductionOperation(
+  project: ProductionProject,
+  input: CreateProductionOperationInput,
+  now = new Date(),
+): ProductionProject {
+  return touchProject(
+    { ...project, operations: [...project.operations, createProductionOperation(input, now)] },
+    now,
+  );
+}
+
+export function startProjectOperation(
+  project: ProductionProject,
+  operationId: string,
+  input: StartProductionOperationInput,
+  now = new Date(),
+): ProductionProject {
+  return replaceProjectOperation(project, operationId, (operation) =>
+    startProductionOperation(operation, input, now), now);
+}
+
+export function completeProjectOperation(
+  project: ProductionProject,
+  operationId: string,
+  input: CompleteProductionOperationInput,
+  now = new Date(),
+): ProductionProject {
+  return replaceProjectOperation(project, operationId, (operation) =>
+    completeProductionOperation(operation, input, now), now);
+}
+
+export function failProjectOperation(
+  project: ProductionProject,
+  operationId: string,
+  input: FailProductionOperationInput,
+  now = new Date(),
+): ProductionProject {
+  return replaceProjectOperation(project, operationId, (operation) =>
+    failProductionOperation(operation, input, now), now);
+}
+
+export function reviewProjectOperation(
+  project: ProductionProject,
+  operationId: string,
+  input: ReviewProductionOperationInput,
+  now = new Date(),
+): ProductionProject {
+  return replaceProjectOperation(project, operationId, (operation) =>
+    reviewProductionOperation(operation, input, now), now);
 }
 
 export function updateProductionProject(
@@ -332,4 +414,18 @@ function touchProject(project: ProductionProject, now: Date): ProductionProject 
     version: project.version + 1,
     updatedAt: now.toISOString(),
   };
+}
+
+function replaceProjectOperation(
+  project: ProductionProject,
+  operationId: string,
+  update: (operation: ProductionOperation) => ProductionOperation,
+  now: Date,
+): ProductionProject {
+  const operation = project.operations.find((item) => item.id === operationId);
+  if (!operation) throw new Error(`Production operation ${operationId} not found`);
+  return touchProject({
+    ...project,
+    operations: project.operations.map((item) => item.id === operationId ? update(item) : item),
+  }, now);
 }

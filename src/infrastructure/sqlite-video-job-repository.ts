@@ -138,14 +138,14 @@ export class SqliteVideoJobRepository implements VideoJobRepository, ProductionP
     const row = this.#database
       .prepare("SELECT payload FROM production_projects WHERE id = ?")
       .get(id) as JobRow | undefined;
-    return row ? (JSON.parse(row.payload) as ProductionProject) : undefined;
+    return row ? hydrateProductionProject(JSON.parse(row.payload) as ProductionProject) : undefined;
   }
 
   async listProjects(): Promise<ProductionProject[]> {
     const rows = this.#database
       .prepare("SELECT payload FROM production_projects ORDER BY updated_at DESC")
       .all() as unknown as JobRow[];
-    return rows.map((row) => JSON.parse(row.payload) as ProductionProject);
+    return rows.map((row) => hydrateProductionProject(JSON.parse(row.payload) as ProductionProject));
   }
 
   async isReady(): Promise<boolean> {
@@ -168,4 +168,12 @@ export class SqliteVideoJobRepository implements VideoJobRepository, ProductionP
   close(): void {
     this.#database.close();
   }
+}
+
+function hydrateProductionProject(project: ProductionProject): ProductionProject {
+  return {
+    ...project,
+    orchestrationMode: "agent-directed",
+    operations: project.operations ?? [],
+  };
 }

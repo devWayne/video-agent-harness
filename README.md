@@ -1,9 +1,12 @@
 # Video Agent Harness
 
-面向生产级横屏短视频的多模态 Agent 执行与编排服务。主栈为 TypeScript + Node.js；Pi Agent Core 负责智能导演控制面，持久化工作流负责供应商任务、重试、状态和产物交付。
+面向生产级横屏短视频的 Agent-directed 执行与生产账本。主栈为 TypeScript + Node.js；Codex GPT 通过仓库内 Skill 承担人物、故事、分镜、执行路由、看片评审与局部重做决策，Runtime 只负责类型化执行、恢复、资产血缘、门禁和交付状态，React Production Console 只做可视化与人工接管。
 
 ## 当前能力
 
+- `PUT /v1/projects/:id/production-plan`：保存由 Codex/兼容 Agent Host 编写的 Story → Scene → Shot 结构化创作计划和连续性状态。
+- `POST /v1/projects/:id/operations`：声明 `control-generation / final-render / assembly / delivery` 类型化执行操作。
+- `POST /v1/projects/:id/operations/:operationId/start|complete|fail|review`：保存 Provider 任务、产物、失败和 Codex/人工评审；执行成功不会自动等于质量通过。
 - `POST /v1/video-jobs`：以一句 Brief 创建 5–60 秒视频任务，支持幂等键。
 - `GET /v1/video-jobs/:id`：查询统一任务、分镜、候选和产物状态。
 - `POST /v1/video-jobs/:id/cancel`：取消非终态任务。
@@ -17,24 +20,25 @@
 - SQLite 逐步骤检查点、进程重启无重复提交恢复、原子写入生产清单。
 - Mock Provider 可完整跑通；百炼 Wan Provider 已实现提交和轮询协议，`wan2.7-t2v` 已通过真实调用。
 - 阿里云 IMS SR5 4K 超分 Provider 已实现；它与视频生成解耦，输入、输出均使用 OSS。
-- Pi Director 已通过 `@earendil-works/pi-agent-core` 工具调用接入；没有规划模型凭据时使用确定性 Director。
+- Codex GPT + 仓库总创作 Skill 是新的主 Agent 路径。Pi/确定性 Director 只保留在旧 `/v1/video-jobs` 兼容入口，不再代表主架构。
 - Shot Recipe 已支持 `direct` 和 `comfyui-libtv` 两条配方。当前产品主流程是后者：先在本地 ComfyUI 生成 `motion-reference`，再通过官方 LibTV CLI 上传并调用 Profile 选择的在线视频模型生成最终镜头；Wan 2.7 是首个已验证模型，不是主流程硬编码依赖。
 - LibTV 被拆成三个明确适配角色：脚本/分镜创意工具、在线视频生成执行器和视频组装工具；不会把 CLI 本身误当完整 Agent Harness。
-- 质量门已经使用包含人物一致性、动作、Prompt、时序和技术质量维度的报告契约；当前默认评价器仍是首个成功候选的兼容基线，真实 VLM 评分尚未完成。
+- 新 ProductionOperation 主流程要求显式 `control-draft / final-candidate / delivery` 评审；旧 VideoJob 的“首个成功候选”评价器仅作为兼容基线，不能进入新主流程门禁。
 - OpenAPI 3.1、Bearer 鉴权、健康/就绪检查、Prometheus 指标与可配置人民币成本预算。
-- React + TypeScript 生产控制台将编导规划、H3 骨架、LibTV 精修、质量门、产物血缘、后期包装和 4K 交付呈现在同一流程中，并可跳转到本机 ComfyUI 与 LibTV 专业画布。
+- React + TypeScript Production Console 投影 Codex Production Plan、Runtime 操作、评审门禁、产物血缘、后期包装和 4K 交付，并可跳转到本机 ComfyUI 与 LibTV 专业画布。
 - Studio 已从单次 Job 面板升级为项目级 `Project → Story Scene → Character/Scene Pack → Asset Version → VideoJob` 控制面；项目可以保存 ComfyUI Profile 和 LibTV Canvas 绑定。
 - Studio 是 Harness 的控制终端和产物聚合层，不复制 ComfyUI/LibTV 的节点编辑能力；官方 `@hyperframes/player` 继续负责内置 16:9 动效预览与 seek，`@hyperframes/core` 在服务端执行 lint。
 
 当前 Mock 流程输出的是 4K 合成清单，不是假装已经生成 4K MP4。真实交付采用“合格 1080P 镜头 → 合成 1080P 母版 → OSS → IMS SR5 输出 4K”的独立云服务链路；FFmpeg 不用于 AI 超分。镜头可以来自 LibTV 当前 Profile，百炼 Wan 2.7 直连只作为可选回退与对照实验。
 
-核心职责分层如下：
+新的核心职责分层如下：
 
 ```text
-Video Agent Harness（规划、Shot Recipe、评价、重试、血缘与成本）
-  → ComfyUI / LibTV / 百炼（生成执行器）
-  → Accepted Shot Manifest（合格镜头）
-  → LibTV Assembly / HyperFrames（生成后创意组装与确定性包装）
+Codex GPT + repo-local Skills（创作、路由、评价、重试决定）
+  → TypeScript Runtime（操作执行、恢复、资产、门禁、血缘、成本）
+  → ComfyUI/H3 控制草稿 → Codex 宽松评审
+  → Seedance/MiniMax/LibTV 逐镜头终稿 → Codex 严格评审
+  → HyperFrames 确定性组装
   → IMS / QC / Archive（交付）
 ```
 
@@ -109,7 +113,7 @@ npm run smoke:cloud
 
 真实 Bucket 名称只保存在本地忽略配置中；在 RAM/STS 运行身份完成前仍保持模拟交付，防止半配置任务误产生费用。
 
-启用 Pi Director 需要一个可调用文本模型的独立 OpenAI-compatible Key：
+仅在回归旧 `/v1/video-jobs` 自动流程时，启用 Pi Director 才需要独立 OpenAI-compatible Key；新的 Codex 主 Agent 流程不需要在 Runtime 配置 Director 模型：
 
 ```dotenv
 DIRECTOR_MODE=pi

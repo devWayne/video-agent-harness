@@ -18,10 +18,12 @@ import {
   HyperframesCompositionService,
 } from "../application/hyperframes-composition-service.js";
 import { VideoJobRetryError } from "../domain/video-job.js";
+import { ProductionOperationTransitionError } from "../domain/production-operation.js";
 import { openApiDocument } from "./openapi.js";
 
 const jobParamsSchema = z.object({ id: z.uuid() });
 const projectParamsSchema = z.object({ id: z.uuid() });
+const projectOperationParamsSchema = z.object({ id: z.uuid(), operationId: z.uuid() });
 const projectJobInputSchema = z
   .object({ projectId: z.uuid().optional(), sceneId: z.uuid().optional() })
   .passthrough();
@@ -170,6 +172,54 @@ export function buildServer(options: BuildServerOptions) {
     return reply.code(201).send(project);
   });
 
+  server.put("/v1/projects/:id/production-plan", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id } = projectParamsSchema.parse(request.params);
+    const project = await options.projectService.savePlan(id, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(project);
+  });
+
+  server.post("/v1/projects/:id/operations", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id } = projectParamsSchema.parse(request.params);
+    const result = await options.projectService.createOperation(id, request.body);
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.code(201).send(result);
+  });
+
+  server.post("/v1/projects/:id/operations/:operationId/start", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, operationId } = projectOperationParamsSchema.parse(request.params);
+    const result = await options.projectService.startOperation(id, operationId, request.body ?? {});
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(result);
+  });
+
+  server.post("/v1/projects/:id/operations/:operationId/complete", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, operationId } = projectOperationParamsSchema.parse(request.params);
+    const result = await options.projectService.completeOperation(id, operationId, request.body);
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(result);
+  });
+
+  server.post("/v1/projects/:id/operations/:operationId/fail", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, operationId } = projectOperationParamsSchema.parse(request.params);
+    const result = await options.projectService.failOperation(id, operationId, request.body);
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(result);
+  });
+
+  server.post("/v1/projects/:id/operations/:operationId/review", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, operationId } = projectOperationParamsSchema.parse(request.params);
+    const result = await options.projectService.reviewOperation(id, operationId, request.body);
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(result);
+  });
+
   server.get("/v1/video-jobs", async (request, reply) => {
     const { limit } = recentJobsQuerySchema.parse(request.query);
     return reply.send(await options.service.listRecent(limit));
@@ -271,6 +321,9 @@ export function buildServer(options: BuildServerOptions) {
       return reply.code(404).send({ code: error.code, message: error.message });
     }
     if (error instanceof ProductionProjectConflictError) {
+      return reply.code(409).send({ code: error.code, message: error.message });
+    }
+    if (error instanceof ProductionOperationTransitionError) {
       return reply.code(409).send({ code: error.code, message: error.message });
     }
     if (error instanceof HyperframesCompositionError) {

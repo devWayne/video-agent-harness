@@ -96,6 +96,68 @@ export const openApiDocument = {
         responses: { "201": { description: "Story scene created" } },
       },
     },
+    "/v1/projects/{id}/production-plan": {
+      put: {
+        tags: ["Projects"],
+        summary: "Persist the structured story, scene, shot and continuity plan authored by the main Agent",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/SaveProductionPlan" } } },
+        },
+        responses: { "200": { description: "Production plan saved" }, "409": { description: "Plan references project data that does not exist" } },
+      },
+    },
+    "/v1/projects/{id}/operations": {
+      post: {
+        tags: ["Projects", "Operations"],
+        summary: "Declare one Agent-directed execution operation without granting Runtime creative authority",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateProductionOperation" } } },
+        },
+        responses: { "201": { description: "Operation recorded" }, "409": { description: "An input, dependency or stage gate is invalid" } },
+      },
+    },
+    "/v1/projects/{id}/operations/{operationId}/start": {
+      post: {
+        tags: ["Operations"],
+        summary: "Checkpoint provider execution start",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/OperationId" }],
+        responses: { "200": { description: "Operation started" }, "409": { description: "Transition or dependency conflict" } },
+      },
+    },
+    "/v1/projects/{id}/operations/{operationId}/complete": {
+      post: {
+        tags: ["Operations"],
+        summary: "Checkpoint output assets and move an operation to its explicit review gate",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/OperationId" }],
+        responses: { "200": { description: "Operation completed and waiting for review" }, "409": { description: "Transition or asset conflict" } },
+      },
+    },
+    "/v1/projects/{id}/operations/{operationId}/fail": {
+      post: {
+        tags: ["Operations"],
+        summary: "Record a typed execution failure without making a retry decision",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/OperationId" }],
+        responses: { "200": { description: "Failure recorded" }, "409": { description: "Transition conflict" } },
+      },
+    },
+    "/v1/projects/{id}/operations/{operationId}/review": {
+      post: {
+        tags: ["Operations"],
+        summary: "Persist a Codex or human review decision for a generated artifact",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/OperationId" }],
+        responses: { "200": { description: "Review decision recorded" }, "409": { description: "Operation is not reviewable at this gate" } },
+      },
+    },
     "/v1/projects/{id}/video-jobs": {
       post: {
         tags: ["Projects", "Jobs"],
@@ -230,6 +292,7 @@ export const openApiDocument = {
     parameters: {
       JobId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
       ProjectId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      OperationId: { name: "operationId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
     },
     schemas: {
       CreateProductionProject: {
@@ -257,6 +320,30 @@ export const openApiDocument = {
               libtvCanvasUrl: { type: "string", format: "uri" },
             },
           },
+        },
+      },
+      SaveProductionPlan: {
+        type: "object",
+        required: ["agentHost", "plan"],
+        properties: {
+          agentHost: { type: "string", description: "Replaceable Agent Host, for example Codex GPT or Claude Code" },
+          plan: { type: "object", description: "Structured StoryProductionPlan with scenes, shots and continuity state" },
+        },
+      },
+      CreateProductionOperation: {
+        type: "object",
+        required: ["kind", "executor"],
+        properties: {
+          kind: { type: "string", enum: ["control-generation", "final-render", "assembly", "delivery"] },
+          executor: { type: "string", enum: ["comfyui", "libtv", "online-video", "hyperframes", "delivery", "manual"] },
+          shotId: { type: "string" },
+          sceneId: { type: "string" },
+          profileId: { type: "string" },
+          prompt: { type: "string" },
+          inputAssetIds: { type: "array", items: { type: "string", format: "uuid" }, default: [] },
+          dependsOnOperationIds: { type: "array", items: { type: "string", format: "uuid" }, default: [] },
+          parameters: { type: "object", additionalProperties: true, default: {} },
+          requiresReview: { type: "boolean", default: true },
         },
       },
       ReferenceAsset: {

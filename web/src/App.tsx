@@ -50,6 +50,8 @@ type ProjectAssetRole =
   | "music"
   | "control-asset"
   | "final-candidate"
+  | "accepted-shot"
+  | "assembly-master"
   | "delivery-master"
   | "other";
 
@@ -60,7 +62,7 @@ interface ProjectAsset {
   mediaType: ProjectAssetMediaType;
   role: ProjectAssetRole;
   uri: string;
-  source: "user" | "comfyui" | "libtv" | "hyperframes" | "delivery";
+  source: "user" | "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery";
   tags: string[];
 }
 
@@ -92,6 +94,59 @@ interface StoryScene {
   videoJobIds: string[];
 }
 
+interface StoryProductionPlan {
+  id: string;
+  title: string;
+  logline: string;
+  targetDurationSeconds: number;
+  scenes: Array<{
+    id: string;
+    index: number;
+    title: string;
+    narrativePurpose: string;
+    targetDurationSeconds: number;
+    shots: Array<{
+      id: string;
+      index: number;
+      narrativePurpose: string;
+      action: string;
+      camera: string;
+      sound: string;
+      prompt: string;
+      generation: { profileId: string; durationSeconds: number };
+    }>;
+  }>;
+}
+
+interface ProductionOperation {
+  id: string;
+  kind: "control-generation" | "final-render" | "assembly" | "delivery";
+  executor: "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery" | "manual";
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  reviewStatus: "not-ready" | "not-required" | "pending" | "accepted" | "rejected" | "human-review";
+  attempt: number;
+  shotId?: string;
+  sceneId?: string;
+  profileId?: string;
+  inputAssetIds: string[];
+  outputAssetIds: string[];
+  dependsOnOperationIds: string[];
+  providerTaskId?: string;
+  review?: {
+    gate: "control-draft" | "final-candidate" | "delivery";
+    decision: "accept" | "revise-control" | "regenerate-final" | "human-review";
+    overallScore: number;
+    dimensions?: Record<string, number>;
+    issues?: Array<{ code: string; message: string; severity: string }>;
+    evidence?: Array<{ assetId?: string; timestampSeconds?: number; description: string }>;
+    suggestedParameterPatch?: Record<string, unknown>;
+    reviewedBy: { type: "agent" | "human"; name: string };
+    at: string;
+  };
+  error?: { code: string; message: string; retryable: boolean };
+  updatedAt: string;
+}
+
 interface ProductionProject {
   id: string;
   name: string;
@@ -106,6 +161,10 @@ interface ProductionProject {
     libtvCanvasUuid?: string;
     libtvCanvasUrl?: string;
   };
+  orchestrationMode: "agent-directed";
+  agentHost?: string;
+  productionPlan?: StoryProductionPlan;
+  operations: ProductionOperation[];
   assets: ProjectAsset[];
   characterPacks: CharacterPack[];
   scenePacks: ScenePack[];
@@ -369,7 +428,7 @@ export function App() {
     return surface;
   }), [project, workspace.controlSurfaces]);
   const surfaces = useMemo(() => new Map(controlSurfaces.map((surface) => [surface.id, surface])), [controlSurfaces]);
-  const stages = useMemo(() => buildStages(job, runtime, allCandidates), [job, runtime, allCandidates]);
+  const stages = useMemo(() => buildStages(project, job, runtime, allCandidates), [project, job, runtime, allCandidates]);
   const progress = Math.round((stages.filter((stage) => stage.state === "passed").length / stages.length) * 100);
 
   function beginNewRun() {
@@ -501,7 +560,7 @@ export function App() {
       <header className="control-topbar">
         <div className="brand-lockup">
           <div className="brand-symbol"><span>V</span></div>
-          <div><strong>VIDEO HARNESS</strong><small>PRODUCTION CONTROL</small></div>
+          <div><strong>PRODUCTION CONSOLE</strong><small>AGENT-DIRECTED VIDEO</small></div>
         </div>
         <div className="run-identity">
           <span className="eyebrow">ACTIVE PROJECT</span>
@@ -514,17 +573,18 @@ export function App() {
             {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <button className="system-pill" type="button" onClick={() => setShowConnection((value) => !value)}>
-            <i className="pulse-dot" /> Harness {runtime ? "Ready" : "Connecting"}
+            <i className="pulse-dot" /> Runtime {runtime ? "Ready" : "Connecting"}
           </button>
           <button className="quiet-button" type="button" onClick={() => void Promise.all([fetchWorkspace(), fetchProjects()])}>刷新</button>
           <button className="quiet-button" type="button" onClick={() => setShowNewProject(true)}>＋ 项目</button>
-          <button className="primary-button" type="button" onClick={beginNewRun}>＋ 生产任务</button>
+          <button className="quiet-button" type="button" onClick={beginNewRun}>兼容自动任务</button>
+          <button className="primary-button" type="button" onClick={() => setView("pipeline")}>查看 Agent 流程</button>
         </div>
         {showConnection && (
           <div className="connection-card">
-            <label htmlFor="harness-key">Harness API Token</label>
+            <label htmlFor="harness-key">Runtime API Token</label>
             <input id="harness-key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="本地未启用鉴权时留空" />
-            <p>这里只保存当前会话的 Harness Token。云账号和 Provider Key 只从服务端 `.env.local` 读取。</p>
+            <p>这里只保存当前会话的 Runtime Token。云账号和 Provider Key 只从服务端 `.env.local` 读取。</p>
           </div>
         )}
       </header>
@@ -560,6 +620,7 @@ export function App() {
           )}
           {view === "pipeline" && (
             <PipelineView
+              project={project}
               job={job}
               stages={stages}
               surfaces={surfaces}
@@ -570,7 +631,7 @@ export function App() {
               onOpenView={setView}
             />
           )}
-          {view === "assets" && <ProjectView project={project} jobs={projectJobs} job={job} assets={allAssets} apiKey={apiKey} onProjectUpdated={(updated) => { setProject(updated); setProjects((current) => current.map((item) => item.id === updated.id ? updated : item)); }} />}
+          {view === "assets" && <ProjectView project={project} jobs={projectJobs} job={job} apiKey={apiKey} onProjectUpdated={(updated) => { setProject(updated); setProjects((current) => current.map((item) => item.id === updated.id ? updated : item)); }} />}
           {view === "post-production" && (
             <section className="workspace-section" id="post-production">
               <SectionTitle eyebrow="DETERMINISTIC POST" title="后期包装与动效" description="AI 视频作为底片，HyperFrames 负责可复现的文字、数据图形和节拍包装。" />
@@ -590,7 +651,7 @@ export function App() {
               </div>
             </section>
           )}
-          {view === "delivery" && <DeliveryView job={job} onRetry={() => void retryJob()} />}
+          {view === "delivery" && <DeliveryView project={project} job={job} onRetry={() => void retryJob()} />}
         </main>
 
         <aside className="operations-sidebar">
@@ -602,15 +663,15 @@ export function App() {
           </div>
           <div className="sidebar-heading compact"><span>RUN HEALTH</span><strong>任务健康度</strong></div>
           <div className="health-panel">
-            <div><span>运行状态</span><strong className={job?.status === "failed" ? "danger" : "good"}>{job ? jobLabels[job.status] : "待创建"}</strong></div>
-            <div><span>合格镜头</span><strong>{acceptedCount} / {job?.shots.length ?? 0}</strong></div>
-            <div><span>评测报告</span><strong>{reviewCount}</strong></div>
-            <div><span>最近检查点</span><strong>{formatTime(job?.updatedAt)}</strong></div>
+            <div><span>编排模式</span><strong className="good">{project?.orchestrationMode === "agent-directed" ? "Agent 主导" : "待创建"}</strong></div>
+            <div><span>执行操作</span><strong>{project?.operations.length ?? 0}</strong></div>
+            <div><span>已通过门禁</span><strong>{project?.operations.filter((operation) => operation.reviewStatus === "accepted" || operation.reviewStatus === "not-required").length ?? 0}</strong></div>
+            <div><span>最近检查点</span><strong>{formatTime(project?.updatedAt ?? job?.updatedAt)}</strong></div>
           </div>
           <div className="sidebar-heading compact"><span>POLICY</span><strong>当前策略</strong></div>
           <div className="policy-card">
-            <span>{runtime?.generationPipeline === "comfyui-libtv" ? "H3 CONTROL → LIBTV" : "DIRECT / MOCK"}</span>
-            <p>{runtime?.generationPipeline === "comfyui-libtv" ? "先生成动作骨架，再在线精修。每个阶段独立留存和评测。" : "当前运行时尚未启用高控制主链，可验证 Harness 状态机但不代表生产效果。"}</p>
+            <span>CODEX → SKILLS → OPERATIONS</span>
+            <p>Codex 负责创作与评审；Runtime 只执行、留存、校验门禁；控制台只展示事实和提供人工介入入口。</p>
           </div>
         </aside>
       </div>
@@ -622,7 +683,7 @@ export function App() {
             <label>项目名称<input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="例如：门口反转短片" /></label>
             <label>创作 Brief<textarea value={projectBrief} onChange={(event) => setProjectBrief(event.target.value)} placeholder="描述作品目标、受众、角色、场景、风格和交付用途。" /></label>
             <label>故事梗概（可继续完善）<textarea value={storySynopsis} onChange={(event) => setStorySynopsis(event.target.value)} placeholder="记录全片故事线和关键冲突。" /></label>
-            <div className="run-route"><span>项目结构</span><strong>Project → Story Scenes → Character / Scene Packs → Assets → Video Jobs → Delivery</strong></div>
+            <div className="run-route"><span>项目结构</span><strong>Project → Codex Production Plan → Agent Operations → Assets / Reviews → Delivery</strong></div>
             <button className="primary-button wide" type="button" disabled={submitting || projectName.trim().length < 1 || projectBrief.trim().length < 3} onClick={() => void createProject()}>{submitting ? "创建中…" : "创建项目并进入资产库"}</button>
           </section>
         </div>
@@ -641,7 +702,7 @@ export function App() {
             </div>
             {project?.assets.some((asset) => ["image", "video", "audio"].includes(asset.mediaType)) ? <fieldset className="reference-picker"><legend>项目参考素材</legend>{project.assets.filter((asset) => ["image", "video", "audio"].includes(asset.mediaType)).map((asset) => <label key={asset.id}><input type="checkbox" checked={selectedReferenceAssetIds.includes(asset.id)} onChange={(event) => setSelectedReferenceAssetIds((current) => event.target.checked ? [...current, asset.id].slice(0, 20) : current.filter((id) => id !== asset.id))} /><span><strong>{asset.name}</strong><small>{asset.role} · v{asset.version}</small></span></label>)}</fieldset> : null}
             <label>驱动音频 URL（可选）<input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…/soundtrack.mp3" /></label>
-            <div className="run-route"><span>计划链路</span><strong>Creative Director → H3 → LibTV → Quality Gate → Post → 4K</strong></div>
+            <div className="run-route"><span>兼容链路</span><strong>Legacy Director → Recipe Pipeline → Auto Evaluator → Delivery（仅迁移与回归）</strong></div>
             <button className="primary-button wide" type="button" disabled={submitting || brief.trim().length < 3} onClick={() => void createJob()}>{submitting ? "创建中…" : "创建并开始规划"}</button>
           </section>
         </div>
@@ -670,7 +731,7 @@ function Overview(props: {
         <div>
           <span className="eyebrow">PRODUCTION OVERVIEW</span>
           <h1>{props.project?.name ?? "项目、素材与镜头的生产总控"}</h1>
-          <p>{props.project?.brief ?? "Harness Studio 保存项目主数据、素材职责、镜头版本、质量决策和交付记录；ComfyUI 与 LibTV 保留各自的专业画布，通过统一资产 ID 和任务状态接入。"}</p>
+          <p>{props.project?.brief ?? "Production Console 投影 Codex 的创作计划、Runtime 操作、素材血缘、评审决定和交付记录；它不是另一个创作 Agent。"}</p>
         </div>
         <div className="progress-orbit"><strong>{props.progress}%</strong><span>流程完成度</span></div>
       </div>
@@ -678,20 +739,20 @@ function Overview(props: {
         <Metric label="故事场景" value={String(props.project?.scenes.length ?? 0)} note="Story Scene" />
         <Metric label="角色 / 场景包" value={`${props.project?.characterPacks.length ?? 0} / ${props.project?.scenePacks.length ?? 0}`} note="Consistency Packs" />
         <Metric label="项目资产" value={String(props.project?.assets.length ?? 0)} note={`当前运行产物 ${props.assetCount}`} />
-        <Metric label="生产任务" value={String(props.projectJobs.length)} note={props.job ? `${props.acceptedCount}/${props.job.shots.length} 合格镜头 · ${props.reviewCount} 份评测` : "等待第一个任务"} />
+        <Metric label="Agent 操作" value={String(props.project?.operations.length ?? 0)} note={`${props.project?.operations.filter((operation) => operation.reviewStatus === "accepted").length ?? 0} 个已通过门禁`} />
       </div>
       <div className="project-context-grid">
-        <article className="surface-panel project-context-card"><span>STORY</span><h3>{props.project?.storySynopsis ? "故事主线已建立" : "等待故事梗概"}</h3><p>{props.project?.storySynopsis || "在项目页登记故事场景，再把每个场景拆成多个可生成镜头。"}</p><button type="button" onClick={() => props.onOpenView("assets")}>管理故事与素材 →</button></article>
+        <article className="surface-panel project-context-card"><span>CODEX PLAN</span><h3>{props.project?.productionPlan ? props.project.productionPlan.title : "等待主 Agent 规划"}</h3><p>{props.project?.productionPlan?.logline || "Codex 通过仓库总创作 Skill 建立人物、场景、故事、分镜和连续性约束。"}</p><button type="button" onClick={() => props.onOpenView("pipeline")}>查看结构化计划 →</button></article>
         <article className="surface-panel project-context-card"><span>WORKBENCH BINDINGS</span><h3>ComfyUI + LibTV</h3><p>{props.project?.workbenchBindings.comfyuiProfileId ? `H3 Profile：${props.project.workbenchBindings.comfyuiProfileId}` : "尚未绑定项目级 H3 Profile"}<br />{props.project?.workbenchBindings.libtvCanvasUuid ? `LibTV Canvas：${shortId(props.project.workbenchBindings.libtvCanvasUuid)}` : "尚未绑定项目级 LibTV Canvas"}</p><button type="button" onClick={() => props.onOpenView("assets")}>查看项目绑定 →</button></article>
-        <article className="surface-panel project-context-card"><span>CURRENT RUN</span><h3>{props.job ? jobLabels[props.job.status] : "尚无生产任务"}</h3><p>{props.job ? `${props.job.plan?.title ?? props.job.request.brief} · ${props.job.request.durationSeconds}s · ${formatTime(props.job.updatedAt)}` : "项目内容准备后，从场景创建生产任务。"}</p><button type="button" onClick={() => props.onOpenView("pipeline")}>查看运行流程 →</button></article>
+        <article className="surface-panel project-context-card"><span>RUNTIME LEDGER</span><h3>{props.project?.operations.length ? `${props.project.operations.length} 条执行操作` : "等待 Agent 指令"}</h3><p>{props.project?.agentHost ? `主 Agent：${props.project.agentHost}。Runtime 不生成故事、不自动接受候选。` : "保存计划后，Agent 将逐镜头提交控制、终稿、组装和交付操作。"}</p><button type="button" onClick={() => props.onOpenView("pipeline")}>查看操作账本 →</button></article>
       </div>
-      <div className="section-bar"><div><span>WORKSPACE BOUNDARY</span><h2>一个入口，三个明确职责</h2></div><small>入口与数据合并，专业编辑器保持独立</small></div>
+      <div className="section-bar"><div><span>OWNERSHIP BOUNDARY</span><h2>创作、执行、展示三层分离</h2></div><small>Codex 决策，Runtime 执行，Console 投影</small></div>
       <div className="workspace-map">
-        <article className="workspace-map-card primary"><span>PROJECT CONTROL PLANE</span><h3>Harness Studio</h3><p>项目、故事、角色包、场景包、分镜、候选版本、评价、成本与交付的唯一事实来源。</p><strong>当前所在</strong></article>
-        <div className="workspace-map-link"><b>Profile / Asset ID</b><i>↔</i><small>状态与产物回收</small></div>
-        <article className="workspace-map-card"><span>LOW-LEVEL WORKBENCH</span><h3>ComfyUI</h3><p>编辑并执行 H3、LoRA、ControlNet、Sampler、VAE 等底层节点工作流。</p><strong>精细控制画布 ↗</strong></article>
-        <div className="workspace-map-link"><b>Canvas / Node ID</b><i>↔</i><small>候选与任务回收</small></div>
-        <article className="workspace-map-card"><span>CREATIVE WORKBENCH</span><h3>LibTV 无限画布</h3><p>空间化创意探索、素材关系、在线模型候选与需要人工参与的创意组装。</p><strong>创意画布 ↗</strong></article>
+        <article className="workspace-map-card primary"><span>MAIN AGENT + REPO SKILLS</span><h3>Codex GPT</h3><p>设计人物、故事与分镜；选择执行路径；看片评审；决定局部重做和最终接受。</p><strong>唯一创作决策者</strong></article>
+        <div className="workspace-map-link"><b>Typed Operations</b><i>→</i><small>明确指令与门禁</small></div>
+        <article className="workspace-map-card"><span>EXECUTION + SYSTEM OF RECORD</span><h3>Runtime</h3><p>调用 Provider、恢复任务、登记资产、保存血缘、成本、评审和交付 Manifest。</p><strong>不做创意判断</strong></article>
+        <div className="workspace-map-link"><b>Read Model</b><i>→</i><small>事实状态投影</small></div>
+        <article className="workspace-map-card"><span>EDGE PROJECTION</span><h3>Production Console</h3><p>展示计划、镜头、操作、版本、评审与交付，并提供 ComfyUI / LibTV 跳转和人工接管。</p><strong>当前所在</strong></article>
       </div>
       <div className="section-bar"><div><span>PRODUCTION PIPELINE</span><h2>端到端生产链路</h2></div><button type="button" onClick={() => props.onOpenView("pipeline")}>查看全部细节 →</button></div>
       <div className="stage-flow">
@@ -716,6 +777,7 @@ function Overview(props: {
 }
 
 function PipelineView(props: {
+  project: ProductionProject | undefined;
   job: VideoJob | undefined;
   stages: PipelineStage[];
   surfaces: Map<string, ControlSurface>;
@@ -727,15 +789,26 @@ function PipelineView(props: {
 }) {
   return (
     <section className="workspace-section">
-      <SectionTitle eyebrow="ORCHESTRATION" title="生产流程控制" description="Harness 聚合状态与产物；专业节点和模型参数在对应画布内完成。" />
+      <SectionTitle eyebrow="AGENT-DIRECTED PRODUCTION" title="Codex 创作与 Runtime 操作账本" description="Codex 通过仓库 Skill 做创作、路由和评审；Runtime 只执行明确操作并保存事实；控制台不自行推进阶段。" />
       <div className="pipeline-stack">
         {props.stages.map((stage) => <StageRow key={stage.id} stage={stage} surface={stage.surfaceId ? props.surfaces.get(stage.surfaceId) : undefined} onOpenView={props.onOpenView} />)}
       </div>
-      <div className="section-bar secondary"><div><span>SHOT MANIFEST</span><h2>分镜与候选</h2></div><small>{props.job ? `${props.job.shots.length} 个镜头` : "等待规划"}</small></div>
+      <div className="section-bar secondary"><div><span>STRUCTURED PRODUCTION PLAN</span><h2>故事、场景与镜头</h2></div><small>{props.project?.productionPlan ? `${props.project.productionPlan.scenes.flatMap((scene) => scene.shots).length} 个镜头 · ${props.project.agentHost ?? "Agent"}` : "等待 Codex 写入计划"}</small></div>
+      <div className="shot-workspace">
+        <div className="shot-list">
+          {(props.project?.productionPlan?.scenes ?? []).flatMap((scene) => scene.shots.map((shot) => ({ scene, shot }))).map(({ scene, shot }) => <div className="selected" key={shot.id}><span>{String(scene.index + 1).padStart(2, "0")}.{String(shot.index + 1).padStart(2, "0")}</span><div><strong>{shot.narrativePurpose}</strong><small>{shot.generation.durationSeconds}s · {shot.action} · {shot.camera}</small></div><i>PLAN</i></div>)}
+          {!props.project?.productionPlan && <div className="empty-list">Codex 调用总创作 Skill 后，将通过 Production Plan API 写入可恢复的分镜与连续性状态。</div>}
+        </div>
+        <div className="candidate-detail surface-panel">
+          <div className="panel-title"><div><span>OPERATION LEDGER</span><strong>Agent 指令与评审门禁</strong></div></div>
+          <OperationLedger operations={props.project?.operations ?? []} />
+        </div>
+      </div>
+      <div className="section-bar secondary"><div><span>LEGACY AUTOPILOT</span><h2>兼容任务与候选</h2></div><small>{props.job ? `${props.job.shots.length} 个镜头` : "未运行兼容任务"}</small></div>
       <div className="shot-workspace">
         <div className="shot-list">
           {(props.job?.shots ?? []).map((shot) => <button key={shot.id} type="button" className={props.selectedShot?.id === shot.id ? "selected" : ""} onClick={() => props.onSelectShot(shot)}><span>{String(shot.index + 1).padStart(2, "0")}</span><div><strong>{shot.prompt}</strong><small>{shot.durationSeconds}s · {shot.candidates.length} candidates · {shot.status}</small></div><i>{shot.selectedCandidateId ? "✓" : "→"}</i></button>)}
-          {!props.job?.shots.length && <div className="empty-list">Creative Director 完成规划后，会在这里生成结构化 Shot Manifest。</div>}
+          {!props.job?.shots.length && <div className="empty-list">旧的一键 VideoJob 仅保留用于回归和迁移，不再代表新的主 Agent 架构。</div>}
         </div>
         <div className="candidate-detail surface-panel">
           <div className="media-canvas small">{props.selectedCandidate?.outputUrl ? <video src={props.selectedCandidate.outputUrl} controls playsInline /> : <EmptyMedia />}</div>
@@ -747,7 +820,7 @@ function PipelineView(props: {
   );
 }
 
-function ProjectView({ project, jobs, job, assets, apiKey, onProjectUpdated }: { project: ProductionProject | undefined; jobs: VideoJob[]; job: VideoJob | undefined; assets: GenerationAsset[]; apiKey: string; onProjectUpdated: (project: ProductionProject) => void }) {
+function ProjectView({ project, jobs, job, apiKey, onProjectUpdated }: { project: ProductionProject | undefined; jobs: VideoJob[]; job: VideoJob | undefined; apiKey: string; onProjectUpdated: (project: ProductionProject) => void }) {
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState<string>();
   const [assetName, setAssetName] = useState("");
@@ -781,6 +854,11 @@ function ProjectView({ project, jobs, job, assets, apiKey, onProjectUpdated }: {
   if (!project) return <section className="workspace-section"><SectionTitle eyebrow="PROJECT ASSET GRAPH" title="先建立一个生产项目" description="项目是故事、人物、场景、素材、生成任务和交付记录的唯一事实来源。" /><div className="empty-list surface-panel">点击右上角“＋ 项目”建立第一个项目。</div></section>;
 
   const selected = job?.shots.flatMap((shot) => shot.candidates.filter((candidate) => candidate.id === shot.selectedCandidateId)) ?? [];
+  const inputAssets = project.assets.filter((asset) => !["control-asset", "final-candidate", "accepted-shot", "assembly-master", "delivery-master"].includes(asset.role));
+  const controlAssets = project.assets.filter((asset) => asset.role === "control-asset");
+  const finalAssets = project.assets.filter((asset) => asset.role === "final-candidate");
+  const acceptedAssets = project.assets.filter((asset) => asset.role === "accepted-shot");
+  const masterAssets = project.assets.filter((asset) => asset.role === "assembly-master" || asset.role === "delivery-master");
 
   async function mutate(path: string, payload: unknown): Promise<boolean> {
     setSaving(true);
@@ -865,6 +943,15 @@ function ProjectView({ project, jobs, job, assets, apiKey, onProjectUpdated }: {
     <SectionTitle eyebrow="PROJECT SYSTEM OF RECORD" title={project.name} description={project.brief} />
     {localError && <div className="error-strip"><strong>项目更新失败</strong><span>{localError}</span><button type="button" onClick={() => setLocalError(undefined)}>×</button></div>}
     <div className="project-structure-grid">
+      <ProjectCollection title="Codex Production Plan" count={project.productionPlan?.scenes.flatMap((scene) => scene.shots).length ?? 0} actionLabel={project.agentHost ?? "主 Agent"}>
+        {project.productionPlan?.scenes.map((scene) => <div className="collection-row" key={scene.id}><span>{String(scene.index + 1).padStart(2, "0")}</span><div><strong>{scene.title}</strong><small>{scene.targetDurationSeconds}s · {scene.shots.length} 个结构化镜头 · {scene.narrativePurpose}</small></div></div>)}
+        {!project.productionPlan && <div className="collection-empty">等待 Codex 通过仓库总创作 Skill 写入结构化计划</div>}
+        <p className="collection-note">这里是 Agent 计划的只读投影。人物、故事、分镜、连续性和重做决策由 Codex 负责，不在控制台内再次生成。</p>
+      </ProjectCollection>
+      <ProjectCollection title="Runtime 操作账本" count={project.operations.length} actionLabel="执行事实">
+        <OperationLedger operations={project.operations} />
+        <p className="collection-note">每条操作都声明输入、执行器、依赖和评审门禁；Runtime 不会把“生成成功”自动解释成“创作合格”。</p>
+      </ProjectCollection>
       <ProjectCollection title="故事场景" count={project.scenes.length} actionLabel="新增场景">
         {project.scenes.map((scene) => <div className="collection-row" key={scene.id}><span>{String(scene.index + 1).padStart(2, "0")}</span><div><strong>{scene.title}</strong><small>{scene.durationSeconds}s · {scene.shotBriefs.length} 个镜头意图 · {scene.videoJobIds.length} 个任务</small></div></div>)}
         {!project.scenes.length && <div className="collection-empty">还没有故事场景</div>}
@@ -890,17 +977,20 @@ function ProjectView({ project, jobs, job, assets, apiKey, onProjectUpdated }: {
     <div className="section-bar"><div><span>PROJECT ASSET GRAPH</span><h2>素材登记与跨工具产物血缘</h2></div><small>{project.assets.length} 个项目素材 · {jobs.length} 个生产任务</small></div>
     <ProjectEditor summary="＋ 登记输入素材"><div className="editor-grid"><label>素材名称<input value={assetName} onChange={(event) => setAssetName(event.target.value)} /></label><label>媒体类型<select value={assetMediaType} onChange={(event) => setAssetMediaType(event.target.value as ProjectAssetMediaType)}>{["image", "video", "audio", "document", "workflow"].map((item) => <option key={item}>{item}</option>)}</select></label><label>素材职责<select value={assetRole} onChange={(event) => setAssetRole(event.target.value as ProjectAssetRole)}>{["identity-reference", "appearance-reference", "action-reference", "camera-reference", "scene-reference", "style-reference", "voice-reference", "music", "other"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="span-two">URI<input type="url" value={assetUri} onChange={(event) => setAssetUri(event.target.value)} placeholder="https://… 或 file:///…" /></label></div><button className="primary-button" type="button" disabled={saving || !assetName.trim() || !assetUri.trim()} onClick={() => void submitAsset()}>登记素材</button></ProjectEditor>
     <div className="asset-lanes">
-      <AssetLane label="01 · 项目输入素材" count={project.assets.length}>{project.assets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.role} · ${asset.source} · v${asset.version}`} url={asset.uri} mediaLabel={asset.mediaType.toUpperCase()} />)}</AssetLane>
-      <AssetLane label="02 · ComfyUI 控制资产" count={assets.filter((asset) => asset.role !== "final-video").length}>{assets.filter((asset) => asset.role !== "final-video").map((asset) => <AssetCard key={asset.id} title={asset.role} meta={asset.sourceExecutor} url={asset.uri} mediaLabel={asset.mediaType.toUpperCase()} />)}</AssetLane>
-      <AssetLane label="03 · LibTV / 在线最终候选" count={assets.filter((asset) => asset.role === "final-video").length}>{assets.filter((asset) => asset.role === "final-video").map((asset) => <AssetCard key={asset.id} title="final-video" meta={asset.sourceExecutor} url={asset.uri} />)}</AssetLane>
-      <AssetLane label="04 · 合格镜头" count={selected.length}>{selected.map((candidate) => <AssetCard key={candidate.id} title={`Accepted ${shortId(candidate.id)}`} meta={`${candidate.provider} · ${candidate.evaluation ? (candidate.evaluation.overallScore * 100).toFixed(0) : "—"}`} url={candidate.outputUrl} />)}</AssetLane>
-      <AssetLane label="05 · 母版与交付" count={job?.output ? 1 : 0}>{job?.output && <AssetCard title="4K Delivery Manifest" meta={`${job.output.width} × ${job.output.height} · ${job.output.deliveryMode}`} url={job.output.videoUrl ?? job.output.manifestUrl} />}</AssetLane>
+      <AssetLane label="01 · 项目输入素材" count={inputAssets.length}>{inputAssets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.role} · ${asset.source} · v${asset.version}`} url={asset.uri} mediaLabel={asset.mediaType.toUpperCase()} />)}</AssetLane>
+      <AssetLane label="02 · ComfyUI 控制资产" count={controlAssets.length}>{controlAssets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.source} · v${asset.version}`} url={asset.uri} mediaLabel={asset.mediaType.toUpperCase()} />)}</AssetLane>
+      <AssetLane label="03 · 在线生产级候选" count={finalAssets.length}>{finalAssets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.source} · v${asset.version}`} url={asset.uri} />)}</AssetLane>
+      <AssetLane label="04 · Codex 已接受镜头" count={acceptedAssets.length + selected.length}>{acceptedAssets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.source} · v${asset.version}`} url={asset.uri} />)}{selected.map((candidate) => <AssetCard key={candidate.id} title={`Legacy Accepted ${shortId(candidate.id)}`} meta={`${candidate.provider} · ${candidate.evaluation ? (candidate.evaluation.overallScore * 100).toFixed(0) : "—"}`} url={candidate.outputUrl} />)}</AssetLane>
+      <AssetLane label="05 · 母版与交付" count={masterAssets.length + (job?.output ? 1 : 0)}>{masterAssets.map((asset) => <AssetCard key={asset.id} title={asset.name} meta={`${asset.role} · ${asset.source}`} url={asset.uri} />)}{job?.output && <AssetCard title="Legacy 4K Delivery Manifest" meta={`${job.output.width} × ${job.output.height} · ${job.output.deliveryMode}`} url={job.output.videoUrl ?? job.output.manifestUrl} />}</AssetLane>
     </div>
   </section>;
 }
 
-function DeliveryView({ job, onRetry }: { job: VideoJob | undefined; onRetry: () => void }) {
-  return <section className="workspace-section" id="delivery"><SectionTitle eyebrow="DELIVERY CONTROL" title="母版、4K 与交付" description="AI 生成后的编码、超分、技术 QC、签发和归档属于确定性交付管线。" /><div className="delivery-grid"><div className="surface-panel delivery-status"><span className="eyebrow">CURRENT DELIVERY</span><h2>{job ? jobLabels[job.status] : "尚无生产任务"}</h2><p>{job?.output ? "交付 Manifest 已生成，可从记录中追溯全部合格镜头与 Provider 任务。" : "完成质量门和后期组装后，Harness 才会启动母版与 4K 交付。"}</p><div className="delivery-specs"><div><span>画布</span><strong>3840 × 2160</strong></div><div><span>比例</span><strong>16:9</strong></div><div><span>模式</span><strong>{job?.output?.deliveryMode ?? "—"}</strong></div><div><span>Manifest</span><strong>{job?.output ? shortId(job.id) : "—"}</strong></div></div>{job?.status === "failed" && job.error?.retryable && <button className="primary-button" type="button" onClick={onRetry}>从检查点重试</button>}{job?.output?.videoUrl && <a className="primary-button link-button" href={job.output.videoUrl} target="_blank" rel="noreferrer">打开交付视频 ↗</a>}</div><div className="surface-panel qc-list"><div className="panel-title"><div><span>TECHNICAL QC</span><strong>交付门禁</strong></div></div>{["合格镜头清单完整", "1080P 母版可读取", "4K 超分任务完成", "帧率与编码符合策略", "音轨与时长通过检查", "Manifest 与资产归档完成"].map((item, index) => <div className="qc-row" key={item}><i className={job?.status === "completed" ? "done" : index === 0 && job?.shots.some((shot) => shot.selectedCandidateId) ? "done" : ""}>{job?.status === "completed" ? "✓" : index + 1}</i><span>{item}</span></div>)}</div></div></section>;
+function DeliveryView({ project, job, onRetry }: { project: ProductionProject | undefined; job: VideoJob | undefined; onRetry: () => void }) {
+  const deliveryOperation = project?.operations.filter((operation) => operation.kind === "delivery").at(-1);
+  const deliveryAsset = project?.assets.find((asset) => asset.role === "delivery-master");
+  const delivered = deliveryOperation ? operationPassed(deliveryOperation) : false;
+  return <section className="workspace-section" id="delivery"><SectionTitle eyebrow="DETERMINISTIC DELIVERY" title="母版、4K 与交付" description="生成模型在逐镜头终稿阶段结束；编码、超分、技术 QC、签发和归档由 Runtime 的确定性交付操作完成。" /><div className="delivery-grid"><div className="surface-panel delivery-status"><span className="eyebrow">CURRENT DELIVERY OPERATION</span><h2>{deliveryOperation ? `${deliveryOperation.status} · ${deliveryOperation.reviewStatus}` : "等待 Agent 提交交付操作"}</h2><p>{deliveryOperation ? "该状态来自 Runtime 操作账本，可追溯输入母版、执行任务、输出资产和 Codex/人工评审。" : "所有逐镜头终稿通过严格门禁、HyperFrames 母版通过交付门后，Codex 才会提交 delivery 操作。"}</p><div className="delivery-specs"><div><span>画布</span><strong>{project?.deliverySpec.width ?? 3840} × {project?.deliverySpec.height ?? 2160}</strong></div><div><span>比例</span><strong>16:9</strong></div><div><span>执行器</span><strong>{deliveryOperation?.executor ?? "—"}</strong></div><div><span>Operation</span><strong>{shortId(deliveryOperation?.id)}</strong></div></div>{deliveryAsset && <a className="primary-button link-button" href={deliveryAsset.uri} target="_blank" rel="noreferrer">打开交付视频 ↗</a>}{!deliveryOperation && job?.status === "failed" && job.error?.retryable && <button className="quiet-button" type="button" onClick={onRetry}>重试旧兼容任务</button>}</div><div className="surface-panel qc-list"><div className="panel-title"><div><span>TECHNICAL QC</span><strong>交付门禁</strong></div></div>{["所有 Production Plan 镜头均有已接受终稿", "HyperFrames 组装操作已接受", "母版可读取且时长正确", "4K 超分或原生 4K 输出完成", "帧率、编码与音轨通过检查", "Manifest、血缘与成本归档完成"].map((item, index) => <div className="qc-row" key={item}><i className={delivered ? "done" : ""}>{delivered ? "✓" : index + 1}</i><span>{item}</span></div>)}</div></div></section>;
 }
 
 function ProjectCollection({ title, count, actionLabel, children }: { title: string; count: number; actionLabel: string; children: React.ReactNode }) {
@@ -931,29 +1021,64 @@ function StageCard({ stage, surface, onOpenView, showConnector }: { stage: Pipel
 }
 
 function StageRow({ stage, surface, onOpenView }: { stage: PipelineStage; surface: ControlSurface | undefined; onOpenView: (view: ViewId) => void }) {
-  return <article className={`stage-row ${stage.state}`}><div className="stage-index">{stage.index}</div><div className="stage-row-copy"><span>{stage.owner}</span><h3>{stage.title}</h3><p>{stage.description}</p></div><div className="stage-row-status"><strong><i />{stateLabels[stage.state]}</strong><small>{surface ? surface.status === "not-configured" ? "需要在 .env.local 配置" : surface.kind === "external" ? "专业画布" : "Harness 内置" : "Harness 自动编排"}</small></div>{surface?.url ? surface.kind === "external" ? <a href={surface.url} target="_blank" rel="noreferrer">打开 {surface.name} ↗</a> : <button type="button" onClick={() => onOpenView(stage.view ?? "overview")}>进入模块 →</button> : <button type="button" disabled>尚未配置</button>}</article>;
+  return <article className={`stage-row ${stage.state}`}><div className="stage-index">{stage.index}</div><div className="stage-row-copy"><span>{stage.owner}</span><h3>{stage.title}</h3><p>{stage.description}</p></div><div className="stage-row-status"><strong><i />{stateLabels[stage.state]}</strong><small>{surface ? surface.status === "not-configured" ? "需要在 .env.local 配置" : surface.kind === "external" ? "外部执行面" : "Runtime 内置模块" : "Agent 决策门禁"}</small></div>{surface?.url ? surface.kind === "external" ? <a href={surface.url} target="_blank" rel="noreferrer">打开 {surface.name} ↗</a> : <button type="button" onClick={() => onOpenView(stage.view ?? "overview")}>进入模块 →</button> : <button type="button" disabled>等待 Agent / 配置</button>}</article>;
+}
+
+function OperationLedger({ operations }: { operations: ProductionOperation[] }) {
+  if (!operations.length) {
+    return <div className="empty-list">尚无执行操作。Codex 会按镜头逐项声明执行器、输入资产、依赖和评审门禁。</div>;
+  }
+  return <div className="operation-ledger">{operations.slice().reverse().map((operation) => <article className={`operation-row ${operation.status} ${operation.reviewStatus}`} key={operation.id}><div><span>{operation.kind}</span><strong>{operation.shotId ?? operation.sceneId ?? "MASTER"}</strong><small>{operation.executor}{operation.profileId ? ` · ${operation.profileId}` : ""} · attempt {operation.attempt}</small></div><div><strong>{operation.status}</strong><small>{operation.reviewStatus}{operation.review ? ` · ${(operation.review.overallScore * 100).toFixed(0)}分 · ${operation.review.reviewedBy.name}` : ""}</small></div></article>)}</div>;
 }
 
 function AssetLane({ label, count, children }: { label: string; count: number; children: React.ReactNode }) { return <section className="asset-lane"><div className="asset-lane-head"><strong>{label}</strong><span>{count}</span></div><div className="asset-grid">{children}{count === 0 && <div className="asset-empty">等待上游产物</div>}</div></section>; }
 function AssetCard({ title, meta, url, mediaLabel = "VIDEO" }: { title: string; meta: string; url?: string | undefined; mediaLabel?: string }) { return <article className="asset-card"><div className="asset-thumb"><span>{mediaLabel}</span></div><strong>{title}</strong><small>{meta}</small>{url && <a href={url} target="_blank" rel="noreferrer">打开产物 ↗</a>}</article>; }
 
-function buildStages(job: VideoJob | undefined, runtime: RuntimeInfo | undefined, candidates: Candidate[]): PipelineStage[] {
-  const executions = candidates.flatMap((candidate) => candidate.executions ?? []);
-  const hasComfy = executions.some((execution) => execution.executor === "comfyui-control");
-  const comfyRunning = executions.some((execution) => execution.executor === "comfyui-control" && execution.status === "running");
-  const comfyFailed = executions.some((execution) => execution.executor === "comfyui-control" && execution.status === "failed");
-  const hasLibTv = executions.some((execution) => execution.executor === "libtv-generation");
-  const libRunning = executions.some((execution) => execution.executor === "libtv-generation" && execution.status === "running");
-  const libFailed = executions.some((execution) => execution.executor === "libtv-generation" && execution.status === "failed");
-  const evaluated = candidates.some((candidate) => candidate.evaluation);
-  const accepted = job?.shots.length ? job.shots.every((shot) => Boolean(shot.selectedCandidateId)) : false;
-  const controlled = runtime?.generationPipeline === "comfyui-libtv";
+function buildStages(
+  project: ProductionProject | undefined,
+  job: VideoJob | undefined,
+  runtime: RuntimeInfo | undefined,
+  candidates: Candidate[],
+): PipelineStage[] {
+  const operations = project?.operations ?? [];
+  const control = operations.filter((operation) => operation.kind === "control-generation");
+  const finalRender = operations.filter((operation) => operation.kind === "final-render");
+  const assembly = operations.filter((operation) => operation.kind === "assembly");
+  const delivery = operations.filter((operation) => operation.kind === "delivery");
+  const planReady = Boolean(project?.productionPlan);
+  const controlPassed = control.length === 0 || control.every(operationPassed);
+  const finalPassed = finalRender.length > 0 && finalRender.every(operationPassed);
+
+  // Keep the old run visible only as migration evidence. It never advances the new Agent gates.
+  const legacyActivity = Boolean(job || runtime || candidates.length);
   return [
-    { id: "director", index: "01", owner: "CREATIVE DIRECTOR SKILL", title: "剧本与分镜规划", description: "拆解创作目标，建立角色、风格、镜头和验收约束。", state: !job ? "ready" : job.status === "planning" || job.status === "queued" ? "running" : job.plan ? "passed" : job.status === "failed" ? "attention" : "waiting", view: "pipeline" },
-    { id: "h3", index: "02", owner: "COMFYUI · MINIMAX H3", title: "动作与镜头骨架", description: "通过批准的 Workflow Profile 控制人物、动作、运镜和节奏。", state: !controlled ? "disabled" : comfyFailed ? "attention" : comfyRunning ? "running" : hasComfy ? "passed" : job?.status === "generating" ? "ready" : "waiting", surfaceId: "comfyui", view: "pipeline" },
-    { id: "libtv", index: "03", owner: "LIBTV ONLINE PROFILE", title: "在线精修与最终候选", description: "以上游控制资产为参考，生成高质量、可替换模型的最终镜头。", state: !controlled ? "disabled" : libFailed ? "attention" : libRunning ? "running" : hasLibTv ? "passed" : hasComfy ? "ready" : "waiting", surfaceId: "libtv", view: "pipeline" },
-    { id: "quality", index: "04", owner: "QUALITY LOOP", title: "一致性评测与局部重试", description: "评估身份、动作、语义、时序和技术质量，并把问题送回责任阶段。", state: job?.status === "evaluating" ? "running" : accepted ? "passed" : evaluated ? "attention" : candidates.some((candidate) => candidate.status === "succeeded") ? "ready" : "waiting", view: "pipeline" },
-    { id: "post", index: "05", owner: "HYPERFRAMES / LIBTV", title: "剪辑、字幕与确定性包装", description: "聚合合格镜头，完成标题、数据动效、转场和音频包装。", state: job?.status === "composing" ? "running" : job?.output ? "passed" : accepted ? "ready" : "waiting", surfaceId: "hyperframes", view: "post-production" },
-    { id: "delivery", index: "06", owner: "IMS · QC · ARCHIVE", title: "4K 交付与归档", description: "输出母版、4K 超分、编码检查、签发、Manifest 和企业归档。", state: job?.status === "failed" && job.error ? "attention" : job?.status === "mastering" || job?.status === "upscaling" || job?.status === "persisting" ? "running" : job?.status === "completed" ? "passed" : job?.output ? "passed" : accepted ? "ready" : "waiting", surfaceId: "delivery", view: "delivery" },
+    { id: "director", index: "01", owner: "CODEX GPT · MASTER CREATIVE SKILL", title: "人物、故事与结构化分镜", description: "主 Agent 设计故事、人物、场景、镜头意图、连续性状态和验收标准，并写入 Production Plan。", state: planReady ? "passed" : "ready", view: "pipeline" },
+    { id: "control", index: "02", owner: "RUNTIME → COMFYUI / H3", title: "逐镜头控制草稿", description: "Runtime 只执行 Codex 声明的 Profile 和输入资产，生成动作、运镜、构图和节奏骨架。", state: operationExecutionState(control, planReady ? "ready" : "waiting"), surfaceId: "comfyui", view: "pipeline" },
+    { id: "control-review", index: "03", owner: "CODEX REVIEW · RELAXED GATE", title: "草稿评审与局部重做", description: "Codex 看片确认动作形态和场景连接；草稿门禁宽松，不用终稿标准误杀骨架。", state: operationReviewState(control), view: "pipeline" },
+    { id: "final", index: "04", owner: "RUNTIME → ONLINE VIDEO", title: "逐镜头生产级终稿", description: "使用已接受控制资产和人物参考，路由到 Seedance、MiniMax 或 LibTV 在线模型；不生成整片。", state: operationExecutionState(finalRender, planReady && controlPassed ? "ready" : "waiting"), surfaceId: "libtv", view: "pipeline" },
+    { id: "final-review", index: "05", owner: "CODEX REVIEW · STRICT GATE", title: "一致性、叙事与质量终审", description: "严格评估人物身份、动作、时序、语义与技术质量，只把问题送回责任镜头和责任阶段。", state: operationReviewState(finalRender), view: "pipeline" },
+    { id: "assembly", index: "06", owner: "RUNTIME → HYPERFRAMES", title: "确定性剪辑与包装", description: "仅组装已接受终稿，完成裁切、字幕、标题、转场、图形和音频；不把整片送回生成模型。", state: operationExecutionState(assembly, finalPassed ? "ready" : "waiting"), surfaceId: "hyperframes", view: "post-production" },
+    { id: "delivery", index: "07", owner: "RUNTIME → DELIVERY / IMS", title: "母版、4K、QC 与归档", description: `生成交付 Manifest、技术检查和可追溯归档。${legacyActivity ? "旧 VideoJob 仅作为迁移证据保留。" : ""}`, state: operationExecutionState(delivery, assembly.some(operationPassed) ? "ready" : "waiting"), surfaceId: "delivery", view: "delivery" },
   ];
+}
+
+function operationPassed(operation: ProductionOperation): boolean {
+  return operation.status === "succeeded" && (operation.reviewStatus === "accepted" || operation.reviewStatus === "not-required");
+}
+
+function operationExecutionState(operations: ProductionOperation[], emptyState: StageState): StageState {
+  if (!operations.length) return emptyState;
+  if (operations.some((operation) => operation.status === "failed" || operation.reviewStatus === "rejected" || operation.reviewStatus === "human-review")) return "attention";
+  if (operations.some((operation) => operation.status === "running")) return "running";
+  if (operations.some((operation) => operation.status === "queued")) return "ready";
+  if (operations.every((operation) => operation.status === "succeeded")) return "passed";
+  return "waiting";
+}
+
+function operationReviewState(operations: ProductionOperation[]): StageState {
+  if (!operations.length) return "waiting";
+  if (operations.some((operation) => operation.reviewStatus === "rejected" || operation.reviewStatus === "human-review")) return "attention";
+  if (operations.some((operation) => operation.status === "succeeded" && operation.reviewStatus === "pending")) return "ready";
+  if (operations.every(operationPassed)) return "passed";
+  return operations.some((operation) => operation.status === "running" || operation.status === "queued") ? "waiting" : "attention";
 }

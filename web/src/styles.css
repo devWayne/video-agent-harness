@@ -209,7 +209,22 @@ button { color: inherit; }
 .shot-list > button strong { font-size: 9px; }
 .shot-list > button small { margin-top: 4px; color: #667275; font-size: 7px; }
 .shot-list > button i { color: #6f7c7f; font-style: normal; }
+.shot-list > div.selected { min-height: 62px; display: grid; grid-template-columns: 48px 1fr 36px; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid rgba(165,255,204,.24); background: rgba(165,255,204,.035); }
+.shot-list > div.selected > span { color: var(--green-2); font-family: Georgia, serif; font-size: 13px; }
+.shot-list > div.selected strong, .shot-list > div.selected small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shot-list > div.selected strong { font-size: 9px; }
+.shot-list > div.selected small { margin-top: 4px; color: #667275; font-size: 7px; }
+.shot-list > div.selected i { color: #6f7c7f; font-size: 7px; font-style: normal; }
 .candidate-detail { padding-bottom: 12px; }
+.operation-ledger { max-height: 420px; overflow-y: auto; padding: 0 12px 12px; }
+.operation-row { min-height: 58px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid #263032; }
+.operation-row.running { background: rgba(165,255,204,.035); }
+.operation-row.failed, .operation-row.rejected, .operation-row.human-review { background: rgba(255,123,123,.04); }
+.operation-row span, .operation-row strong, .operation-row small { display: block; }
+.operation-row span { color: var(--green-2); font-size: 7px; font-weight: 800; letter-spacing: .08em; }
+.operation-row strong { margin-top: 4px; font-size: 9px; }
+.operation-row small { margin-top: 4px; color: #687477; font-size: 7px; }
+.operation-row > div:last-child { text-align: right; }
 .candidate-tabs { display: flex; gap: 5px; padding: 10px 12px 0; }
 .candidate-tabs button { min-height: 26px; padding: 0 9px; border: 1px solid #303b3d; border-radius: 99px; background: #151a1b; color: #788487; font-size: 7px; cursor: pointer; }
 .candidate-tabs button.active { border-color: rgba(165,255,204,.4); color: var(--green); }

@@ -1,4 +1,67 @@
-export type ScreenDirection = "left-to-right" | "right-to-left" | "toward-camera" | "away-from-camera" | "static";
+import { z } from "zod";
+
+export const screenDirectionSchema = z.enum([
+  "left-to-right",
+  "right-to-left",
+  "toward-camera",
+  "away-from-camera",
+  "static",
+]);
+
+export type ScreenDirection = z.infer<typeof screenDirectionSchema>;
+
+const continuityStateSchema = z.object({
+  previousShotId: z.string().trim().min(1).max(200).optional(),
+  firstFrameAssetId: z.string().trim().min(1).max(200).optional(),
+  lastFrameAssetId: z.string().trim().min(1).max(200).optional(),
+  subjectPose: z.string().trim().min(1).max(1_000),
+  subjectPosition: z.string().trim().min(1).max(1_000),
+  screenDirection: screenDirectionSchema,
+  eyeline: z.string().trim().min(1).max(1_000),
+  cameraPosition: z.string().trim().min(1).max(1_000),
+  environmentState: z.string().trim().min(1).max(2_000),
+});
+
+export const storyProductionPlanSchema = z.object({
+  id: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(300),
+  logline: z.string().trim().min(1).max(2_000),
+  targetDurationSeconds: z.number().positive().max(7_200),
+  scenes: z.array(z.object({
+    id: z.string().trim().min(1).max(200),
+    index: z.number().int().min(0),
+    title: z.string().trim().min(1).max(300),
+    narrativePurpose: z.string().trim().min(1).max(2_000),
+    targetDurationSeconds: z.number().positive().max(1_800),
+    continuityAnchors: z.object({
+      characterIds: z.array(z.string().trim().min(1).max(200)).min(1).max(50),
+      locationKey: z.string().trim().min(1).max(300),
+      wardrobeKey: z.string().trim().min(1).max(300),
+      visualStyleKey: z.string().trim().min(1).max(300),
+      lightingKey: z.string().trim().min(1).max(300),
+      audioBedKey: z.string().trim().min(1).max(300).optional(),
+    }),
+    shots: z.array(z.object({
+      id: z.string().trim().min(1).max(200),
+      index: z.number().int().min(0),
+      narrativePurpose: z.string().trim().min(1).max(2_000),
+      action: z.string().trim().min(1).max(2_000),
+      camera: z.string().trim().min(1).max(2_000),
+      sound: z.string().trim().max(2_000),
+      prompt: z.string().trim().min(1).max(8_000),
+      generation: z.object({
+        profileId: z.string().trim().min(1).max(240),
+        durationSeconds: z.number().positive().max(60),
+      }),
+      selection: z.object({
+        sourceInSeconds: z.number().min(0),
+        sourceOutSeconds: z.number().positive(),
+      }),
+      incomingContinuity: continuityStateSchema,
+      expectedOutgoingContinuity: continuityStateSchema,
+    })).min(1).max(500),
+  })).min(1).max(100),
+});
 
 /** Stable scene-level facts that should not be reinvented by each shot prompt. */
 export interface SceneContinuityAnchors {
@@ -59,6 +122,12 @@ export interface StoryProductionPlan {
   logline: string;
   targetDurationSeconds: number;
   scenes: ScenePlan[];
+}
+
+export function parseStoryProductionPlan(input: unknown): StoryProductionPlan {
+  const plan = storyProductionPlanSchema.parse(input) as StoryProductionPlan;
+  assertValidStoryProductionPlan(plan);
+  return plan;
 }
 
 export interface SceneAssemblyClip {

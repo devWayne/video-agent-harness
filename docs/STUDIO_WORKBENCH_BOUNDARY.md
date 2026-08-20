@@ -1,112 +1,76 @@
-# Harness Studio 与专业画布边界
+# Production Console 与专业工作台边界
 
-> 架构确认日期：2026-08-18
+> 架构重构日期：2026-08-20
 
-## 1. 结论
+## 结论
 
-Harness Studio、ComfyUI 和 LibTV 不应合并成同一个编辑器。三者应当共享项目入口、资产身份、任务状态和产物血缘，但保留各自的专业交互方式。
+3321 上的 UI 不是 Harness Agent，也不是创作入口的第二个大脑。它是 `Production Console`：把 Codex 的创作计划、Runtime 的操作账本、跨 Provider 资产、评审门禁和交付状态集中展示。
 
-- **Harness Studio：** 项目控制面和唯一事实来源；回答“整支作品现在是什么状态、每个镜头用了什么、为什么重试、哪个版本通过、花了多少钱、交付了什么”。
-- **ComfyUI Workbench：** 底层生成工作台；回答“H3、LoRA、ControlNet、Sampler、VAE 和节点图怎样执行”。
-- **LibTV Workbench：** 空间化创意工作台；回答“脚本、分镜、参考素材、在线模型候选和创意组装怎样在无限画布中展开”。
-- **Harness Runtime：** 无 UI 的工程化中间层；通过 ComfyUI API 和 LibTV CLI 执行已批准的 Profile，保存检查点并回收产物。
-
-因此采用：**入口合并、数据合并、状态合并；专业画布不合并。**
-
-## 2. 产品层级
-
-```mermaid
-flowchart TB
-  User["创作者 / 制片人"] --> Studio["Harness Studio<br/>项目、素材、镜头、质量、成本、交付"]
-
-  subgraph Workbenches["专业工作台"]
-    ComfyWorkbench["ComfyUI Web UI<br/>底层节点与 Workflow Profile"]
-    LibWorkbench["LibTV 无限画布<br/>创意探索、在线候选、人工组装"]
-  end
-
-  subgraph Runtime["Harness Runtime · TypeScript / Node.js"]
-    ProjectState["Project / Story / Scene / Shot / Asset"]
-    Recipe["ShotRecipe / Checkpoint / Quality Decision"]
-    ComfyProvider["ComfyUI API Provider"]
-    LibProvider["LibTV CLI Provider"]
-  end
-
-  Studio --> ProjectState
-  Studio -->|"打开与定位 Profile"| ComfyWorkbench
-  Studio -->|"打开与定位 Canvas/Node"| LibWorkbench
-  ComfyWorkbench -->|"批准 Workflow 版本"| Recipe
-  LibWorkbench -->|"Canvas、Node 与素材标识"| Recipe
-  ProjectState --> Recipe
-  Recipe --> ComfyProvider
-  Recipe --> LibProvider
-  ComfyProvider -->|"控制视频、日志、prompt_id"| ProjectState
-  LibProvider -->|"最终候选、task_id、成本"| ProjectState
+```text
+Codex GPT + repo Skills       决策与评审
+          ↓ typed commands
+TypeScript Runtime            执行、校验、恢复与记账
+          ↓ read model
+Production Console            可视化与人工接管
+          ↘ external links
+ComfyUI / LibTV workbenches   专业参数与画布编辑
 ```
 
-## 3. 为什么不能把 Studio 做成另一张无限画布
+因此采用：**决策在 Agent，事实在 Runtime，展示在 Console，专业编辑仍在专业工作台。**
 
-两者都展示素材，但组织问题不同：
+## Console 展示什么
 
-| 维度 | Harness Studio | LibTV 无限画布 |
+- 项目 Brief、人物包、场景包和参考素材；
+- Codex 写入的 Story → Scene → Shot Production Plan；
+- 每镜头控制草稿、在线终稿、评审和重试操作；
+- 操作依赖、执行器、Profile、Provider Task ID 和失败原因；
+- 输入、控制、候选、已接受镜头、母版和交付资产；
+- Codex 或人工评审的阶段、分数、问题和决定；
+- ComfyUI Profile 与 LibTV Canvas 的定位入口；
+- 成本、QC、Manifest 和归档状态。
+
+Console 可以提供人工 `accept / reject / human-review`、取消、重跑授权和配置入口，但这些动作必须调用 Runtime API 并进入账本，不能只改浏览器状态。
+
+## Console 不展示成什么
+
+- 不复制 ComfyUI 的节点图、KSampler、VAE、LoRA 和 ControlNet 编辑器；
+- 不复制 LibTV 的无限画布；
+- 不在浏览器里运行一个隐藏的 LLM Director；
+- 不把“Provider 成功”自动标成“质量通过”；
+- 不让用户从一个大 Prompt 直接触发整片并绕过结构化分镜；
+- 不保存 API Key、账号、内网端口、模型本地路径和 Cookie 到项目数据或 Git。
+
+## 与 ComfyUI 的关系
+
+ComfyUI 有两种使用面：
+
+1. Workbench：开发期由人或 Agent 调节点、验证 H3 Workflow 和 Profile；
+2. Provider：生产期由 Runtime 执行已批准 Profile 并回收控制资产。
+
+Console 只保存非敏感的 Profile ID、任务 ID、资产 ID、状态和可选跳转 URL。控制视频必须以 `control-asset` 角色回写项目，而不是只留在 ComfyUI 的输出目录。
+
+## 与 LibTV 的关系
+
+LibTV 无限画布适合空间化探索和人工创意组装；Console 适合项目级状态、门禁和审计。两者不合并：
+
+| 维度 | Production Console | LibTV Canvas |
 | --- | --- | --- |
-| 范围 | 整个项目和全生命周期 | 某次创意探索或某组镜头 |
-| 结构 | Project → Story → Scene → Shot → Candidate → Delivery | 空间节点与自由连接 |
-| 主要用户动作 | 审批、追踪、比较、重试、签发 | 摆放、联想、生成、连接、创意组装 |
-| 状态要求 | 稳定、可查询、可审计、可恢复 | 灵活、可探索、允许临时节点 |
-| 是否为唯一事实来源 | 是 | 否；接受的结果必须回收到 Studio |
+| 核心问题 | 整支作品的计划、操作、版本与交付是否可追溯 | 素材和生成节点怎样在画布里探索和组合 |
+| 数据结构 | Project / Plan / Operation / Asset / Review / Delivery | Canvas / Node / Edge / Resource |
+| 决策权 | 显示 Codex/人工已记录决定 | 可产生候选，但不是最终事实来源 |
+| 生命周期 | 稳定、可恢复、可审计 | 灵活、临时、可探索 |
 
-若在 Studio 重做无限画布，会重复 LibTV 的强项；若只使用 LibTV，则缺少跨 ComfyUI、LibTV、HyperFrames 和交付服务的项目治理。
+接受的 LibTV 节点产物要作为项目 Asset 回写 Runtime；Canvas UUID 和 Node/Task ID 只作为血缘定位。
 
-## 4. 同一个供应商的“双重身份”
+## 当前 UI 状态
 
-在架构图中，ComfyUI 和 LibTV 都需要拆成两个身份，避免把 UI 和执行协议混为一谈：
+已完成第一版：
 
-```text
-ComfyUI Workbench  ──批准 Workflow/Profile──>  ComfyUI API Provider
-LibTV Workbench    ──保存 Canvas/Node/Profile─> LibTV CLI Provider
-```
+- 首页明确显示 Codex、Runtime、Console 三层；
+- 流程页按 Production Plan 和 ProductionOperation 展示；
+- 控制草稿与终稿评审拆成两个门禁；
+- 旧自动 VideoJob 移入 `Legacy Autopilot` 区；
+- 项目页显示 Agent Plan、Runtime 操作账本和五类资产通道；
+- 交付页优先读取 Delivery Operation，而不是旧 Job 状态。
 
-- Workbench 面向人和开发期 Agent，允许探索与编辑。
-- Provider 面向生产 Harness，只接收类型化输入，执行、恢复并返回结构化产物。
-
-## 5. Studio 应拥有的项目资产模型
-
-```text
-Project
-├── Brief / Brand Rules / Delivery Spec
-├── Character Packs
-│   ├── identity images
-│   ├── costume / voice / negative constraints
-│   └── approved reference versions
-├── Scene Packs
-│   ├── location / lighting / style / audio bed
-│   └── continuity anchors
-├── Storyboard
-│   └── ShotIntent[]
-│       ├── ComfyUI workflow/profile + control assets
-│       ├── LibTV canvas/node + final candidates
-│       ├── evaluation + retry decisions
-│       └── accepted clip range
-└── Master / Delivery Manifest
-```
-
-媒体大文件可以存于本地文件系统或对象存储；Studio 保存的是稳定的 Asset ID、角色、版本、URI、来源、授权和血缘，不要求把所有二进制文件塞进浏览器本身。
-
-## 6. 集成契约
-
-第一阶段不嵌入两套完整画布，只实现：
-
-1. 一个 Harness Project 对应可选的 ComfyUI Profile 和 LibTV Canvas UUID；
-2. 每个 Shot 保存 ComfyUI `prompt_id`、LibTV Node ID/Task ID 与双向跳转地址；
-3. 上传到 LibTV 的控制视频继续使用同一个 Harness Asset ID；
-4. ComfyUI/LibTV 输出回收后生成新 Asset Version，不覆盖原资产；
-5. 只有被 Harness 质量门接受的 Candidate 才进入 Accepted Shot Manifest；
-6. Studio 统一显示费用、失败责任阶段、重试动作和交付状态。
-
-## 7. 当前实现状态
-
-当前 3321 已实现项目列表与选择、`Project / Story Scene / Character Pack / Scene Pack / Asset Version` SQLite 持久化、素材职责分配、项目级 ComfyUI Profile / LibTV Canvas 绑定，以及从项目或具体场景创建 VideoJob。项目页同时回收 ComfyUI 控制资产、LibTV 最终候选、合格镜头与交付母版。
-
-下一阶段差距是二进制素材直接上传、按 Shot 保存 LibTV Node 深链接、资产缩略图服务，以及从 ComfyUI/LibTV 回调自动登记新 Asset Version。这些不改变本文件定义的数据所有权边界。
-
-“杭州 / 智慧城市”只保留为 HyperFrames 模板回归样例，不再作为 Studio 默认创作目标或默认标题。
+后续 UI 仍需补充：镜头缩略图比较、评审证据帧、成本时间线、操作按钮、Provider 回调实时刷新，以及面向大项目的场景/镜头筛选。
