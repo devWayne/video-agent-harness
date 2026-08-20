@@ -11,7 +11,15 @@ npm run skills:install -- --host=codex
 npm run skills:install -- --host=claude
 ```
 
-安装器只把仓库内的 Skill 复制到当前项目的 `.agents/skills/` 或 `.claude/skills/`。两个目标目录均被 Git 忽略；可移植的源文件仍然是 `skills/`。
+安装器默认把 `.agents/skills/<skill>` 和 `.claude/skills/<skill>` 建成指向仓库 `skills/<skill>` 的相对符号链接。因此只需要修改 `skills/` 这一处，Codex 与 Claude Code 会立即读取同一份内容。两个目标目录均被 Git 忽略；可移植、可提交的唯一源文件始终是 `skills/`。
+
+在不支持符号链接的环境中，可显式安装独立副本：
+
+```bash
+npm run skills:install -- --host=all --copy
+```
+
+副本模式不会自动同步后续修改，因此日常开发应使用默认链接模式。重新执行默认命令即可把副本恢复为链接。不要直接编辑 `.agents/skills/` 或 `.claude/skills/` 下的内容。
 
 ## 可以提交的内容
 

@@ -17,7 +17,7 @@
 | 层 | 本项目中的实现 | 做什么 | 明确不做什么 |
 | --- | --- | --- | --- |
 | 主 Agent | Codex GPT；未来可换 Claude Code 等兼容 Host | 理解需求、人物/故事/分镜设计、选择 Skill 和 Provider、看片、诊断、重试与接受 | 不把会话历史当唯一生产记录 |
-| Skill 知识层 | `.agents/skills/` 与 `skills/` | 固化创作流程、H3 参数方法、质量准则、LibTV CLI 用法和交付策略 | 不保存密钥、内网地址或项目私有数据 |
+| Skill 知识层 | `skills/`（唯一源）与 `.agents/skills/`、`.claude/skills/`（项目链接） | 固化创作流程、H3 参数方法、质量准则、LibTV CLI 用法和交付策略 | 不保存密钥、内网地址或项目私有数据 |
 | Runtime 事实与执行层 | `src/` TypeScript/Node.js | 校验命令、调用 Provider、保存任务 ID、资产、血缘、评审、成本与 Manifest | 不发明故事、不选“第一个成功结果”、不静默接受候选 |
 | 端侧投影层 | `web/` React Production Console | 展示计划、镜头、操作、素材、评审、失败和交付；跳转外部工作台；支持人工接管 | 不做第二个 Agent，不复制 ComfyUI/LibTV 编辑器 |
 

@@ -51,6 +51,7 @@ cp .env.example .env.local
 npm install
 npm run skills:install -- --host=codex
 # 或：npm run skills:install -- --host=claude
+# 默认创建指向 skills/ 的项目内符号链接；不支持链接时可追加 --copy
 npm run dev
 ```
 

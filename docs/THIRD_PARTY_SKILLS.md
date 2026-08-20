@@ -14,4 +14,4 @@
 - `.libtv/project.json` 中的本机工作区/画布绑定；
 - 用户级 `~/.codex/skills` 目录本身。
 
-`npm run skills:install -- --host=codex|claude` 会从仓库 `skills/` 安装项目副本；仓库目录始终是本项目 Skill 的唯一可发布源。
+`npm run skills:install -- --host=codex|claude` 默认会把宿主目录链接到仓库 `skills/`；仓库目录始终是本项目 Skill 的唯一可发布源。只有不支持符号链接的环境才使用 `--copy` 安装独立副本。
