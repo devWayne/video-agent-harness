@@ -102,6 +102,7 @@ export class ProductionProjectService {
     if (!project) return undefined;
     const parsed = addCharacterPackSchema.parse(input);
     assertAssetsBelongToProject(project, parsed.referenceAssetIds);
+    assertCharacterReferenceAssets(project, parsed.referenceAssetIds);
     const updated = addCharacterPack(project, parsed);
     await this.projects.saveProject(updated);
     return updated;
@@ -264,6 +265,19 @@ function assertAssetsBelongToProject(project: ProductionProject, assetIds: strin
   const projectAssetIds = new Set(project.assets.map((asset) => asset.id));
   if (assetIds.some((assetId) => !projectAssetIds.has(assetId))) {
     throw new ProductionProjectConflictError("Reference asset does not belong to this project");
+  }
+}
+
+function assertCharacterReferenceAssets(project: ProductionProject, assetIds: string[]): void {
+  const invalid = project.assets.find(
+    (asset) => assetIds.includes(asset.id)
+      && (asset.mediaType !== "image"
+        || !["identity-reference", "appearance-reference"].includes(asset.role)),
+  );
+  if (invalid) {
+    throw new ProductionProjectConflictError(
+      `Character reference asset ${invalid.id} must be an identity-reference or appearance-reference image`,
+    );
   }
 }
 

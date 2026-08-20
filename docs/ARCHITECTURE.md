@@ -16,12 +16,12 @@
 
 | 层 | 本项目中的实现 | 做什么 | 明确不做什么 |
 | --- | --- | --- | --- |
-| 主 Agent | Codex GPT；未来可换 Claude Code 等兼容 Host | 理解需求、人物/故事/分镜设计、选择 Skill 和 Provider、看片、诊断、重试与接受 | 不把会话历史当唯一生产记录 |
+| 主 Agent | Codex GPT；未来可换 Claude Code 等兼容 Host | 理解需求、设计并生成多角度人物参考、故事/分镜设计、选择 Skill 和 Provider、看片、诊断、重试与接受 | 不把会话历史当唯一生产记录 |
 | Skill 知识层 | `skills/`（唯一源）与 `.agents/skills/`、`.claude/skills/`（项目链接） | 固化创作流程、H3 参数方法、质量准则、LibTV CLI 用法和交付策略 | 不保存密钥、内网地址或项目私有数据 |
 | Runtime 事实与执行层 | `src/` TypeScript/Node.js | 校验命令、调用 Provider、保存任务 ID、资产、血缘、评审、成本与 Manifest | 不发明故事、不选“第一个成功结果”、不静默接受候选 |
 | 端侧投影层 | `web/` React Production Console | 展示计划、镜头、操作、素材、评审、失败和交付；跳转外部工作台；支持人工接管 | 不做第二个 Agent，不复制 ComfyUI/LibTV 编辑器 |
 
-外部执行面包括局域网 ComfyUI/H3、LibTV CLI/Canvas、Seedance、MiniMax 在线视频模型、HyperFrames、OSS/IMS 等。它们都是可替换执行器，不拥有跨镜头叙事和验收权。
+外部执行面包括当前 Host 的图像生成能力、局域网 ComfyUI/H3、LibTV CLI/Canvas、Seedance、MiniMax 在线视频模型、HyperFrames、OSS/IMS 等。它们都是可替换执行器，不拥有人物定版、跨镜头叙事和验收权。
 
 ## 3. 主生产链路
 
@@ -29,6 +29,10 @@
 创作 Brief 与参考素材
   ↓
 Codex + create-production-video
+  ├─ 人物设计 Brief
+  ├─ design-character-reference-pack
+  │    └─ 图像生成 → 正脸/侧脸/三分之二侧脸/全身/服装细节
+  ├─ Codex 评审并冻结 Character Pack
   ├─ 人物与场景 Bible
   ├─ 故事结构与分镜
   ├─ 每镜头连续性状态
@@ -95,7 +99,8 @@ queued → running → succeeded → pending review → accepted / rejected / hu
 
 | 阶段 | 决策者 | Runtime 校验 | 典型失败回路 |
 | --- | --- | --- | --- |
-| 人物、故事与分镜 | Codex | Production Plan Schema、项目引用、时长与连续性 | 回到人物/场景设计或具体 Shot Intent |
+| 人物造型与多角度参考 | Codex + `design-character-reference-pack` | 生成资产登记、canonical/view 映射、版本与项目归属 | 只重做漂移的视角；批准后冻结 Character Pack |
+| 故事与分镜 | Codex | Production Plan Schema、Character Pack/项目引用、时长与连续性 | 回到场景设计或具体 Shot Intent |
 | 控制草稿生成 | Codex 选路；ComfyUI 执行 | Profile、输入资产、依赖、任务检查点 | 仅重跑该镜头的 H3/ComfyUI 操作 |
 | 控制草稿评审 | Codex | 必须记录 `control-draft` 评审 | 动作/机位/节奏问题回控制层；脸部细节可宽松 |
 | 在线终稿生成 | Codex 选 Seedance/MiniMax/LibTV；Provider 执行 | 已接受依赖、输入资产、任务和输出 | 精修问题仅重跑终稿；骨架问题回控制层 |
@@ -108,6 +113,8 @@ queued → running → succeeded → pending review → accepted / rejected / hu
 ComfyUI 是底层执行工作台，MiniMax H3 是其中可运行的模型能力。`motion-reference` 不是另一种模型，而是控制草稿资产的语义角色：它告诉下游终稿模型尽量保留动作、走位、镜头轨迹、构图和节奏。
 
 控制草稿允许人物皮肤、服装材质和局部脸部细节存在非灾难性偏差，因为它的任务是验证骨架。最终候选不能用同样宽松标准。
+
+H3 动作参考和人物身份参考必须分槽：控制视频只传递动作、走位、运镜、构图和节奏；最终人物的脸、头型、发型、身体比例、服装与配饰以已批准 Character Pack 为准。终稿评审应同时对比 canonical 正脸和与候选头部角度最接近的参考视角。
 
 ComfyUI 与 Runtime 的边界：
 
@@ -145,6 +152,7 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 | 能力 | 状态 |
 | --- | --- |
 | 仓库总创作 Skill 和 Agent/Runtime/Studio 边界 | 已重写 |
+| `design-character-reference-pack` 与多角度 Character Pack 契约 | 已实现第一版 |
 | `StoryProductionPlan` 持久化与严格验证 | 已实现 |
 | `ProductionOperation` 执行状态、依赖、资产与评审门禁 | 已实现 |
 | Assembly 前“所有镜头终稿均接受”校验 | 已实现 |
@@ -153,6 +161,7 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 | ComfyUI API、LibTV CLI、百炼 Wan、HyperFrames、IMS 旧适配器 | 已存在，可复用 |
 | 新 Operation API 自动调度 ComfyUI/在线模型执行器 | 待把现有 Provider 适配器接入；当前可由 Codex/Skill 执行后回写操作 |
 | Seedance 2.5 与 MiniMax 云端最终视频 Provider | 尚未接入，需要账号/API Schema 后实现 |
+| 可独立部署的图像生成 Runtime Provider | 尚未接入；当前由 Codex 调用宿主图像生成能力并把批准资产登记回 Runtime |
 | 真实视觉模型自动评分 | 尚未接入；当前新架构要求 Codex/人工显式评审，不再使用首成功自动接受 |
 | 多实例数据库、队列、回调、对象存储资产服务 | 生产化后续项 |
 

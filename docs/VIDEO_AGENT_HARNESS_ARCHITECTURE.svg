@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1280" viewBox="0 0 1800 1280" role="img" aria-labelledby="title desc">
   <title id="title">Agent-directed Video Production Architecture</title>
-  <desc id="desc">Codex GPT owns creative decisions through repository skills. TypeScript Runtime executes typed operations and stores facts. External providers generate control drafts and final shots. Production Console visualizes state only.</desc>
+  <desc id="desc">Codex GPT designs and approves multi-angle character references through repository skills, then owns story, routing and review decisions. TypeScript Runtime stores facts. External providers render assets. Production Console visualizes state only.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#091113"/><stop offset="1" stop-color="#101819"/></linearGradient>
     <linearGradient id="agent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18395a"/><stop offset="1" stop-color="#10283d"/></linearGradient>
@@ -26,8 +26,8 @@
   <text x="95" y="204" class="laneSub">当前由 Codex GPT 承担；可替换 Host，但所有生产状态必须写回仓库契约</text>
   <rect x="95" y="224" width="260" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="113" y="247" class="boxTitle">Codex GPT</text><text x="113" y="266" class="boxText">理解需求、创意、看片、重试</text>
   <rect x="375" y="224" width="335" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="393" y="247" class="boxTitle">create-production-video</text><text x="393" y="266" class="boxText">人物、故事、分镜、连续性、路由</text>
-  <rect x="730" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="748" y="247" class="boxTitle">H3 specialist Skill</text><text x="748" y="266" class="boxText">场景路由、Profile 与参数方法</text>
-  <rect x="1050" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1068" y="247" class="boxTitle">Review specialist Skill</text><text x="1068" y="266" class="boxText">宽松草稿门 / 严格终稿门</text>
+  <rect x="730" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="748" y="247" class="boxTitle">Character reference Skill</text><text x="748" y="266" class="boxText">多角度造型生成、评审与定版</text>
+  <rect x="1050" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1068" y="247" class="boxTitle">H3 + Review Skills</text><text x="1068" y="266" class="boxText">控制 Profile / 宽松与严格门禁</text>
   <rect x="1370" y="224" width="330" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1388" y="247" class="boxTitle">LibTV CLI / Delivery Skills</text><text x="1388" y="266" class="boxText">外部工具的受控操作方法</text>
 
   <rect x="70" y="320" width="1660" height="150" rx="18" fill="url(#runtime)" stroke="#3b8067" opacity=".97" filter="url(#shadow)"/>
@@ -56,10 +56,10 @@
     <text x="90" y="785" class="num">01</text><text x="90" y="813" class="boxTitle">Brief + References</text><text x="90" y="840" class="boxText">目标、人物图、场景</text><text x="90" y="861" class="boxText">预算、横屏 4K 规格</text>
 
     <rect x="275" y="755" width="190" height="130" rx="14" fill="url(#agent)" stroke="#4c88b8"/>
-    <text x="295" y="785" class="num">02</text><text x="295" y="813" class="boxTitle">Codex Creative</text><text x="295" y="840" class="boxText">人物 / 故事 / 分镜</text><text x="295" y="861" class="boxText">连续性与验收标准</text>
+    <text x="295" y="785" class="num">02</text><text x="295" y="813" class="boxTitle">Character Design</text><text x="295" y="840" class="boxText">Codex + ImageGen</text><text x="295" y="861" class="boxText">正 / 侧 / 3/4 / 全身</text>
 
     <rect x="490" y="755" width="190" height="130" rx="14" fill="url(#runtime)" stroke="#4d987b"/>
-    <text x="510" y="785" class="num">03</text><text x="510" y="813" class="boxTitle">Persist Plan</text><text x="510" y="840" class="boxText">Schema + references</text><text x="510" y="861" class="boxText">durable Shot IDs</text>
+    <text x="510" y="785" class="num">03</text><text x="510" y="813" class="boxTitle">Pack + Storyboard</text><text x="510" y="840" class="boxText">Character Pack + Plan</text><text x="510" y="861" class="boxText">连续性 + durable IDs</text>
 
     <rect x="705" y="755" width="190" height="130" rx="14" fill="url(#external)" stroke="#a86f35"/>
     <text x="725" y="785" class="num">04</text><text x="725" y="813" class="boxTitle">Control Draft</text><text x="725" y="840" class="boxText">ComfyUI + H3</text><text x="725" y="861" class="boxText">motion-reference</text>
@@ -100,5 +100,5 @@
   <text x="100" y="1158" class="tiny">旧 PiDirector / WorkflowEngine / FirstSuccessfulCandidateEvaluator 仅保留给 Legacy VideoJob 回归，</text>
   <text x="100" y="1177" class="tiny">不再进入新的 Agent-directed 主生产链。</text>
 
-  <text x="70" y="1242" class="sub">Repository source of truth: Skills + ProductionProject + StoryProductionPlan + ProductionOperation + ProjectAsset + explicit Review</text>
+  <text x="70" y="1242" class="sub">Repository source of truth: Skills + CharacterPack + ProductionProject + StoryProductionPlan + ProductionOperation + ProjectAsset + explicit Review</text>
 </svg>

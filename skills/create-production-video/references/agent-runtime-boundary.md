@@ -2,7 +2,7 @@
 
 ## Agent and Skills
 
-The Agent Host executes `create-production-video` and owns decisions: story, characters, storyboard, control route, final Provider, interpretation of evidence, retries, acceptance, and human escalation. Specialist Skills supply reusable procedure and parameter policy.
+The Agent Host executes `create-production-video` and owns decisions: character art direction and multi-angle approval, story, storyboard, control route, final Provider, interpretation of evidence, retries, acceptance, and human escalation. Specialist Skills supply reusable procedure and parameter policy. Image-generation tools render requested character pixels but do not approve or version the Character Pack.
 
 ## Runtime
 

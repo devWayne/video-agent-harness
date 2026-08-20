@@ -43,6 +43,37 @@ export const projectAssetRoleSchema = z.enum([
   "other",
 ]);
 
+export const projectAssetSourceSchema = z.enum([
+  "user",
+  "image-generation",
+  "comfyui",
+  "libtv",
+  "online-video",
+  "hyperframes",
+  "delivery",
+]);
+
+export const characterReferenceViewTypeSchema = z.enum([
+  "front",
+  "left-profile",
+  "right-profile",
+  "left-three-quarter",
+  "right-three-quarter",
+  "back",
+  "full-body-front",
+  "full-body-back",
+  "expression-sheet",
+  "wardrobe-detail",
+  "turnaround-sheet",
+  "other",
+]);
+
+export const characterReferenceViewSchema = z.object({
+  assetId: z.uuid(),
+  view: characterReferenceViewTypeSchema,
+  notes: z.string().trim().max(1_000).optional(),
+});
+
 export const deliverySpecSchema = z.object({
   aspectRatio: z.literal("16:9").default("16:9"),
   width: z.literal(3840).default(3840),
@@ -86,7 +117,7 @@ export const addProjectAssetSchema = z.object({
   mediaType: projectAssetMediaTypeSchema,
   role: projectAssetRoleSchema,
   uri: z.url(),
-  source: z.enum(["user", "comfyui", "libtv", "online-video", "hyperframes", "delivery"]).default("user"),
+  source: projectAssetSourceSchema.default("user"),
   tags: z.array(shortText).max(20).default([]),
   notes: optionalLongText,
   parentAssetId: z.uuid().optional(),
@@ -95,9 +126,37 @@ export const addProjectAssetSchema = z.object({
 export const addCharacterPackSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: optionalLongText,
+  designBrief: optionalLongText,
+  canonicalAssetId: z.uuid().optional(),
   referenceAssetIds: z.array(z.uuid()).max(12).default([]),
+  referenceViews: z.array(characterReferenceViewSchema).max(12).default([]),
   consistencyNotes: optionalLongText,
   negativeConstraints: z.array(shortText).max(30).default([]),
+}).superRefine((pack, context) => {
+  const referenceIds = new Set(pack.referenceAssetIds);
+  if (pack.canonicalAssetId && !referenceIds.has(pack.canonicalAssetId)) {
+    context.addIssue({
+      code: "custom",
+      path: ["canonicalAssetId"],
+      message: "Canonical asset must be included in referenceAssetIds",
+    });
+  }
+  for (const [index, referenceView] of pack.referenceViews.entries()) {
+    if (!referenceIds.has(referenceView.assetId)) {
+      context.addIssue({
+        code: "custom",
+        path: ["referenceViews", index, "assetId"],
+        message: "Reference view asset must be included in referenceAssetIds",
+      });
+    }
+  }
+  if (new Set(pack.referenceViews.map((view) => view.assetId)).size !== pack.referenceViews.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["referenceViews"],
+      message: "Each character reference asset can have only one primary view",
+    });
+  }
 });
 
 export const addScenePackSchema = z.object({
@@ -126,6 +185,9 @@ export type AddScenePackInput = z.infer<typeof addScenePackSchema>;
 export type AddStorySceneInput = z.infer<typeof addStorySceneSchema>;
 export type ProjectAssetMediaType = z.infer<typeof projectAssetMediaTypeSchema>;
 export type ProjectAssetRole = z.infer<typeof projectAssetRoleSchema>;
+export type ProjectAssetSource = z.infer<typeof projectAssetSourceSchema>;
+export type CharacterReferenceViewType = z.infer<typeof characterReferenceViewTypeSchema>;
+export type CharacterReferenceView = z.infer<typeof characterReferenceViewSchema>;
 export type DeliverySpec = z.infer<typeof deliverySpecSchema>;
 export type WorkbenchBindings = z.infer<typeof workbenchBindingsSchema>;
 
@@ -136,7 +198,7 @@ export interface ProjectAsset {
   mediaType: ProjectAssetMediaType;
   role: ProjectAssetRole;
   uri: string;
-  source: "user" | "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery";
+  source: ProjectAssetSource;
   tags: string[];
   notes?: string;
   parentAssetId?: string;
@@ -148,7 +210,10 @@ export interface CharacterPack {
   version: number;
   name: string;
   description?: string;
+  designBrief?: string;
+  canonicalAssetId?: string;
   referenceAssetIds: string[];
+  referenceViews: CharacterReferenceView[];
   consistencyNotes?: string;
   negativeConstraints: string[];
   createdAt: string;
@@ -342,9 +407,12 @@ export function addCharacterPack(
     version: 1,
     name: input.name,
     referenceAssetIds: input.referenceAssetIds,
+    referenceViews: input.referenceViews,
     negativeConstraints: input.negativeConstraints,
     createdAt: now.toISOString(),
     ...(input.description ? { description: input.description } : {}),
+    ...(input.designBrief ? { designBrief: input.designBrief } : {}),
+    ...(input.canonicalAssetId ? { canonicalAssetId: input.canonicalAssetId } : {}),
     ...(input.consistencyNotes ? { consistencyNotes: input.consistencyNotes } : {}),
   };
   return touchProject({ ...project, characterPacks: [...project.characterPacks, pack] }, now);

@@ -1,6 +1,6 @@
 # Video Agent Harness
 
-面向生产级横屏短视频的 Agent-directed 执行与生产账本。主栈为 TypeScript + Node.js；Codex GPT 通过仓库内 Skill 承担人物、故事、分镜、执行路由、看片评审与局部重做决策，Runtime 只负责类型化执行、恢复、资产血缘、门禁和交付状态，React Production Console 只做可视化与人工接管。
+面向生产级横屏短视频的 Agent-directed 执行与生产账本。主栈为 TypeScript + Node.js；Codex GPT 通过仓库内 Skill 承担人物造型、多角度参考图生成与定版、故事、分镜、执行路由、看片评审与局部重做决策，Runtime 只负责类型化执行、恢复、资产血缘、门禁和交付状态，React Production Console 只做可视化与人工接管。
 
 ## 当前能力
 
@@ -13,6 +13,7 @@
 - `POST /v1/video-jobs/:id/retry`：从最后一个持久检查点重试可恢复失败。
 - `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
 - `POST /v1/projects`、`GET /v1/projects/:id`：持久化项目、故事、角色/场景一致性包、资产版本、工作台绑定与关联任务。
+- `design-character-reference-pack`：由 Codex 设计并通过宿主图像生成能力产出 canonical 正脸、侧脸、三分之二侧脸、全身和服装细节；批准后以结构化视角映射冻结为 Character Pack。
 - `POST /v1/projects/:id/assets|character-packs|scene-packs|scenes|video-jobs`：从项目内容空间创建可追溯生产任务。
 - `POST /v1/compositions/preview`：把模板、标题、品牌色、动效和单段或多段 timed AI 背景视频编译为安全的 HyperFrames 合成预览。
 - 默认 16:9、1080P 镜头生成、3840×2160 交付画布。
@@ -35,6 +36,7 @@
 
 ```text
 Codex GPT + repo-local Skills（创作、路由、评价、重试决定）
+  → 人物造型与多角度 Character Pack（图像生成 + Codex 定版）
   → TypeScript Runtime（操作执行、恢复、资产、门禁、血缘、成本）
   → ComfyUI/H3 控制草稿 → Codex 宽松评审
   → Seedance/MiniMax/LibTV 逐镜头终稿 → Codex 严格评审

@@ -10,6 +10,7 @@ Codex GPT（当前主 Agent Host）
     ├── 人物、场景、故事和分镜设计
     ├── 连续性与成本策略
     ├── 路由 control / final / assembly / delivery
+    ├── design-character-reference-pack（人物造型、多角度参考与定版）
     ├── generate-minimax-h3-shot（H3 单镜头控制 Skill）
     ├── review-video-candidate（分阶段看片与诊断 Skill）
     ├── libtv-cli（官方 LibTV 操作 Skill）
@@ -22,7 +23,8 @@ Codex GPT（当前主 Agent Host）
 
 | 生产问题 | 决策 / 知识层 | 工程契约 | 执行面 | 产物 |
 | --- | --- | --- | --- | --- |
-| Brief、人物、故事、分镜 | Codex + `create-production-video` | `StoryProductionPlan` | 无 | 结构化计划 |
+| Brief 与人物造型 | Codex + `design-character-reference-pack` | `ProjectAsset` + structured `CharacterPack` | 当前 Host 图像生成能力 | canonical 正脸、多角度/全身参考与人物定版包 |
+| 故事与分镜 | Codex + `create-production-video` | `StoryProductionPlan` | 无 | 结构化计划 |
 | H3 场景路由与参数 | `generate-minimax-h3-shot` | `control-generation` Operation + Profile | ComfyUI / MiniMax H3 | `control-asset` / motion reference |
 | 草稿是否可用 | Codex + `review-video-candidate` relaxed policy | Operation Review `control-draft` | Codex 视觉理解 / 人工 | accept / revise-control |
 | 生产级终稿模型选择 | Codex 总 Skill | `final-render` Operation | Seedance / MiniMax cloud / LibTV-selected model | `final-candidate` |
@@ -46,6 +48,10 @@ Codex GPT（当前主 Agent Host）
 skills/generate-minimax-h3-shot/
   SKILL.md
   profiles/                  # H3 批准/开发期 Workflow Profiles
+
+skills/design-character-reference-pack/
+  SKILL.md
+  references/character-pack-contract.md
 
 skills/review-video-candidate/
   SKILL.md
@@ -90,6 +96,7 @@ Codex 是当前主 Agent，但生产状态不存于 Codex 私有记忆。另一�
 ## 6. 当前缺口
 
 - 现有 ComfyUI、LibTV、HyperFrames、IMS Provider 尚需注册为新的 Operation Executor；
+- 角色造型当前可由 Codex 调用宿主图像生成能力并登记资产；独立部署的图像生成 Executor 尚未实现；
 - Seedance 2.5 和 MiniMax 云端终稿 Provider 尚未实现；
 - ComfyUI 生产 Executor 尚需补齐参考图片上传和 H3 动态参考槽绑定；
 - Codex 评审目前通过 Skill/人工回写，尚未封装成可独立部署的视觉评分服务；

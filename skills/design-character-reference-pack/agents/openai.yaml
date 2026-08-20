@@ -1,0 +1,4 @@
+interface:
+  display_name: "角色参考包设计"
+  short_description: "生成并定版多角度人物参考资产，供后续视频模型锁定一致性"
+  default_prompt: "Use $design-character-reference-pack to create and approve a multi-angle character reference pack for this production."

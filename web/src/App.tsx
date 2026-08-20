@@ -62,14 +62,21 @@ interface ProjectAsset {
   mediaType: ProjectAssetMediaType;
   role: ProjectAssetRole;
   uri: string;
-  source: "user" | "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery";
+  source: "user" | "image-generation" | "comfyui" | "libtv" | "online-video" | "hyperframes" | "delivery";
   tags: string[];
 }
 
 interface CharacterPack {
   id: string;
   name: string;
+  designBrief?: string;
+  canonicalAssetId?: string;
   referenceAssetIds: string[];
+  referenceViews?: Array<{
+    assetId: string;
+    view: "front" | "left-profile" | "right-profile" | "left-three-quarter" | "right-three-quarter" | "back" | "full-body-front" | "full-body-back" | "expression-sheet" | "wardrobe-detail" | "turnaround-sheet" | "other";
+    notes?: string;
+  }>;
   consistencyNotes?: string;
 }
 
@@ -748,7 +755,7 @@ function Overview(props: {
       </div>
       <div className="section-bar"><div><span>OWNERSHIP BOUNDARY</span><h2>创作、执行、展示三层分离</h2></div><small>Codex 决策，Runtime 执行，Console 投影</small></div>
       <div className="workspace-map">
-        <article className="workspace-map-card primary"><span>CREATIVE HOST + REPO SKILLS</span><h3>Codex GPT</h3><p>设计人物、故事与分镜；选择执行路径；看片评审；决定局部重做和最终接受。</p><strong>外部创作与评审</strong></article>
+        <article className="workspace-map-card primary"><span>CREATIVE HOST + REPO SKILLS</span><h3>Codex GPT</h3><p>设计人物造型与多角度参考包、故事与分镜；选择执行路径；看片评审并决定局部重做。</p><strong>外部创作与评审</strong></article>
         <div className="workspace-map-link"><b>Typed Operations</b><i>→</i><small>明确指令与门禁</small></div>
         <article className="workspace-map-card"><span>EXECUTION + SYSTEM OF RECORD</span><h3>Runtime</h3><p>调用 Provider、恢复任务、登记资产、保存血缘、成本、评审和交付 Manifest。</p><strong>不做创意判断</strong></article>
         <div className="workspace-map-link"><b>Read Model</b><i>→</i><small>事实状态投影</small></div>
@@ -958,7 +965,7 @@ function ProjectView({ project, jobs, job, apiKey, onProjectUpdated }: { project
         <ProjectEditor summary="＋ 新增故事场景"><label>场景标题<input value={storyTitle} onChange={(event) => setStoryTitle(event.target.value)} /></label><label>场景动作与剧情<textarea value={storySummary} onChange={(event) => setStorySummary(event.target.value)} /></label><label>预期时长<input type="number" min={5} max={300} value={storyDuration} onChange={(event) => setStoryDuration(Number(event.target.value))} /></label>{project.characterPacks.length ? <CheckList label="参与角色" items={project.characterPacks} selected={storyCharacterIds} onChange={setStoryCharacterIds} /> : null}{project.scenePacks.length ? <label>场景包<select value={storyScenePackId} onChange={(event) => setStoryScenePackId(event.target.value)}><option value="">不绑定</option>{project.scenePacks.map((pack) => <option key={pack.id} value={pack.id}>{pack.name}</option>)}</select></label> : null}<label>镜头意图（每行一个）<textarea value={shotBriefs} onChange={(event) => setShotBriefs(event.target.value)} /></label><button className="primary-button wide" type="button" disabled={saving || !storyTitle.trim() || !storySummary.trim()} onClick={() => void submitStoryScene()}>保存场景</button></ProjectEditor>
       </ProjectCollection>
       <ProjectCollection title="角色一致性包" count={project.characterPacks.length} actionLabel="新增角色">
-        {project.characterPacks.map((pack) => <div className="collection-row" key={pack.id}><span>CP</span><div><strong>{pack.name}</strong><small>{pack.referenceAssetIds.length} 个身份/外观参考</small></div></div>)}
+        {project.characterPacks.map((pack) => <div className="collection-row" key={pack.id}><span>CP</span><div><strong>{pack.name}</strong><small>{pack.referenceAssetIds.length} 个身份/外观参考 · {pack.referenceViews?.length ?? 0} 个已标注视角{pack.canonicalAssetId ? " · 已锁定主身份" : ""}</small></div></div>)}
         {!project.characterPacks.length && <div className="collection-empty">还没有角色包</div>}
         <ProjectEditor summary="＋ 新增角色包"><label>角色名称<input value={characterName} onChange={(event) => setCharacterName(event.target.value)} /></label>{project.assets.length ? <CheckList label="身份与外观素材" items={project.assets.filter((asset) => asset.mediaType === "image")} selected={characterAssetIds} onChange={setCharacterAssetIds} /> : <p>请先登记角色参考图片。</p>}<button className="primary-button wide" type="button" disabled={saving || !characterName.trim()} onClick={() => void submitCharacterPack()}>保存角色包</button></ProjectEditor>
       </ProjectCollection>
@@ -1046,20 +1053,34 @@ function buildStages(
   const assembly = operations.filter((operation) => operation.kind === "assembly");
   const delivery = operations.filter((operation) => operation.kind === "delivery");
   const planReady = Boolean(project?.productionPlan);
+  const characterPackReady = Boolean(project?.characterPacks.length)
+    && project!.characterPacks.every(characterPackHasProductionCoverage);
   const controlPassed = control.length === 0 || control.every(operationPassed);
   const finalPassed = finalRender.length > 0 && finalRender.every(operationPassed);
 
   // Keep the old run visible only as migration evidence. It never advances the new production gates.
   const legacyActivity = Boolean(job || runtime || candidates.length);
   return [
-    { id: "director", index: "01", owner: "CODEX GPT · CREATIVE HOST + SKILL", title: "人物、故事与结构化分镜", description: "Codex 设计故事、人物、场景、镜头意图、连续性状态和验收标准，并写入 Production Plan。", state: planReady ? "passed" : "ready", view: "pipeline" },
-    { id: "control", index: "02", owner: "RUNTIME → COMFYUI / H3", title: "逐镜头控制草稿", description: "Runtime 只执行 Codex 声明的 Profile 和输入资产，生成动作、运镜、构图和节奏骨架。", state: operationExecutionState(control, planReady ? "ready" : "waiting"), surfaceId: "comfyui", view: "pipeline" },
-    { id: "control-review", index: "03", owner: "CODEX REVIEW · RELAXED GATE", title: "草稿评审与局部重做", description: "Codex 看片确认动作形态和场景连接；草稿门禁宽松，不用终稿标准误杀骨架。", state: operationReviewState(control), view: "pipeline" },
-    { id: "final", index: "04", owner: "RUNTIME → ONLINE VIDEO", title: "逐镜头生产级终稿", description: "使用已接受控制资产和人物参考，路由到 Seedance、MiniMax 或 LibTV 在线模型；不生成整片。", state: operationExecutionState(finalRender, planReady && controlPassed ? "ready" : "waiting"), surfaceId: "libtv", view: "pipeline" },
-    { id: "final-review", index: "05", owner: "CODEX REVIEW · STRICT GATE", title: "一致性、叙事与质量终审", description: "严格评估人物身份、动作、时序、语义与技术质量，只把问题送回责任镜头和责任阶段。", state: operationReviewState(finalRender), view: "pipeline" },
-    { id: "assembly", index: "06", owner: "RUNTIME → HYPERFRAMES", title: "确定性剪辑与包装", description: "仅组装已接受终稿，完成裁切、字幕、标题、转场、图形和音频；不把整片送回生成模型。", state: operationExecutionState(assembly, finalPassed ? "ready" : "waiting"), surfaceId: "hyperframes", view: "post-production" },
-    { id: "delivery", index: "07", owner: "RUNTIME → DELIVERY / IMS", title: "母版、4K、QC 与归档", description: `生成交付 Manifest、技术检查和可追溯归档。${legacyActivity ? "旧 VideoJob 仅作为迁移证据保留。" : ""}`, state: operationExecutionState(delivery, assembly.some(operationPassed) ? "ready" : "waiting"), surfaceId: "delivery", view: "delivery" },
+    { id: "character-design", index: "01", owner: "CODEX + CHARACTER REFERENCE SKILL → IMAGE GENERATION", title: "人物造型与多角度参考包", description: "Codex 设计并评审正脸、侧脸、三分之二侧脸、全身和服装细节；定版资产写入 Character Pack。", state: characterPackReady ? "passed" : planReady ? "attention" : "ready", view: "assets" },
+    { id: "director", index: "02", owner: "CODEX GPT · CREATIVE HOST + MASTER SKILL", title: "故事与结构化分镜", description: "Codex 基于已定版人物与场景设计故事、镜头意图、连续性状态和验收标准，并写入 Production Plan。", state: planReady ? "passed" : "ready", view: "pipeline" },
+    { id: "control", index: "03", owner: "RUNTIME → COMFYUI / H3", title: "逐镜头控制草稿", description: "Runtime 只执行 Codex 声明的 Profile 和输入资产，生成动作、运镜、构图和节奏骨架。", state: operationExecutionState(control, planReady ? "ready" : "waiting"), surfaceId: "comfyui", view: "pipeline" },
+    { id: "control-review", index: "04", owner: "CODEX REVIEW · RELAXED GATE", title: "草稿评审与局部重做", description: "Codex 看片确认动作形态和场景连接；草稿门禁宽松，不用终稿标准误杀骨架。", state: operationReviewState(control), view: "pipeline" },
+    { id: "final", index: "05", owner: "RUNTIME → ONLINE VIDEO", title: "逐镜头生产级终稿", description: "使用已接受控制资产和人物参考，路由到 Seedance、MiniMax 或 LibTV 在线模型；不生成整片。", state: operationExecutionState(finalRender, planReady && controlPassed ? "ready" : "waiting"), surfaceId: "libtv", view: "pipeline" },
+    { id: "final-review", index: "06", owner: "CODEX REVIEW · STRICT GATE", title: "一致性、叙事与质量终审", description: "严格评估人物身份、动作、时序、语义与技术质量，只把问题送回责任镜头和责任阶段。", state: operationReviewState(finalRender), view: "pipeline" },
+    { id: "assembly", index: "07", owner: "RUNTIME → HYPERFRAMES", title: "确定性剪辑与包装", description: "仅组装已接受终稿，完成裁切、字幕、标题、转场、图形和音频；不把整片送回生成模型。", state: operationExecutionState(assembly, finalPassed ? "ready" : "waiting"), surfaceId: "hyperframes", view: "post-production" },
+    { id: "delivery", index: "08", owner: "RUNTIME → DELIVERY / IMS", title: "母版、4K、QC 与归档", description: `生成交付 Manifest、技术检查和可追溯归档。${legacyActivity ? "旧 VideoJob 仅作为迁移证据保留。" : ""}`, state: operationExecutionState(delivery, assembly.some(operationPassed) ? "ready" : "waiting"), surfaceId: "delivery", view: "delivery" },
   ];
+}
+
+function characterPackHasProductionCoverage(pack: CharacterPack): boolean {
+  const views = new Set(pack.referenceViews?.map((reference) => reference.view) ?? []);
+  const hasProfile = views.has("left-profile") || views.has("right-profile");
+  const hasThreeQuarter = views.has("left-three-quarter") || views.has("right-three-quarter");
+  return Boolean(pack.canonicalAssetId)
+    && views.has("front")
+    && hasProfile
+    && hasThreeQuarter
+    && views.has("full-body-front");
 }
 
 function operationPassed(operation: ProductionOperation): boolean {

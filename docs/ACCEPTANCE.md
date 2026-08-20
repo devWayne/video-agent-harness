@@ -10,7 +10,7 @@
 | Shot Recipe 契约 | `direct` 与 `comfyui-libtv` 单元测试 | 控制资产从 ComfyUI 步骤传入 LibTV 步骤；步骤状态、Task ID、最终视频和结构化评价可持久化 |
 | ComfyUI Workflow 编译 | Harness Token 测试 | Prompt、帧数、宽度与 Seed 能以正确 JSON 类型注入 API-format Workflow |
 | LibTV CLI 映射 | Fake Canvas Client 契约测试 | 控制视频通过 `upload` 成为资源节点，随后创建 `video2video`、16:9、1080P Wan 2.7 节点；测试不产生上传或模型费用 |
-| 项目级 Studio | Project HTTP/API + SQLite 集成测试 | Project、三类参考资产、Character Pack、Scene Pack、Story Scene 与关联 VideoJob 完整持久化；跨项目 Asset/Pack 引用被拒绝 |
+| 项目级 Production Console | Project HTTP/API + SQLite 集成测试 | Project、参考资产、含 canonical 与多角度映射的 Character Pack、Scene Pack、Story Scene 与关联 VideoJob 完整持久化；跨项目 Asset/Pack 引用被拒绝 |
 | HyperFrames 动效切片 | Studio → Composition API → Core lint → 官方 Player | 1920×1080 标题卡与 24 秒《智慧城市的一天》6 场景模板均通过 0 warning lint；浏览器实测开场、交通、智造、城市安全场景播放和 seek 正常 |
 | Wan 2.7 最小协议 | `wan2.7-t2v`，2 秒，720P，16:9 | 阿里云异步任务成功，任务 ID `50e3dbbb-80aa-49ad-ac21-6baf0aca23ef` |
 | Wan 2.7 生产请求 | `wan2.7-t2v`，2 秒，1080P，16:9，模型自动音频 | 阿里云异步任务成功，任务 ID `17adbb94-389c-4df6-bf1b-84ec3799e866` |
