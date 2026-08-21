@@ -8,7 +8,15 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx}"],
   })),
   {
-    ignores: ["dist/**", "web-dist/**", ".data/**", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "web-dist/**",
+      ".data/**",
+      "artifacts/**",
+      "tmp/**",
+      "tools/**",
+      "node_modules/**",
+    ],
   },
   {
     files: ["**/*.{ts,tsx}"],

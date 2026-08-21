@@ -17,11 +17,11 @@ type JobStatus =
   | "cancelled";
 
 interface RuntimeInfo {
-  videoProvider: "mock" | "bailian";
+  videoProvider: "mock" | "bailian" | "volcengine";
   videoModel: string;
   generationPipeline?: "direct" | "comfyui-libtv";
   deliveryMode: "simulation" | "cloud";
-  generationResolution: "1080P";
+  generationResolution: "480P" | "720P" | "1080P";
 }
 
 interface ControlSurface {

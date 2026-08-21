@@ -9,6 +9,7 @@ export interface DirectVideoStepExecutorOptions {
   provider: VideoProvider;
   pollIntervalMs: number;
   timeoutMs: number;
+  resolution?: "480P" | "720P" | "1080P";
 }
 
 export class DirectVideoStepExecutor implements ShotStepExecutor {
@@ -28,7 +29,7 @@ export class DirectVideoStepExecutor implements ShotStepExecutor {
           clientRequestId: `${request.context.job.id}/${request.context.candidateId}`,
           prompt: request.context.shot.prompt,
           durationSeconds: request.context.shot.durationSeconds,
-          resolution: "1080P",
+          resolution: this.options.resolution ?? "1080P",
           ratio: "16:9",
           generateAudio: true,
           references: request.context.job.request.references,
@@ -39,7 +40,15 @@ export class DirectVideoStepExecutor implements ShotStepExecutor {
       await checkpointTaskId(taskId);
     }
 
-    const task = await this.#waitForTask(taskId, signal);
+    let task: ProviderTask;
+    try {
+      task = await this.#waitForTask(taskId, signal);
+    } catch (error) {
+      if (signal?.aborted && this.options.provider.cancel) {
+        await this.options.provider.cancel(taskId).catch(() => undefined);
+      }
+      throw error;
+    }
     if (task.status !== "succeeded" || !task.outputUrl) {
       throw new VideoProviderError(
         task.errorMessage ?? `Provider task ${taskId} failed without an output URL`,

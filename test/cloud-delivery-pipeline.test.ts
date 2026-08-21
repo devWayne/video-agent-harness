@@ -106,8 +106,9 @@ describe("CloudDeliveryPipeline", () => {
     );
     expect(submitUpscale).toHaveBeenCalledWith({
       clientRequestId: "job-1/upscale-4k",
-      inputOssUrl: "oss://bucket/root/job-1/masters/master-1080p.mp4",
-      outputOssUrl: "oss://bucket/root/job-1/deliveries/final-4k.mp4",
+      inputUrl: "https://bucket.oss-cn-beijing.aliyuncs.com/root/job-1/masters/master-1080p.mp4",
+      inputStorageUri: "oss://bucket/root/job-1/masters/master-1080p.mp4",
+      outputStorageUri: "oss://bucket/root/job-1/deliveries/final-4k.mp4",
       target: "4K",
     });
   });
@@ -172,6 +173,111 @@ describe("CloudDeliveryPipeline", () => {
     expect(getMaster).not.toHaveBeenCalled();
     expect(submitUpscale).not.toHaveBeenCalled();
     expect(getUpscale).toHaveBeenCalledWith("upscale-existing");
+  });
+
+  it("checkpoints provider task transitions and copies an external 4K output back to private OSS", async () => {
+    const dataDirectory = await mkdtemp(join(tmpdir(), "video-agent-vod-delivery-"));
+    temporaryDirectories.push(dataDirectory);
+    const persistRemote = vi.fn(async (request: PersistRemoteMediaRequest) => ({
+      storageUri: `oss://bucket/${request.objectKey}`,
+      mediaUrl: `https://bucket.oss-cn-beijing.aliyuncs.com/${request.objectKey}`,
+      objectKey: request.objectKey,
+      contentType: "video/mp4",
+    }));
+    const getUpscale = vi
+      .fn<UpscaleProvider["getTask"]>()
+      .mockResolvedValueOnce({
+        provider: "volcengine-vod-aigc-standard-4k",
+        taskId: "enhance-1",
+        status: "running",
+      })
+      .mockResolvedValueOnce({
+        provider: "volcengine-vod-aigc-standard-4k",
+        taskId: "enhance-1",
+        status: "succeeded",
+        outputUrl: "https://play.volccdn.com/output-4k.mp4?auth=temporary",
+        width: 3840,
+        height: 2160,
+      });
+    const submitUpscale = vi.fn<UpscaleProvider["submit"]>(async () => ({
+      provider: "volcengine-vod-aigc-standard-4k",
+      taskId: "import-1",
+      status: "submitted",
+    }));
+    const finalize = vi.fn<NonNullable<UpscaleProvider["finalize"]>>(async () => undefined);
+    const pipeline = new CloudDeliveryPipeline({
+      assetStore: { name: "test-oss", persistRemote },
+      inputSigner: {
+        signRead: vi.fn(async () => ({
+          url: "https://bucket.oss-cn-beijing.aliyuncs.com/master.mp4?signature=private",
+          expiresAt: "2026-08-22T03:00:00.000Z",
+        })),
+      },
+      sourceUrlExpiresSeconds: 7_200,
+      masteringProvider: {
+        name: "test-mastering",
+        submit: vi.fn<MasteringProvider["submit"]>(async () => ({
+          provider: "test-mastering",
+          taskId: "master-1",
+          status: "submitted",
+        })),
+        getTask: vi.fn<MasteringProvider["getTask"]>(async () => ({
+          provider: "test-mastering",
+          taskId: "master-1",
+          status: "succeeded",
+        })),
+      },
+      upscaleProvider: {
+        name: "volcengine-vod-aigc-standard-4k",
+        submit: submitUpscale,
+        getTask: getUpscale,
+        finalize,
+      },
+      manifestWriter: new ManifestWriter(dataDirectory),
+      bucket: "bucket",
+      endpoint: "oss-cn-beijing.aliyuncs.com",
+      objectPrefix: "root",
+      pollIntervalMs: 1,
+      timeoutMs: 1_000,
+    });
+    const taskIds: string[] = [];
+    let sawDurableOutput = false;
+    let sawFinalized = false;
+    let persistedVolatileOutputUrl = false;
+
+    const output = await pipeline.deliver(testJob(), async (stage, delivery) => {
+      if (stage !== "upscaling") return;
+      if (delivery.upscaleTask) taskIds.push(delivery.upscaleTask.taskId);
+      sawDurableOutput ||= delivery.upscaleOutput !== undefined;
+      sawFinalized ||= delivery.upscaleFinalized === true;
+      persistedVolatileOutputUrl ||= delivery.upscaleTask?.outputUrl !== undefined;
+    });
+
+    expect(taskIds).toContain("import-1");
+    expect(taskIds).toContain("enhance-1");
+    expect(sawDurableOutput).toBe(true);
+    expect(sawFinalized).toBe(true);
+    expect(persistedVolatileOutputUrl).toBe(false);
+    expect(getUpscale).toHaveBeenNthCalledWith(1, "import-1");
+    expect(getUpscale).toHaveBeenNthCalledWith(2, "enhance-1");
+    expect(submitUpscale).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputUrl: "https://bucket.oss-cn-beijing.aliyuncs.com/master.mp4?signature=private",
+      }),
+    );
+    expect(persistRemote).toHaveBeenLastCalledWith(
+      {
+        sourceUrl: "https://play.volccdn.com/output-4k.mp4?auth=temporary",
+        objectKey: "root/job-1/deliveries/final-4k.mp4",
+        mediaType: "video",
+      },
+      undefined,
+    );
+    expect(finalize).toHaveBeenCalledTimes(1);
+    expect(output).toMatchObject({
+      storageUri: "oss://bucket/root/job-1/deliveries/final-4k.mp4",
+      videoUrl: "https://bucket.oss-cn-beijing.aliyuncs.com/root/job-1/deliveries/final-4k.mp4",
+    });
   });
 });
 

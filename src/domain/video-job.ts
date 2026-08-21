@@ -115,6 +115,8 @@ export interface VideoDeliveryState {
   masterTask?: DeliveryProviderTask;
   upscaleTarget?: StoredMediaAsset;
   upscaleTask?: DeliveryProviderTask;
+  upscaleOutput?: StoredMediaAsset;
+  upscaleFinalized?: boolean;
 }
 
 export interface VideoJobError {

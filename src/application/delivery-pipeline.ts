@@ -2,7 +2,11 @@ import type {
   MasteringProvider,
   MasteringTask,
 } from "../domain/mastering-provider.js";
-import type { MediaAssetStore, StoredMediaAsset } from "../domain/media-asset-store.js";
+import type {
+  MediaAssetStore,
+  MediaDeliverySigner,
+  StoredMediaAsset,
+} from "../domain/media-asset-store.js";
 import type {
   UpscaleProvider,
   UpscaleTask,
@@ -62,6 +66,8 @@ export interface CloudDeliveryPipelineOptions {
   objectPrefix: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  inputSigner?: MediaDeliverySigner;
+  sourceUrlExpiresSeconds?: number;
   preflight?: (signal?: AbortSignal) => Promise<void>;
 }
 
@@ -73,6 +79,8 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
   readonly #locations: OssDeliveryLocations;
   readonly #pollIntervalMs: number;
   readonly #timeoutMs: number;
+  readonly #inputSigner: MediaDeliverySigner | undefined;
+  readonly #sourceUrlExpiresSeconds: number;
   readonly #preflight: (signal?: AbortSignal) => Promise<void>;
 
   constructor(options: CloudDeliveryPipelineOptions) {
@@ -87,6 +95,8 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
     );
     this.#pollIntervalMs = options.pollIntervalMs;
     this.#timeoutMs = options.timeoutMs;
+    this.#inputSigner = options.inputSigner;
+    this.#sourceUrlExpiresSeconds = options.sourceUrlExpiresSeconds ?? 7_200;
     this.#preflight = options.preflight ?? (async () => undefined);
   }
 
@@ -168,21 +178,51 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
     await checkpoint("upscaling", delivery);
     let upscale = delivery.upscaleTask;
     if (!upscale) {
+      const inputUrl = this.#inputSigner
+        ? (await this.#inputSigner.signRead(
+            masterTarget.storageUri,
+            this.#sourceUrlExpiresSeconds,
+          )).url
+        : masterTarget.mediaUrl;
       upscale = await this.#upscaleProvider.submit({
         clientRequestId: `${job.id}/upscale-4k`,
-        inputOssUrl: masterTarget.storageUri,
-        outputOssUrl: upscaleTarget.storageUri,
+        inputUrl,
+        inputStorageUri: masterTarget.storageUri,
+        outputStorageUri: upscaleTarget.storageUri,
         target: "4K",
       });
       delivery = { ...delivery, upscaleTask: upscale };
       await checkpoint("upscaling", delivery);
     }
     if (upscale.status === "submitted" || upscale.status === "running") {
-      upscale = await this.#waitForUpscale(upscale.taskId, signal);
+      upscale = await this.#waitForUpscale(
+        upscale,
+        async (current) => {
+          if (current.status === "submitted" || current.status === "running") {
+            delivery = { ...delivery, upscaleTask: current };
+            await checkpoint("upscaling", delivery);
+          }
+        },
+        signal,
+      );
+    } else if (upscale.status === "succeeded" && !delivery.upscaleOutput) {
+      upscale = await this.#upscaleProvider.getTask(upscale.taskId);
+      if (upscale.status === "submitted" || upscale.status === "running") {
+        upscale = await this.#waitForUpscale(
+          upscale,
+          async (current) => {
+            if (current.status === "submitted" || current.status === "running") {
+              delivery = { ...delivery, upscaleTask: current };
+              await checkpoint("upscaling", delivery);
+            }
+          },
+          signal,
+        );
+      }
     }
-    delivery = { ...delivery, upscaleTask: upscale };
-    await checkpoint("upscaling", delivery);
     if (upscale.status !== "succeeded") {
+      delivery = { ...delivery, upscaleTask: withoutVolatileOutputUrl(upscale) };
+      await checkpoint("upscaling", delivery);
       throw new UpscaleProviderError(
         upscale.errorMessage ?? "Upscale task failed",
         upscale.errorCode ?? "UPSCALE_FAILED",
@@ -190,11 +230,46 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
       );
     }
 
+    let upscaleOutput = delivery.upscaleOutput;
+    if (!upscaleOutput) {
+      try {
+        upscaleOutput = await this.#persistUpscaleOutput(upscale, upscaleTarget, signal);
+      } catch (error) {
+        if (this.#upscaleProvider.finalize) {
+          try {
+            await this.#upscaleProvider.finalize(upscale);
+          } catch (cleanupError) {
+            throw new UpscaleProviderError(
+              "Upscale output persistence failed and provider cleanup also failed",
+              "UPSCALE_OUTPUT_PERSIST_AND_CLEANUP_FAILED",
+              true,
+              { cause: new AggregateError([error, cleanupError]) },
+            );
+          }
+        }
+        throw error;
+      }
+      delivery = {
+        ...delivery,
+        upscaleTask: withoutVolatileOutputUrl(upscale),
+        upscaleOutput,
+      };
+      await checkpoint("upscaling", delivery);
+    } else if (upscale.outputUrl) {
+      delivery = { ...delivery, upscaleTask: withoutVolatileOutputUrl(upscale) };
+      await checkpoint("upscaling", delivery);
+    }
+    if (!delivery.upscaleFinalized && this.#upscaleProvider.finalize) {
+      await this.#upscaleProvider.finalize(upscale);
+      delivery = { ...delivery, upscaleFinalized: true };
+      await checkpoint("upscaling", delivery);
+    }
+
     return {
       manifestUrl: await this.#manifestWriter.write(job, delivery),
       deliveryMode: "cloud",
-      videoUrl: upscaleTarget.mediaUrl,
-      storageUri: upscaleTarget.storageUri,
+      videoUrl: upscaleOutput.mediaUrl,
+      storageUri: upscaleOutput.storageUri,
       masterVideoUrl: masterTarget.mediaUrl,
       width: 3840,
       height: 2160,
@@ -216,17 +291,50 @@ export class CloudDeliveryPipeline implements DeliveryPipeline {
     );
   }
 
-  async #waitForUpscale(taskId: string, signal?: AbortSignal): Promise<UpscaleTask> {
-    return waitForTask(
-      () => this.#upscaleProvider.getTask(taskId),
-      this.#pollIntervalMs,
-      this.#timeoutMs,
-      () =>
-        new UpscaleProviderError(
-          `Upscale task ${taskId} timed out after ${this.#timeoutMs}ms`,
-          "UPSCALE_TIMEOUT",
-          true,
-        ),
+  async #waitForUpscale(
+    initialTask: UpscaleTask,
+    checkpoint: (task: UpscaleTask) => Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<UpscaleTask> {
+    const deadline = Date.now() + this.#timeoutMs;
+    let task = initialTask;
+    while (Date.now() < deadline) {
+      signal?.throwIfAborted();
+      task = await this.#upscaleProvider.getTask(task.taskId);
+      await checkpoint(task);
+      if (task.status === "succeeded" || task.status === "failed") return task;
+      await delay(this.#pollIntervalMs, signal);
+    }
+    throw new UpscaleProviderError(
+      `Upscale task ${task.taskId} timed out after ${this.#timeoutMs}ms`,
+      "UPSCALE_TIMEOUT",
+      true,
+    );
+  }
+
+  async #persistUpscaleOutput(
+    task: UpscaleTask,
+    target: StoredMediaAsset,
+    signal?: AbortSignal,
+  ): Promise<StoredMediaAsset> {
+    if (
+      !task.outputUrl ||
+      task.outputUrl === target.storageUri ||
+      task.outputUrl === target.mediaUrl ||
+      task.outputUrl.startsWith("oss://")
+    ) {
+      return target;
+    }
+    const protocol = new URL(task.outputUrl).protocol;
+    if (protocol !== "http:" && protocol !== "https:") {
+      throw new UpscaleProviderError(
+        `Upscale provider returned an unsupported output URL protocol: ${protocol}`,
+        "INVALID_UPSCALE_OUTPUT_URL",
+        false,
+      );
+    }
+    return this.#assetStore.persistRemote(
+      { sourceUrl: task.outputUrl, objectKey: target.objectKey, mediaType: "video" },
       signal,
     );
   }
@@ -313,4 +421,10 @@ function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
       { once: true },
     );
   });
+}
+
+function withoutVolatileOutputUrl(task: UpscaleTask): UpscaleTask {
+  const persistable = { ...task };
+  delete persistable.outputUrl;
+  return persistable;
 }

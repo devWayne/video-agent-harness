@@ -33,13 +33,13 @@ export class AliyunImsUpscaleProvider implements UpscaleProvider {
   }
 
   async submit(request: UpscaleRequest): Promise<SubmittedUpscaleTask> {
-    assertOssUrl(request.inputOssUrl, "inputOssUrl");
-    assertOssUrl(request.outputOssUrl, "outputOssUrl");
+    assertOssUrl(request.inputStorageUri, "inputStorageUri");
+    assertOssUrl(request.outputStorageUri, "outputStorageUri");
     const config = {
-      Inputs: [{ InputFile: { Type: "OSS", Media: request.inputOssUrl } }],
+      Inputs: [{ InputFile: { Type: "OSS", Media: request.inputStorageUri } }],
       Outputs: [
         {
-          OutputFile: { Type: "OSS", Media: request.outputOssUrl },
+          OutputFile: { Type: "OSS", Media: request.outputStorageUri },
           TemplateId: this.#templateId,
           Name: "sr5-4k",
         },
@@ -127,8 +127,8 @@ function normalizeImsState(state: string): UpscaleTask["status"] {
   }
 }
 
-function assertOssUrl(value: string, field: string): void {
-  if (!value.startsWith("oss://")) {
+function assertOssUrl(value: string | undefined, field: string): asserts value is string {
+  if (!value?.startsWith("oss://")) {
     throw new UpscaleProviderError(
       `${field} must use the oss:// protocol for IMS media conversion`,
       "INVALID_OSS_URL",

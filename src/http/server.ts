@@ -19,6 +19,11 @@ import {
 } from "../application/hyperframes-composition-service.js";
 import { VideoJobRetryError } from "../domain/video-job.js";
 import { ProductionOperationTransitionError } from "../domain/production-operation.js";
+import {
+  VoiceoverProviderError,
+  voiceoverRequestSchema,
+  type VoiceoverProvider,
+} from "../domain/voiceover-provider.js";
 import { openApiDocument } from "./openapi.js";
 
 const jobParamsSchema = z.object({ id: z.uuid() });
@@ -40,15 +45,18 @@ const downloadQuerySchema = z.object({
 export interface BuildServerOptions {
   service: VideoJobService;
   projectService?: ProductionProjectService;
+  voiceoverProvider?: VoiceoverProvider;
   logger?: boolean;
   apiKey?: string;
   uiDirectory?: string;
   runtimeInfo?: {
-    videoProvider: "mock" | "bailian";
+    videoProvider: "mock" | "bailian" | "volcengine";
     videoModel: string;
     generationPipeline?: "direct" | "comfyui-libtv";
     deliveryMode: "simulation" | "cloud";
-    generationResolution: "1080P";
+    generationResolution: "480P" | "720P" | "1080P";
+    voiceoverProvider?: "none" | "bailian-qwen-audio";
+    voiceoverModel?: string;
   };
   workspaceInfo?: {
     name: string;
@@ -71,7 +79,12 @@ export function buildServer(options: BuildServerOptions) {
           ? {}
           : { transport: { target: "pino-pretty", options: { colorize: true } } }),
         redact: {
-          paths: ["req.headers.authorization", "*.apiKey", "*.BAILIAN_API_KEY"],
+          paths: [
+            "req.headers.authorization",
+            "*.apiKey",
+            "*.BAILIAN_API_KEY",
+            "*.ARK_API_KEY",
+          ],
           censor: "[REDACTED]",
         },
       }
@@ -113,6 +126,18 @@ export function buildServer(options: BuildServerOptions) {
     runtime: options.runtimeInfo,
     workspace: options.workspaceInfo ?? { name: "Video Production", controlSurfaces: [] },
   }));
+
+  server.get("/v1/voiceovers/capabilities", async (_request, reply) => {
+    if (!options.voiceoverProvider) return voiceoverServiceUnavailable(reply);
+    return reply.send(options.voiceoverProvider.capabilities());
+  });
+
+  server.post("/v1/voiceovers", async (request, reply) => {
+    if (!options.voiceoverProvider) return voiceoverServiceUnavailable(reply);
+    const input = voiceoverRequestSchema.parse(request.body);
+    const result = await options.voiceoverProvider.synthesize(input);
+    return reply.code(201).send(result);
+  });
 
   server.get("/v1/projects", async (_request, reply) => {
     if (!options.projectService) return projectServiceUnavailable(reply);
@@ -333,6 +358,13 @@ export function buildServer(options: BuildServerOptions) {
         findings: error.findings,
       });
     }
+    if (error instanceof VoiceoverProviderError) {
+      return reply.code(error.retryable ? 503 : 502).send({
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+      });
+    }
     server.log.error(error);
     return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Internal server error" });
   });
@@ -344,6 +376,13 @@ function projectServiceUnavailable(reply: FastifyReply) {
   return reply.code(503).send({
     code: "PROJECT_SERVICE_UNAVAILABLE",
     message: "Production project service is not configured",
+  });
+}
+
+function voiceoverServiceUnavailable(reply: FastifyReply) {
+  return reply.code(503).send({
+    code: "VOICEOVER_SERVICE_UNAVAILABLE",
+    message: "Voice-over synthesis is not configured",
   });
 }
 

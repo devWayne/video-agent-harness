@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI 动效视频导演"
+  short_description: "将PDF、界面和数据图编导为连续且可评审的生成式商业视频动效"
+  default_prompt: "Use $direct-aigc-motion-graphics to turn these flattened references into a route-tested, continuous AIGC motion-graphics sequence."

@@ -1,4 +1,4 @@
 interface:
-  display_name: "视频候选评测"
-  short_description: "评估候选镜头的一致性、动作、技术质量与结构化重试路径"
-  default_prompt: "Use $review-video-candidate to score this candidate and return a structured retry decision."
+  display_name: "视频候选与交付评测"
+  short_description: "评审控制草稿、终稿、分段连续性、4K画质、旁白和最终交付质量"
+  default_prompt: "Use $review-video-candidate to evaluate this control, final render, picture master, or delivery and return a structured retry decision."

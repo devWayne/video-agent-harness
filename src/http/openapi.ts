@@ -6,7 +6,14 @@ export const openApiDocument = {
     description: "TypeScript/Node.js control plane for recoverable, production-oriented video jobs.",
   },
   servers: [{ url: "/" }],
-  tags: [{ name: "Workspace" }, { name: "Projects" }, { name: "Jobs" }, { name: "Compositions" }, { name: "Operations" }],
+  tags: [
+    { name: "Workspace" },
+    { name: "Voiceovers", description: "Commercial voice-over synthesis and model discovery" },
+    { name: "Projects" },
+    { name: "Jobs" },
+    { name: "Compositions" },
+    { name: "Operations" },
+  ],
   paths: {
     "/v1/workspace": {
       get: {
@@ -16,6 +23,54 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Runtime profile and non-secret control-surface metadata" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+    "/v1/voiceovers/capabilities": {
+      get: {
+        tags: ["Voiceovers"],
+        summary: "Discover the configured voice-over model, defaults and supported parameters",
+        description:
+          "Returns non-secret runtime metadata suitable for building an upstream voice-over form. The current adapter uses Qwen Audio 3.0 TTS Plus over the Beijing non-streaming HTTP API.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Voice-over model capabilities",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/VoiceoverCapabilities" },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "503": { description: "Voice-over provider is not configured" },
+        },
+      },
+    },
+    "/v1/voiceovers": {
+      post: {
+        tags: ["Voiceovers"],
+        summary: "Generate a commercial voice-over with Qwen Audio 3.0 TTS Plus",
+        description:
+          "Synchronous, non-streaming synthesis. The returned provider URL expires after 24 hours and must be imported into durable project storage before expiration.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateVoiceover" } },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Voice-over generated",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/VoiceoverResult" } },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "502": { description: "Provider returned a terminal or invalid response" },
+          "503": { description: "Provider unavailable, throttled, timed out or not configured" },
         },
       },
     },
@@ -303,6 +358,249 @@ export const openApiDocument = {
       OperationId: { name: "operationId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
     },
     schemas: {
+      VoiceoverHotFixEntry: {
+        type: "object",
+        additionalProperties: false,
+        required: ["source", "target"],
+        properties: {
+          source: {
+            type: "string",
+            minLength: 1,
+            maxLength: 100,
+            description: "Exact source word or phrase to match in the submitted text.",
+          },
+          target: {
+            type: "string",
+            minLength: 1,
+            maxLength: 300,
+            description:
+              "Pinyin with tone numbers for pronunciation rules, or replacement text for replace rules.",
+          },
+        },
+      },
+      CreateVoiceover: {
+        type: "object",
+        additionalProperties: false,
+        required: ["text"],
+        properties: {
+          text: {
+            type: "string",
+            minLength: 1,
+            maxLength: 20_000,
+            description:
+              "Text to synthesize. Plain text is recommended for advertising; SSML is accepted only when enableSsml is true.",
+            examples: ["每一次出发，都值得更好的抵达。全新品牌名，让灵感即刻发生。"],
+          },
+          voice: {
+            type: "string",
+            minLength: 1,
+            maxLength: 200,
+            default: "longanlingxin",
+            description:
+              "System, base or custom voice ID bound to qwen-audio-3.0-tts-plus. Discover system voices through the capabilities endpoint.",
+          },
+          instruction: {
+            type: "string",
+            minLength: 1,
+            maxLength: 128,
+            description:
+              "Natural-language performance direction. It can control emotion, role, speaking style, dialect and delivery. Omit it to use the configured commercial-ad default.",
+            examples: [
+              "高端汽车品牌广告旁白，成熟克制，语速稍慢；品牌名清晰加重，结尾坚定但不喊叫。",
+            ],
+          },
+          format: {
+            type: "string",
+            enum: ["mp3", "pcm", "wav", "opus"],
+            default: "wav",
+            description: "Audio container/codec. WAV is the production default for later mixing.",
+          },
+          sampleRate: {
+            type: "integer",
+            enum: [8000, 16000, 22050, 24000, 44100, 48000],
+            default: 48000,
+            description: "Output sample rate in Hz.",
+          },
+          volume: {
+            type: "integer",
+            minimum: 0,
+            maximum: 100,
+            default: 50,
+            description: "Synthesis volume. Final advertising loudness is handled during mastering.",
+          },
+          rate: {
+            type: "number",
+            minimum: 0.5,
+            maximum: 2,
+            default: 1,
+            description: "Speaking-rate multiplier.",
+          },
+          pitch: {
+            type: "number",
+            minimum: 0.5,
+            maximum: 2,
+            default: 1,
+            description: "Pitch multiplier.",
+          },
+          bitRate: {
+            type: "integer",
+            minimum: 6,
+            maximum: 510,
+            description: "Encoded bitrate in kbps. Supported only when format is opus.",
+          },
+          seed: {
+            type: "integer",
+            minimum: 0,
+            maximum: 65535,
+            default: 0,
+            description:
+              "Variation seed. Identical inputs and seed are reproducible only while the upstream model version remains unchanged.",
+          },
+          languageHints: {
+            type: "array",
+            minItems: 1,
+            maxItems: 1,
+            default: ["zh"],
+            description:
+              "Target language hint. The upstream service currently processes only the first item.",
+            items: {
+              type: "string",
+              enum: [
+                "zh",
+                "en",
+                "fr",
+                "de",
+                "ja",
+                "ko",
+                "ru",
+                "pt",
+                "th",
+                "id",
+                "vi",
+                "es",
+                "it",
+                "ms",
+                "fil",
+                "ar",
+              ],
+            },
+          },
+          enableSsml: {
+            type: "boolean",
+            default: false,
+            description: "Interpret text as supported SSML instead of plain text.",
+          },
+          enableAigcTag: {
+            type: "boolean",
+            default: true,
+            description:
+              "Embed the provider's invisible AIGC identifier in WAV, MP3 or Opus output. Enabled by default for commercial traceability.",
+          },
+          aigcPropagator: {
+            type: "string",
+            maxLength: 200,
+            description:
+              "Optional ContentPropagator value for the invisible AIGC tag. Requires enableAigcTag=true.",
+          },
+          aigcPropagateId: {
+            type: "string",
+            maxLength: 200,
+            description:
+              "Optional propagation event ID for the invisible AIGC tag. Requires enableAigcTag=true.",
+          },
+          hotFix: {
+            type: "object",
+            additionalProperties: false,
+            description: "Per-request pronunciation correction and literal text replacement.",
+            properties: {
+              pronunciation: {
+                type: "array",
+                maxItems: 100,
+                items: { $ref: "#/components/schemas/VoiceoverHotFixEntry" },
+              },
+              replace: {
+                type: "array",
+                maxItems: 100,
+                items: { $ref: "#/components/schemas/VoiceoverHotFixEntry" },
+              },
+            },
+          },
+        },
+      },
+      VoiceoverResult: {
+        type: "object",
+        required: [
+          "provider",
+          "model",
+          "requestId",
+          "audioUrl",
+          "audioId",
+          "expiresAt",
+          "billedCharacters",
+          "voice",
+          "format",
+          "sampleRate",
+        ],
+        properties: {
+          provider: { type: "string", const: "bailian-qwen-audio" },
+          model: { type: "string", const: "qwen-audio-3.0-tts-plus" },
+          requestId: { type: "string", description: "Alibaba Model Studio request ID." },
+          audioUrl: {
+            type: "string",
+            format: "uri",
+            description: "Temporary provider download URL, normally valid for 24 hours.",
+          },
+          audioId: { type: "string" },
+          expiresAt: { type: "string", format: "date-time" },
+          billedCharacters: {
+            type: "integer",
+            minimum: 0,
+            description: "Provider-reported billable character count.",
+          },
+          voice: { type: "string" },
+          format: { type: "string", enum: ["mp3", "pcm", "wav", "opus"] },
+          sampleRate: {
+            type: "integer",
+            enum: [8000, 16000, 22050, 24000, 44100, 48000],
+          },
+        },
+      },
+      VoiceoverCapabilities: {
+        type: "object",
+        description:
+          "Runtime-discoverable voice-over contract. It contains no API keys or workspace secrets.",
+        required: [
+          "provider",
+          "model",
+          "mode",
+          "region",
+          "temporaryUrlTtlSeconds",
+          "defaults",
+          "supportedSystemVoices",
+          "supportedFormats",
+          "supportedSampleRates",
+          "supportedLanguageHints",
+        ],
+        properties: {
+          provider: { type: "string", const: "bailian-qwen-audio" },
+          model: { type: "string", const: "qwen-audio-3.0-tts-plus" },
+          mode: { type: "string", const: "http-non-streaming" },
+          region: { type: "string", const: "cn-beijing" },
+          temporaryUrlTtlSeconds: { type: "integer", const: 86400 },
+          defaults: { type: "object", additionalProperties: true },
+          supportedSystemVoices: { type: "array", items: { type: "object" } },
+          supportedFormats: {
+            type: "array",
+            items: { type: "string", enum: ["mp3", "pcm", "wav", "opus"] },
+          },
+          supportedSampleRates: { type: "array", items: { type: "integer" } },
+          supportedLanguageHints: { type: "array", items: { type: "string" } },
+          supportsCustomVoiceIds: { type: "boolean" },
+          supportsInstruction: { type: "boolean" },
+          supportsSsml: { type: "boolean" },
+          supportsHotFix: { type: "boolean" },
+        },
+      },
       CreateProductionProject: {
         type: "object",
         required: ["name", "brief"],

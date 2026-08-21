@@ -27,14 +27,18 @@ npm run skills:install -- --host=all --copy
 - TypeScript 领域契约、Provider 接口和 Workflow Profile Schema；
 - `.env.example` 中的变量名与空值；
 - 不含账号、内网地址和素材的测试夹具。
+- 脱敏 `ProductionRunRecord`、服务状态表和案例方法；只允许哈希、规格、非敏感任务关联和结论。
 
 ## 只能保留在本机的内容
 
 - `.env.local`、AccessKey、API Key、Bearer Token、Cookie 和登录会话；
 - ComfyUI 的局域网地址、端口和本机 Workflow 绝对路径；
 - LibTV Project UUID、画布 URL 和 CLI 登录状态；
-- 阿里云账号、Bucket、工作空间 ID 和本地素材路径；
+- 阿里云账号、Bucket、工作空间 ID、火山方舟 API Key、火山 VOD/TOS AK/SK、VOD 空间名和本地素材路径；
+- 本地 4K 命令产生的 `*.volcengine-vod-4k.json` 恢复收据与上传 Checkpoint；
 - `.data/` 中的 SQLite、Manifest、中间视频和控制资产；
+- `artifacts/`、`tmp/`、`tools/` 中的项目媒体、渲染帧、一次性脚本、日志和含绝对路径/内网地址的原始 Manifest；
+- `.nomi/` 工作区记忆、对话、备份和本机根路径；
 - `.claude/settings.local.json` 及其他宿主私有授权配置。
 
 提交前至少运行：

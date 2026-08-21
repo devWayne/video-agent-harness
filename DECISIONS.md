@@ -1,5 +1,7 @@
 # Decisions
 
+> 2026-08-22 status note: D28–D32 are the current production baseline and supersede the fixed-provider, mandatory ComfyUI→LibTV, first-success evaluation, HyperFrames-only finishing, and 3321-as-product assumptions in D3/D4/D7/D11/D15/D17/D24/D26/D27. Older entries remain below as architectural history.
+
 ## D0 — 供应商适配层
 
 - **决定：** 业务编排不直接依赖阿里云或火山的请求/响应结构，使用统一 Provider 接口。
@@ -194,3 +196,33 @@
 - **实现状态：** 2026-08-18 已落地 `Project / Story Scene / Character Pack / Scene Pack / Asset Version`、项目级 ComfyUI/LibTV 绑定、关联 VideoJob API 与 Studio 管理界面；二进制直传、按 Shot 深链接和 Provider 自动回收版本仍属后续增强。
 - **原因：** 企业价值来自跨工具的项目治理、统一资产、评价重试、成本审计和交付，而不是复制 ComfyUI 节点编辑器或 LibTV 无限画布。
 - **可逆：** 专业画布未来可以嵌入只读预览或受控子视图，但职责和数据所有权边界不变。
+
+## D28 — Codex + repository Skills is the current main Agent
+
+- **决定：** Codex GPT 运行 `create-production-video` 并拥有创意、路由、评审、重试和接受决策。Runtime 内的 Pi/Deterministic Director 只服务旧 `/v1/video-jobs` 兼容入口。
+- **可替换性：** 创作状态必须进入仓库契约和生产账本；Claude Code 或其他 Host 可以读取同一 Skill 和清单接管。
+- **原因：** 本次长片生产证明主 Agent 需要跨 PDF、视频、H3、Seedance、VOD 和音频做连续判断，不能隐藏在一个未配置模型的 Runtime Director 中。
+
+## D29 — Route A/B replaces the mandatory control chain
+
+- **决定：** ComfyUI/H3 是可选控制证据，不是所有镜头的必经层。新内容类型必须先比较 `direct-keyframes` 与 `control-video` 在最终渲染模型上的结果。
+- **实证：** Bettr 的 H3 草稿可用于运动探索，但作为终稿输入会保留底板缺陷；正式长片因此采用 PDF 权威关键帧直接进入 Seedance 2.5。
+- **影响：** D24 的固定“ComfyUI→LibTV 主流程”失效。LibTV 保留为可选画布和 Provider 路线，真实闭环验收前不得称默认主流程。
+
+## D30 — Proven commercial delivery baseline
+
+- **决定：** 当前实证终稿栈为 Seedance 2.5 Direct 720P、确定性画面锁定、火山 VOD AIGC Standard 4K、Qwen Audio 3.0 Plus Cue 级旁白和本地媒体封装。
+- **边界：** Wan 2.7 是真实烟测回退；IMS/OSS 是契约已实现的备用交付；MiniMax cloud 与 LibTV V2V 尚未完成生产实证。
+- **成本策略：** 只增强画面锁定后的完整母版一次；旁白或混音重做不能重复触发 4K。
+
+## D31 — UI is replaceable; 3321 is compatibility only
+
+- **决定：** 不再继续把 3321 React UI建设成主创作 Studio。Fastify API 和 Runtime 仍保留；Nomi 或其他工作区可替代 UI。
+- **前提：** 替代工作区必须通过适配器读写 Project/Plan/Asset/Operation/Review，不能把 `.nomi/`、浏览器状态或聊天历史作为唯一事实源。
+- **影响：** D26/D27 中“3321 Studio 是产品控制终端”的部分失效，专业工作台和 Runtime 数据边界仍保留。
+
+## D32 — Production assets are tiered and private by default
+
+- **决定：** Git 只保存代码、Skill、契约、通用脚本、脱敏运行记录和方法。客户媒体、候选/成片、WAV、渲染帧、日志、原始 Manifest、内网地址、绝对路径、云回执和工作区状态只保存在本地或受管资产存储。
+- **合规：** 非叙事性私密/写真人像若需从商业图稿中移除，创建保留布局的本地合规衍生图并保存 parent lineage；不把该处理描述为绕过 Provider 审核。
+- **实现：** `artifacts/`、`tmp/`、`tools/`、`.nomi/` 与恢复收据均由 Git 忽略；仓库提供脱敏 `ProductionRunRecord` 模板。

@@ -1,4 +1,4 @@
 interface:
   display_name: "AI 视频总导演"
-  short_description: "由主 Agent 设计、委派、评审并交付多镜头视频"
-  default_prompt: "Use $create-production-video to direct this brief from story and storyboard through controlled generation, review, assembly, and delivery."
+  short_description: "从创意与分镜到终稿评审、旁白制作、4K增强和可追溯商业交付"
+  default_prompt: "Use $create-production-video to direct this production from brief and route testing through final render, picture lock, audio, 4K delivery, and archive."

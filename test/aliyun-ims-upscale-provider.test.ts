@@ -22,8 +22,9 @@ describe("AliyunImsUpscaleProvider", () => {
     await expect(
       provider.submit({
         clientRequestId: "video-job-1",
-        inputOssUrl: "oss://video-bucket/masters/job-1-1080p.mp4",
-        outputOssUrl: "oss://video-bucket/deliveries/job-1-4k.mp4",
+        inputUrl: "https://video-bucket.oss-cn-beijing.aliyuncs.com/masters/job-1-1080p.mp4",
+        inputStorageUri: "oss://video-bucket/masters/job-1-1080p.mp4",
+        outputStorageUri: "oss://video-bucket/deliveries/job-1-4k.mp4",
         target: "4K",
       }),
     ).resolves.toEqual({ provider: "aliyun-ims-sr5", taskId: "ims-job-1", status: "submitted" });

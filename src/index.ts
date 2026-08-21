@@ -11,17 +11,22 @@ const runtime = createRuntime(config);
 const server = buildServer({
   service: runtime.service,
   projectService: runtime.projectService,
+  ...(runtime.voiceoverProvider ? { voiceoverProvider: runtime.voiceoverProvider } : {}),
   logger: true,
   uiDirectory: resolve(process.cwd(), "web-dist"),
   runtimeInfo: {
     videoProvider: config.VIDEO_PROVIDER,
-    videoModel:
-      config.GENERATION_PIPELINE === "comfyui-libtv"
-        ? config.LIBTV_MODEL_NAME
-        : config.BAILIAN_WAN_MODEL,
+    videoModel: activeVideoModel(config),
     generationPipeline: config.GENERATION_PIPELINE,
     deliveryMode: config.DELIVERY_MODE,
-    generationResolution: "1080P",
+    generationResolution:
+      config.GENERATION_PIPELINE === "comfyui-libtv"
+        ? "1080P"
+        : config.DIRECT_GENERATION_RESOLUTION,
+    voiceoverProvider: config.VOICEOVER_PROVIDER,
+    ...(config.VOICEOVER_PROVIDER === "bailian-qwen-audio"
+      ? { voiceoverModel: config.BAILIAN_TTS_MODEL }
+      : {}),
   },
   workspaceInfo: {
     name: "Video Project Control",
@@ -79,3 +84,12 @@ async function stop(): Promise<void> {
 
 process.once("SIGINT", () => void stop());
 process.once("SIGTERM", () => void stop());
+
+function activeVideoModel(configuration: typeof config): string {
+  if (configuration.GENERATION_PIPELINE === "comfyui-libtv") {
+    return configuration.LIBTV_MODEL_NAME;
+  }
+  if (configuration.VIDEO_PROVIDER === "volcengine") return configuration.ARK_SEEDANCE_MODEL;
+  if (configuration.VIDEO_PROVIDER === "bailian") return configuration.BAILIAN_WAN_MODEL;
+  return "mock-video";
+}

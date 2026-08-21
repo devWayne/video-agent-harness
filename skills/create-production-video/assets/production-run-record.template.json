@@ -1,0 +1,112 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "id": "project-id",
+    "title": "Project title",
+    "recordedAt": "YYYY-MM-DD",
+    "status": "in-progress"
+  },
+  "source": {
+    "assetCount": 0,
+    "mediaTypes": [],
+    "privateAssetsKeptLocal": true
+  },
+  "timeline": {
+    "durationSeconds": 0,
+    "aspectRatio": "16:9",
+    "fps": 24,
+    "atomicShotCount": 0,
+    "providerSegmentCount": 0
+  },
+  "routeDecision": {
+    "testedRoutes": [],
+    "selectedRoute": "",
+    "reason": ""
+  },
+  "stages": [
+    {
+      "name": "planning",
+      "status": "pending",
+      "provider": "agent-host",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "control",
+      "status": "not-required",
+      "provider": "",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "final-render",
+      "status": "pending",
+      "provider": "",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "picture-lock",
+      "status": "pending",
+      "provider": "deterministic-post-production",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "upscale",
+      "status": "pending",
+      "provider": "",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "voiceover-and-mix",
+      "status": "pending",
+      "provider": "",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    },
+    {
+      "name": "delivery",
+      "status": "pending",
+      "provider": "harness",
+      "modelOrProfile": "",
+      "inputHashes": [],
+      "providerTaskIds": [],
+      "outputHashes": [],
+      "cost": null,
+      "review": null
+    }
+  ],
+  "privacyAndRights": {
+    "sourceAuditCompleted": false,
+    "sanitizedDerivativeCount": 0,
+    "notes": ""
+  },
+  "finalTechnicalSpec": null,
+  "openIssues": []
+}

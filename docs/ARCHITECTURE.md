@@ -40,19 +40,19 @@ Codex + create-production-video
   ↓ 写入
 StoryProductionPlan
   ↓ 逐镜头声明 ProductionOperation
-可选 ComfyUI / MiniMax H3 控制草稿
-  ↓
-Codex 宽松草稿评审
-  ↓
-Seedance / MiniMax / LibTV 在线模型逐镜头终稿
+代表镜头路线 A/B
+  ├─ 原始关键帧 + Prompt 直接进入终稿模型
+  └─ 可选 ComfyUI / MiniMax H3 控制草稿 → Codex 宽松评审
+  ↓ 依据最终模型证据选路
+Seedance / MiniMax / LibTV / Wan 在线模型逐镜头或分段终稿
   ↓
 Codex 严格终稿评审与局部重做
   ↓
 Accepted final shots
   ↓
-HyperFrames 确定性剪辑、字幕、转场与品牌包装
+确定性画面锁定：端点恢复、剪辑、字幕、转场与品牌包装
   ↓
-Delivery / IMS 4K / QC / Manifest / Archive
+一次性 4K → 分 Cue 旁白与混音 → QC / Manifest / Archive
 ```
 
 关键约束：在线生成模型处理单个镜头或边界明确的场景段，不默认重绘已经剪好的多场景母版。否则人物、字幕、剪点和音画同步会再次变得不确定。
@@ -105,14 +105,14 @@ queued → running → succeeded → pending review → accepted / rejected / hu
 | 控制草稿评审 | Codex | 必须记录 `control-draft` 评审 | 动作/机位/节奏问题回控制层；脸部细节可宽松 |
 | 在线终稿生成 | Codex 选 Seedance/MiniMax/LibTV；Provider 执行 | 已接受依赖、输入资产、任务和输出 | 精修问题仅重跑终稿；骨架问题回控制层 |
 | 在线终稿评审 | Codex | 必须记录 `final-candidate` 评审 | 身份、叙事、时序、画质严格卡控 |
-| 组装 | HyperFrames 或 LibTV assembly | 每个计划镜头必须有已接受终稿 | 只改裁切、字幕、转场、音频和包装 |
-| 交付 | Delivery/IMS | 已接受母版、编码/QC/归档 | 只重跑技术交付，不重新生成镜头 |
+| 画面锁定 | HyperFrames、本地确定性媒体工具或批准的 LibTV assembly | 每个计划镜头必须有已接受终稿；保存原始与修复后资产 | 只改端点、裁切、字幕、转场和包装 |
+| 交付 | Delivery / VOD / IMS / Qwen Audio | 已接受画面母版、一次性 4K、Cue 时间轴、编码/QC/归档 | 只重跑失败的增强、Cue 或媒体步骤，不重新生成镜头 |
 
 ## 6. ComfyUI、H3 与 motion-reference
 
 ComfyUI 是底层执行工作台，MiniMax H3 是其中可运行的模型能力。`motion-reference` 不是另一种模型，而是控制草稿资产的语义角色：它告诉下游终稿模型尽量保留动作、走位、镜头轨迹、构图和节奏。
 
-控制草稿允许人物皮肤、服装材质和局部脸部细节存在非灾难性偏差，因为它的任务是验证骨架。最终候选不能用同样宽松标准。
+控制草稿允许人物皮肤、服装材质和局部脸部细节存在非灾难性偏差，因为它的任务是验证骨架。最终候选不能用同样宽松标准。但“草稿合格”不等于“它适合成为终稿模型的输入”；必须在终稿模型上和直接关键帧路线做代表镜头 A/B，避免把草稿缺陷扩散到全片。
 
 H3 动作参考和人物身份参考必须分槽：控制视频只传递动作、走位、运镜、构图和节奏；最终人物的脸、头型、发型、身体比例、服装与配饰以已批准 Character Pack 为准。终稿评审应同时对比 canonical 正脸和与候选头部角度最接近的参考视角。
 
@@ -136,7 +136,7 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 
 ## 8. Production Console 的定位
 
-3321 上的端侧 UI 现在叫 Production Console。它展示：
+3321 上的端侧 UI 是兼容 Production Console，不再是主创作入口。API/Runtime 可独立使用；Nomi、Codex、ComfyUI 或 LibTV 可以作为操作界面，但产生的接受决定和资产事实必须回写 Runtime 或生产清单。兼容 Console 能展示：
 
 - Codex Production Plan；
 - 每个镜头的控制、终稿、组装和交付操作；
@@ -157,12 +157,16 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 | `ProductionOperation` 执行状态、依赖、资产与评审门禁 | 已实现 |
 | Assembly 前“所有镜头终稿均接受”校验 | 已实现 |
 | Delivery 前“母版已接受”校验 | 已实现 |
-| Production Console 的 Agent 计划、操作账本和门禁投影 | 已实现第一版 |
+| Production Console 的 Agent 计划、操作账本和门禁投影 | 已实现第一版，但已降为兼容 UI；不继续作为主产品界面投入 |
 | ComfyUI API、LibTV CLI、百炼 Wan、HyperFrames、IMS 旧适配器 | 已存在，可复用 |
 | 新 Operation API 自动调度 ComfyUI/在线模型执行器 | 待把现有 Provider 适配器接入；当前可由 Codex/Skill 执行后回写操作 |
-| Seedance 2.5 与 MiniMax 云端最终视频 Provider | 尚未接入，需要账号/API Schema 后实现 |
+| Seedance 2.5 云端最终视频 Provider | 已接入方舟异步任务 API、轮询、取消、多模态输入和 480P/720P Profile |
+| VOD AIGC 标准版 4K | 已接入 URL/本地上传、任务恢复、`GetMediaInfos → TOS` 无播放域名回收和真实 3840×2160 验收 |
+| Qwen Audio 3.0 Plus 旁白 | 已接入非实时 HTTP Provider、OpenAPI、29 Cue 可恢复生成与 48 kHz 母带封装；尚未成为独立 ProductionOperation Executor |
+| MiniMax 云端最终视频 Provider | 尚未接入，需要账号/API Schema 后实现 |
 | 可独立部署的图像生成 Runtime Provider | 尚未接入；当前由 Codex 调用宿主图像生成能力并把批准资产登记回 Runtime |
 | 真实视觉模型自动评分 | 尚未接入；当前新架构要求 Codex/人工显式评审，不再使用首成功自动接受 |
+| Nomi 工作区与 Runtime 双向同步 | 尚未接入；`.nomi/` 当前是本地实验状态且不进入 Git |
 | 多实例数据库、队列、回调、对象存储资产服务 | 生产化后续项 |
 
 ## 10. 兼容代码的处理

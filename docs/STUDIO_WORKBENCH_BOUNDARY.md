@@ -4,19 +4,19 @@
 
 ## 结论
 
-3321 上的 UI 不是 Harness Agent，也不是创作入口的第二个大脑。它是 `Production Console`：把 Codex 的创作计划、Runtime 的操作账本、跨 Provider 资产、评审门禁和交付状态集中展示。
+3321 上的 UI 不是 Harness Agent，也不是创作入口的第二个大脑。它是已经降级的兼容 `Production Console`：API 与数据契约继续保留，但不再把这套 React UI 作为主要创作终端。Nomi 或未来其他开源工作区可以替换展示/操作层，前提是项目事实仍回写 Runtime。
 
 ```text
 Codex GPT + repo Skills       决策与评审
           ↓ typed commands
 TypeScript Runtime            执行、校验、恢复与记账
           ↓ read model
-Production Console            可视化与人工接管
+Nomi / compatible Console     可视化、创意工作区与人工接管
           ↘ external links
 ComfyUI / LibTV workbenches   专业参数与画布编辑
 ```
 
-因此采用：**决策在 Agent，事实在 Runtime，展示在 Console，专业编辑仍在专业工作台。**
+因此采用：**决策在 Agent，事实在 Runtime，界面可替换，专业编辑仍在专业工作台。**
 
 ## Console 展示什么
 
@@ -62,9 +62,9 @@ LibTV 无限画布适合空间化探索和人工创意组装；Console 适合项
 
 接受的 LibTV 节点产物要作为项目 Asset 回写 Runtime；Canvas UUID 和 Node/Task ID 只作为血缘定位。
 
-## 当前 UI 状态
+## 当前 UI 状态与迁移
 
-已完成第一版：
+3321 兼容 UI 已完成第一版：
 
 - 首页明确显示 Codex、Runtime、Console 三层；
 - 流程页按 Production Plan 和 ProductionOperation 展示；
@@ -73,4 +73,4 @@ LibTV 无限画布适合空间化探索和人工创意组装；Console 适合项
 - 项目页显示 Agent Plan、Runtime 操作账本和五类资产通道；
 - 交付页优先读取 Delivery Operation，而不是旧 Job 状态。
 
-后续 UI 仍需补充：镜头缩略图比较、评审证据帧、成本时间线、操作按钮、Provider 回调实时刷新，以及面向大项目的场景/镜头筛选。
+不再继续为 3321 UI 补齐上述产品能力。下一步先定义 Nomi 与 Runtime 的同步适配：Project/Plan/Operation/Asset/Review 的导入、回写、冲突处理和深链跳转。完成适配前，Nomi 本地状态不是生产事实来源，且 `.nomi/` 必须保持 Git 忽略。

@@ -2,8 +2,12 @@ export type UpscaleTaskStatus = "submitted" | "running" | "succeeded" | "failed"
 
 export interface UpscaleRequest {
   clientRequestId: string;
-  inputOssUrl: string;
-  outputOssUrl: string;
+  /** Provider-readable HTTPS URL. Cloud callers should sign private inputs first. */
+  inputUrl: string;
+  /** Native storage URI for providers that read the application's object store directly. */
+  inputStorageUri?: string;
+  /** Native storage URI for providers that can write directly to the requested target. */
+  outputStorageUri?: string;
   target: "4K";
 }
 
@@ -28,6 +32,8 @@ export interface UpscaleProvider {
   readonly name: string;
   submit(request: UpscaleRequest): Promise<SubmittedUpscaleTask>;
   getTask(taskId: string): Promise<UpscaleTask>;
+  /** Optional cleanup after the application has durably copied an external provider output. */
+  finalize?(task: UpscaleTask): Promise<void>;
 }
 
 export class UpscaleProviderError extends Error {

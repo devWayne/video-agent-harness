@@ -1,32 +1,55 @@
 # Vision
 
-## 目标
+> Current baseline: 2026-08-22
 
-建立一个可扩展的视频生成 Agent Harness，将创意输入编译为可追踪、可重试、可评估的镜头执行配方。配方既能选择单一云端模型，也能把本地 ComfyUI 控制工作流与 LibTV 在线生成串联起来，并在通过质量门后进入独立的后期和交付管线。
+## Product definition
 
-## 首版建议范围
+Build an Agent-directed, provider-neutral production system for commercial 16:9 video. Codex or another compatible Agent Host reads repository Skills and owns creative planning, route selection, review, retry, and acceptance. The TypeScript/Node.js Harness owns typed capabilities, durable state, asset lineage, recovery, cost evidence, and delivery gates. Creative workspaces and model UIs are replaceable surfaces.
 
-- 输入：创作 Brief、角色与风格约束，以及可选的图片、视频、音频参考；各生成 Profile 只接收其能力 Schema 支持的输入。
-- 生成：当前产品主流程为“本地 ComfyUI 控制视频 → LibTV 在线 V2V 模型”。阿里云百炼 Wan 2.7 直连 Profile 仅保留为供应商回退、效果对照和协议烟测。
-- 编排：Shot Recipe、步骤检查点、控制资产血缘、提交、轮询、取消、重试、幂等、供应商切换与降级。
-- 输出：默认 16:9 横屏；统一任务状态、逐镜头素材、生成参数、错误与成本元数据，并形成 3840×2160 的 4K 交付成片。
-- 集成：上层 Agent 或业务工程通过 REST/OpenAPI 调用 Harness。
-- 边界：LibTV 创意组装、HyperFrames、IMS 与技术 QC 属于生成后的生产管线，不用于定义 AI Agent Harness。
+## Proven production slice
 
-## 暂不默认纳入首版
+The first full commercial proof is no longer a one-Prompt demo:
 
-- 面向终端用户的完整剪辑 UI。
-- 自动发布到抖音、小红书等外部平台。
-- 未经确认的真人肖像或版权素材处理。
-- 把本地 FFmpeg 当作 AI 4K 超分服务；4K 使用独立云端 Provider。
+```text
+PDF / images / reference video
+  → script, narration timing and atomic storyboard
+  → route A/B: direct keyframes vs optional H3 control
+  → bounded Seedance 2.5 final-render segments
+  → Codex/human review and deterministic picture lock
+  → one VOD AIGC Standard 4K enhancement
+  → Qwen Audio cue-level narration and final mux
+  → technical QC, hashes, receipts and local archive
+```
 
-## 当前纵向切片成功标准
+Bettr validated 28 source pages, 27 atomic shots, 9 cloud segments, a 118.333-second 720P picture lock, 3840×2160 enhancement, 29 narration Cues, and a 4K H.264/AAC delivery.
 
-1. Mock 模式下可从一句创作 Brief 运行 5–60 秒、16:9 横屏工作流，并形成 3840×2160 模拟交付清单；不能把清单描述成真实 MP4。
-2. `comfyui-libtv` 主流程能从本地控制资产得到真实 1080P 最终镜头；阿里云百炼 Wan 2.7 直连只需保持独立烟测可用，不作为首版主流程验收前置条件。
-3. 同一业务请求可幂等提交，并能查询统一状态。
-4. 云端临时产物能被及时转存到持久对象存储。
-5. 单次任务暴露状态、事件、失败原因与预估成本；实际账单回填属于下一运维切片。
-6. 进程重启和显式重试不会重复提交已保存的付费任务；镜头级产品重做接口属于下一切片。
-7. `comfyui-libtv` Profile 能把 ComfyUI 输出登记为 `motion-reference`，通过官方 LibTV CLI 连接到支持 `video2video` 的模型，并把最终结果保存为 `final-video`。
-8. Manifest 必须保存 Recipe、步骤任务、中间资产和评价报告，能够解释每个最终镜头的生成血缘。
+## Product principles
+
+- No fixed Provider is the director. Seedance, H3, LibTV-selected models, Wan, VOD, IMS, Qwen Audio and HyperFrames are replaceable executors.
+- H3 control is optional. Scale it only when a representative final-render A/B proves it improves the active final model.
+- Design atomic shots before grouping them into Provider-duration segments.
+- Keep an authoritative clean boundary state between adjacent segments.
+- Separate raw generative output, deterministic repairs, picture lock, upscale, audio and final delivery assets.
+- Upscale the accepted picture master once; never upscale every candidate.
+- Generate narration as recoverable time-coded Cues, not one irreversible long request.
+- Provider success is not quality acceptance. Codex/human review remains explicit until an independent evaluation service is proven.
+- Keep private media, credentials, signed URLs, internal hosts, local paths and workspace state out of Git.
+
+## Harness boundary
+
+Harness is the combination of repository Skills, TypeScript contracts, Provider adapters, recovery rules, quality gates and production ledger. It is not a second creative Agent and not a replacement for ComfyUI or LibTV editors.
+
+The new `ProductionOperation` API currently provides state transitions, dependencies and review gates. It does not yet auto-dispatch every verified Provider; recoverable scripts may execute missing operations, but their results must be recorded back into the project ledger or a sanitized run record.
+
+## UI boundary
+
+The 3321 React UI is a compatibility projection and is no longer the target creative product. Nomi or another open-source workspace may become the primary interface after a Runtime synchronization adapter exists. Runtime Project/Plan/Asset/Operation/Review data remains the source of truth.
+
+## Next acceptance slice
+
+1. Register Seedance batch segments, H3 Profiles, VOD upscale and Qwen Audio Cue production as project-level recoverable Operations.
+2. Add formal asset roles for source keyframes, sanitized derivatives, narration takes/master, subtitle tracks and QC evidence.
+3. Persist Codex/human route A/B and final review evidence in Runtime for a complete production.
+4. Implement Nomi↔Runtime import, write-back, conflict handling and deep links.
+5. Validate one real H3→LibTV V2V shot before deciding whether it deserves a standard route.
+6. Add an interchangeable visual evaluation adapter without coupling the system to Codex.

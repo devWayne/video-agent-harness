@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1280" viewBox="0 0 1800 1280" role="img" aria-labelledby="title desc">
   <title id="title">Agent-directed Video Production Architecture</title>
-  <desc id="desc">Codex GPT designs and approves multi-angle character references through repository skills, then owns story, routing and review decisions. TypeScript Runtime stores facts. External providers render assets. Production Console visualizes state only.</desc>
+  <desc id="desc">Codex GPT and repository skills own story, route testing, review and retry decisions. TypeScript Runtime stores facts. H3 is optional control evidence, Seedance or another online provider renders finals, deterministic finishing locks picture, and VOD or IMS plus Qwen Audio complete delivery. Nomi or the compatibility Console is a replaceable view.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#091113"/><stop offset="1" stop-color="#101819"/></linearGradient>
     <linearGradient id="agent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18395a"/><stop offset="1" stop-color="#10283d"/></linearGradient>
@@ -18,7 +18,7 @@
   <rect width="1800" height="1280" fill="url(#bg)"/>
   <circle cx="1610" cy="110" r="250" fill="#5ab98c" opacity=".05"/>
   <text x="70" y="72" class="title">Agent-directed Video Production Architecture</text>
-  <text x="70" y="105" class="sub">Codex 决策 · Runtime 执行与记账 · Provider 生成 · Console 投影 · 2026-08-20</text>
+  <text x="70" y="105" class="sub">Codex 决策 · Runtime 执行与记账 · 路线 A/B · 可替换工作区 · 2026-08-22</text>
 
   <!-- Ownership lanes -->
   <rect x="70" y="145" width="1660" height="150" rx="18" fill="url(#agent)" stroke="#3a74a3" opacity=".97" filter="url(#shadow)"/>
@@ -27,8 +27,8 @@
   <rect x="95" y="224" width="260" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="113" y="247" class="boxTitle">Codex GPT</text><text x="113" y="266" class="boxText">理解需求、创意、看片、重试</text>
   <rect x="375" y="224" width="335" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="393" y="247" class="boxTitle">create-production-video</text><text x="393" y="266" class="boxText">人物、故事、分镜、连续性、路由</text>
   <rect x="730" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="748" y="247" class="boxTitle">Character reference Skill</text><text x="748" y="266" class="boxText">多角度造型生成、评审与定版</text>
-  <rect x="1050" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1068" y="247" class="boxTitle">H3 + Review Skills</text><text x="1068" y="266" class="boxText">控制 Profile / 宽松与严格门禁</text>
-  <rect x="1370" y="224" width="330" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1388" y="247" class="boxTitle">LibTV CLI / Delivery Skills</text><text x="1388" y="266" class="boxText">外部工具的受控操作方法</text>
+  <rect x="1050" y="224" width="300" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1068" y="247" class="boxTitle">Motion + H3 Skills</text><text x="1068" y="266" class="boxText">动效语法 / 可选控制 Profile</text>
+  <rect x="1370" y="224" width="330" height="50" rx="10" fill="#0e263b" stroke="#4c88b8"/><text x="1388" y="247" class="boxTitle">Review + Delivery Method</text><text x="1388" y="266" class="boxText">终稿 A/B / 旁白 / 4K / QC</text>
 
   <rect x="70" y="320" width="1660" height="150" rx="18" fill="url(#runtime)" stroke="#3b8067" opacity=".97" filter="url(#shadow)"/>
   <text x="95" y="355" class="laneTitle">02 · TypeScript / Node.js Runtime（执行与唯一事实层）</text>
@@ -40,12 +40,12 @@
   <rect x="1370" y="399" width="330" height="50" rx="10" fill="#0e2a22" stroke="#4d987b"/><text x="1388" y="422" class="boxTitle">Asset / Cost / Delivery Ledger</text><text x="1388" y="441" class="boxText">SQLite now · production DB later</text>
 
   <rect x="70" y="495" width="1660" height="130" rx="18" fill="url(#console)" stroke="#74539b" opacity=".97" filter="url(#shadow)"/>
-  <text x="95" y="530" class="laneTitle">03 · Production Console（端侧展示与人工接管层）</text>
-  <text x="95" y="554" class="laneSub">React UI 读取 Runtime 投影；展示计划、镜头、操作、素材、评审、成本和交付，并跳转 ComfyUI / LibTV</text>
+  <text x="95" y="530" class="laneTitle">03 · 可替换创意工作区与兼容 Console（展示与人工接管层）</text>
+  <text x="95" y="554" class="laneSub">Nomi 或兼容 React UI 读取 Runtime 投影；工作区可替换，Project / Operation / Review 事实不可私藏</text>
   <rect x="95" y="574" width="355" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="112" y="595" class="boxText">不运行隐藏 Director · 不复制节点图 · 不自动推进门禁</text>
   <rect x="470" y="574" width="345" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="487" y="595" class="boxText">Plan / Operation / Asset / Review 可视化</text>
   <rect x="835" y="574" width="345" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="852" y="595" class="boxText">人工 accept / reject 必须写入 Runtime</text>
-  <rect x="1200" y="574" width="500" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="1217" y="595" class="boxText">3321 是控制终端，不是 ComfyUI 或 LibTV 无限画布替代品</text>
+  <rect x="1200" y="574" width="500" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="1217" y="595" class="boxText">3321 UI 已降级；Nomi 尚需 Runtime 双向同步适配器</text>
 
   <!-- Main production flow -->
   <text x="70" y="690" class="laneTitle">04 · 一次真实生产的阶段链路</text>
@@ -62,13 +62,13 @@
     <text x="510" y="785" class="num">03</text><text x="510" y="813" class="boxTitle">Pack + Storyboard</text><text x="510" y="840" class="boxText">Character Pack + Plan</text><text x="510" y="861" class="boxText">连续性 + durable IDs</text>
 
     <rect x="705" y="755" width="190" height="130" rx="14" fill="url(#external)" stroke="#a86f35"/>
-    <text x="725" y="785" class="num">04</text><text x="725" y="813" class="boxTitle">Control Draft</text><text x="725" y="840" class="boxText">ComfyUI + H3</text><text x="725" y="861" class="boxText">motion-reference</text>
+    <text x="725" y="785" class="num">04</text><text x="725" y="813" class="boxTitle">Route A/B</text><text x="725" y="840" class="boxText">direct-keyframes</text><text x="725" y="861" class="boxText">vs optional H3 control</text>
 
     <rect x="920" y="755" width="190" height="130" rx="14" fill="url(#agent)" stroke="#4c88b8"/>
-    <text x="940" y="785" class="num">05</text><text x="940" y="813" class="boxTitle">Relaxed Review</text><text x="940" y="840" class="boxText">动作 / 机位 / 节奏</text><text x="940" y="861" class="boxText">accept or revise-control</text>
+    <text x="940" y="785" class="num">05</text><text x="940" y="813" class="boxTitle">Route Decision</text><text x="940" y="840" class="boxText">在终稿模型上比较</text><text x="940" y="861" class="boxText">选择更优证据路线</text>
 
     <rect x="1135" y="755" width="190" height="130" rx="14" fill="url(#external)" stroke="#a86f35"/>
-    <text x="1155" y="785" class="num">06</text><text x="1155" y="813" class="boxTitle">Final Render</text><text x="1155" y="840" class="boxText">Seedance / MiniMax</text><text x="1155" y="861" class="boxText">or LibTV model</text>
+    <text x="1155" y="785" class="num">06</text><text x="1155" y="813" class="boxTitle">Final Render</text><text x="1155" y="840" class="boxText">Seedance / MiniMax / Wan</text><text x="1155" y="861" class="boxText">or LibTV-selected model</text>
 
     <rect x="1350" y="755" width="190" height="130" rx="14" fill="url(#agent)" stroke="#4c88b8"/>
     <text x="1370" y="785" class="num">07</text><text x="1370" y="813" class="boxTitle">Strict Review</text><text x="1370" y="840" class="boxText">身份 / 叙事 / 时序</text><text x="1370" y="861" class="boxText">accept or local retry</text>
@@ -84,9 +84,9 @@
   <rect x="940" y="995" width="220" height="110" rx="12" fill="url(#runtime)" stroke="#4d987b"/>
   <text x="960" y="1024" class="boxTitle">Accepted Shot Manifest</text><text x="960" y="1050" class="boxText">计划中的每个镜头</text><text x="960" y="1071" class="boxText">都必须有已接受终稿</text>
   <rect x="1190" y="995" width="220" height="110" rx="12" fill="url(#external)" stroke="#a86f35"/>
-  <text x="1210" y="1024" class="boxTitle">HyperFrames</text><text x="1210" y="1050" class="boxText">裁切 / 字幕 / 转场</text><text x="1210" y="1071" class="boxText">品牌图形 / 音频包装</text>
+  <text x="1210" y="1024" class="boxTitle">Deterministic Picture Lock</text><text x="1210" y="1050" class="boxText">端点 / 裁切 / 转场 / 字幕</text><text x="1210" y="1071" class="boxText">HyperFrames 或媒体工具</text>
   <rect x="1440" y="995" width="260" height="110" rx="12" fill="url(#external)" stroke="#a86f35"/>
-  <text x="1460" y="1024" class="boxTitle">Delivery / IMS / QC</text><text x="1460" y="1050" class="boxText">母版 / 4K / 编码 / 音轨</text><text x="1460" y="1071" class="boxText">Manifest / 签发 / 归档</text>
+  <text x="1460" y="1024" class="boxTitle">4K + Voice + Delivery</text><text x="1460" y="1050" class="boxText">VOD / IMS · Qwen Audio</text><text x="1460" y="1071" class="boxText">Mix / QC / Manifest / Archive</text>
   <path d="M1160 1050H1185 M1410 1050H1435" stroke="#e1a75f" stroke-width="3" marker-end="url(#arrowOrange)"/>
   <text x="940" y="1142" class="tiny">禁止默认把已剪好的多场景母版再次送入生成模型重绘；这会破坏人物、字幕、剪点和音画同步。</text>
 
@@ -95,8 +95,8 @@
   <text x="100" y="968" class="laneTitle">所有权与迁移说明</text>
   <rect x="100" y="995" width="92" height="24" rx="12" fill="#4c88b8"/><text x="119" y="1012" class="badge">AGENT</text><text x="210" y="1012" class="boxText">创作、路由、评审、重试与接受决定</text>
   <rect x="100" y="1033" width="92" height="24" rx="12" fill="#4d987b"/><text x="113" y="1050" class="badge">RUNTIME</text><text x="210" y="1050" class="boxText">校验、执行、恢复、事实、门禁和审计</text>
-  <rect x="100" y="1071" width="92" height="24" rx="12" fill="#a86f35"/><text x="111" y="1088" class="badge">EXTERNAL</text><text x="210" y="1088" class="boxText">ComfyUI、模型、LibTV、HyperFrames、IMS</text>
-  <rect x="100" y="1109" width="92" height="24" rx="12" fill="#76539e"/><text x="111" y="1126" class="badge">CONSOLE</text><text x="210" y="1126" class="boxText">只读投影与显式人工命令</text>
+  <rect x="100" y="1071" width="92" height="24" rx="12" fill="#a86f35"/><text x="111" y="1088" class="badge">EXTERNAL</text><text x="210" y="1088" class="boxText">ComfyUI、Seedance、LibTV、VOD/IMS、Qwen Audio</text>
+  <rect x="100" y="1109" width="92" height="24" rx="12" fill="#76539e"/><text x="111" y="1126" class="badge">WORKSPACE</text><text x="210" y="1126" class="boxText">Nomi/Console 可替换；不得成为唯一事实源</text>
   <text x="100" y="1158" class="tiny">旧 PiDirector / WorkflowEngine / FirstSuccessfulCandidateEvaluator 仅保留给 Legacy VideoJob 回归，</text>
   <text x="100" y="1177" class="tiny">不再进入新的 Agent-directed 主生产链。</text>
 

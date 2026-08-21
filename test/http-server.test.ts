@@ -16,6 +16,7 @@ import { SqliteVideoJobRepository } from "../src/infrastructure/sqlite-video-job
 import { MockVideoProvider } from "../src/providers/mock-video-provider.js";
 import { DirectVideoStepExecutor } from "../src/providers/direct-video-step-executor.js";
 import type { VideoProvider } from "../src/domain/video-provider.js";
+import type { VoiceoverProvider } from "../src/domain/voiceover-provider.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -49,6 +50,7 @@ describe("video job HTTP API", () => {
     await writeFile(join(uiDirectory, "assets", "app.js"), "globalThis.__harness = true;");
     const server = buildServer({
       service,
+      voiceoverProvider: stubVoiceoverProvider(),
       uiDirectory,
       runtimeInfo: {
         videoProvider: "mock",
@@ -101,6 +103,28 @@ describe("video job HTTP API", () => {
     expect((await server.inject({ method: "GET", url: "/openapi.json" })).json()).toMatchObject({
       openapi: "3.1.0",
       info: { title: "Video Agent Harness API" },
+      paths: {
+        "/v1/voiceovers": { post: { tags: ["Voiceovers"] } },
+        "/v1/voiceovers/capabilities": { get: { tags: ["Voiceovers"] } },
+      },
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/v1/voiceovers/capabilities" })).json(),
+    ).toMatchObject({
+      provider: "bailian-qwen-audio",
+      model: "qwen-audio-3.0-tts-plus",
+      defaults: { voice: "longanlingxin", sampleRate: 48_000 },
+    });
+    const voiceover = await server.inject({
+      method: "POST",
+      url: "/v1/voiceovers",
+      payload: { text: "每一次出发，都值得更好的抵达。" },
+    });
+    expect(voiceover.statusCode).toBe(201);
+    expect(voiceover.json()).toMatchObject({
+      provider: "bailian-qwen-audio",
+      model: "qwen-audio-3.0-tts-plus",
+      audioId: "audio-test",
     });
     expect((await server.inject({ method: "GET", url: "/" })).body).toContain(
       "Video Agent Harness",
@@ -227,4 +251,49 @@ function directPipeline(provider: VideoProvider) {
     [new DirectVideoStepExecutor({ provider, pollIntervalMs: 1, timeoutMs: 1_000 })],
     "direct",
   );
+}
+
+function stubVoiceoverProvider(): VoiceoverProvider {
+  return {
+    name: "bailian-qwen-audio",
+    model: "qwen-audio-3.0-tts-plus",
+    capabilities: () => ({
+      provider: "bailian-qwen-audio",
+      model: "qwen-audio-3.0-tts-plus",
+      mode: "http-non-streaming",
+      region: "cn-beijing",
+      temporaryUrlTtlSeconds: 86_400,
+      defaults: {
+        voice: "longanlingxin",
+        instruction: "商业广告旁白",
+        format: "wav",
+        sampleRate: 48_000,
+        volume: 50,
+        rate: 1,
+        pitch: 1,
+        languageHints: ["zh"],
+        enableAigcTag: true,
+      },
+      supportedSystemVoices: [],
+      supportedFormats: ["mp3", "pcm", "wav", "opus"],
+      supportedSampleRates: [8_000, 16_000, 22_050, 24_000, 44_100, 48_000],
+      supportedLanguageHints: ["zh", "en"],
+      supportsCustomVoiceIds: true,
+      supportsInstruction: true,
+      supportsSsml: true,
+      supportsHotFix: true,
+    }),
+    synthesize: async (request) => ({
+      provider: "bailian-qwen-audio",
+      model: "qwen-audio-3.0-tts-plus",
+      requestId: "request-test",
+      audioUrl: "https://example.invalid/voice.wav",
+      audioId: "audio-test",
+      expiresAt: "2026-08-23T00:00:00.000Z",
+      billedCharacters: 24,
+      voice: request.voice ?? "longanlingxin",
+      format: request.format ?? "wav",
+      sampleRate: request.sampleRate ?? 48_000,
+    }),
+  };
 }
