@@ -34,7 +34,7 @@ export const storyProductionPlanSchema = z.object({
     narrativePurpose: z.string().trim().min(1).max(2_000),
     targetDurationSeconds: z.number().positive().max(1_800),
     continuityAnchors: z.object({
-      characterIds: z.array(z.string().trim().min(1).max(200)).min(1).max(50),
+      characterIds: z.array(z.string().trim().min(1).max(200)).max(50),
       locationKey: z.string().trim().min(1).max(300),
       wardrobeKey: z.string().trim().min(1).max(300),
       visualStyleKey: z.string().trim().min(1).max(300),
@@ -156,10 +156,6 @@ export function assertValidStoryProductionPlan(plan: StoryProductionPlan): void 
       throw new Error(`Scene ${scene.id} index ${scene.index} is not sequential`);
     }
     if (scene.shots.length === 0) throw new Error(`Scene ${scene.id} must contain a shot`);
-    if (scene.continuityAnchors.characterIds.length === 0) {
-      throw new Error(`Scene ${scene.id} must declare at least one character continuity anchor`);
-    }
-
     let selectedDuration = 0;
     for (const [shotOffset, shot] of scene.shots.entries()) {
       shotIds.push(shot.id);

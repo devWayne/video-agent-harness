@@ -32,6 +32,15 @@ describe("story production hierarchy", () => {
       "Shot shot-03 does not continue from shot-02",
     );
   });
+
+  it("allows a character-free motion-graphics scene", () => {
+    const plan = createPlan();
+    plan.scenes[0]!.continuityAnchors.characterIds = [];
+    plan.scenes[0]!.continuityAnchors.locationKey = "bettr-one-ultrawide-canvas";
+    plan.scenes[0]!.continuityAnchors.wardrobeKey = "not-applicable";
+    plan.scenes[0]!.continuityAnchors.visualStyleKey = "fintech-motion-graphics";
+    expect(() => assertValidStoryProductionPlan(plan)).not.toThrow();
+  });
 });
 
 function createPlan(): StoryProductionPlan {

@@ -84,6 +84,8 @@ For each critical item choose one policy before generation:
 
 Record the answer and the successful prompt pattern in the production ledger after each accepted or rejected candidate.
 
+The first checklist item is a hard gate for MG work. Whole-frame `zoompan`, crop drift, `xfade`, blur, page slide, or Ken Burns movement does not count as element motion. If that is all a candidate contains, classify it as an animatic and return to H3 generation or selective layer reconstruction, even when codec, duration, endpoints, text and logo all pass technical QC.
+
 ## Best-of-three commercial policy
 
 Generate three candidates that explore different directorial choices while sharing identical source frames, endpoint constraints, duration, resolution and acceptance rules:

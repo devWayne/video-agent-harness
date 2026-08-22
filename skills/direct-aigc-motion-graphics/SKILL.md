@@ -50,6 +50,12 @@ For every shot, return a structured `AigcMotionGraphicIntent` containing:
 
 The intent is Provider-neutral. Provider adapters translate it to H3, Seedance, or another model; the creative Skill does not expose invented API parameters.
 
+## Motion-realization gate
+
+When the user asks for MG, expressive showcase motion, or independently moving elements, a whole-frame crop, pan, zoom, dissolve, blur, page turn, or slide transition is not an implementation of the intent. It may be used only as a temporary animatic and must be labeled `animatic`, never `accepted-shot` or `final-candidate`.
+
+Before accepting a flattened-source shot, inspect at least three separated time samples and verify that declared cards, nodes, panels, particles, characters, charts, or connectors actually move independently in the required causal order. If the source has no editable layers, use local H3 FL2VA/REF2VA to infer that motion, or explicitly reconstruct only the required layers. Do not silently replace element choreography with whole-frame movement.
+
 ## Boundaries
 
 - Use `create-production-video` for the wider script, multi-scene storyboard, continuity, assembly, and delivery lifecycle.

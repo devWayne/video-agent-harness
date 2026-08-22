@@ -36,7 +36,7 @@ Run a source audit before upload. Preserve originals immutably. When a Provider 
 1. Accept all final segments and create a picture-locked master.
 2. Run technical QC before expensive enhancement.
 3. Upscale the locked master once, never every candidate.
-4. Generate narration as independent time-coded cues, preserve raw and conformed takes, and align them to the picture clock.
+4. Generate narration as independent time-coded cues at one stable voice and rate. Preserve raw and conformed takes, and align them to the picture clock by placing silence around short speech—not by stretching every take to fill its slot. Rewrite/regenerate a take that does not fit before considering a small project-wide tempo correction.
 5. Add subtitles, music, mix, and final mux without re-running the visual generator.
 6. Verify duration, resolution, frame rate, codecs, audio format, black/frozen frames, hashes, and archive completeness.
 
