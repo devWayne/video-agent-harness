@@ -6,6 +6,7 @@
 
 - `PUT /v1/projects/:id/production-plan`：保存由 Codex/兼容 Agent Host 编写的 Story → Scene → Shot 结构化创作计划和连续性状态。
 - `POST /v1/projects/:id/operations`：声明 `control-generation / final-render / assembly / delivery` 类型化执行操作。
+- 项目默认 `generationMode: local-only`：Runtime 在代码层拒绝 LibTV 与 `online-video` 生成；只有用户对当前项目明确授权后，才可 PATCH 为 `paid-providers-approved`。
 - `POST /v1/projects/:id/operations/:operationId/start|complete|fail|review`：保存 Provider 任务、产物、失败和 Codex/人工评审；执行成功不会自动等于质量通过。
 - `POST /v1/video-jobs`：以一句 Brief 创建 5–60 秒视频任务，支持幂等键。
 - `GET /v1/video-jobs/:id`：查询统一任务、分镜、候选和产物状态。
@@ -40,8 +41,9 @@
 Codex GPT + repo-local Skills（创作、路由、评价、重试决定）
   → 人物造型与多角度 Character Pack（图像生成 + Codex 定版）
   → TypeScript Runtime（操作执行、恢复、资产、门禁、血缘、成本）
-  → 路线 A/B：Direct keyframes 或可选 ComfyUI/H3 控制草稿
-  → Seedance/MiniMax/LibTV/Wan 终稿 → Codex 严格评审
+  → generationMode 门禁（默认 local-only）
+  → 本地 ComfyUI/H3 + 确定性工具；明确解锁后才可选在线终稿 Provider
+  → 本地候选或 Seedance/MiniMax/LibTV/Wan 终稿 → Codex 严格评审
   → Harness EditorialTimeline（多轨串片、版本、局部替换、审片标记）
   ↔ OpenChatCut（可替换的人工编辑工作区）
   → 画面锁版 → 一次性 4K → 旁白/音乐/音效 → 声音锁版 → QC / Archive

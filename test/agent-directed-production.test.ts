@@ -106,6 +106,15 @@ describe("agent-directed production ledger", () => {
       overallScore: 0.72,
       reviewedBy: { type: "agent", name: "Codex GPT" },
     });
+    await expect(service.createOperation(project.id, {
+      kind: "final-render",
+      executor: "online-video",
+      shotId: "shot-1",
+      profileId: "seedance-2.5",
+      inputAssetIds: [controlAssetId],
+      dependsOnOperationIds: [controlId],
+    })).rejects.toThrow("blocked while project generationMode is local-only");
+    project = (await service.update(project.id, { generationMode: "paid-providers-approved" }))!;
     const finalMutation = (await service.createOperation(project.id, {
       kind: "final-render",
       executor: "online-video",
@@ -115,6 +124,10 @@ describe("agent-directed production ledger", () => {
       dependsOnOperationIds: [controlId],
     }))!;
     const finalId = finalMutation.operation.id;
+    project = (await service.update(project.id, { generationMode: "local-only" }))!;
+    await expect(service.startOperation(project.id, finalId, { providerTaskId: "must-not-submit" }))
+      .rejects.toThrow("blocked while project generationMode is local-only");
+    project = (await service.update(project.id, { generationMode: "paid-providers-approved" }))!;
     await service.startOperation(project.id, finalId, { providerTaskId: "cloud-task-1" });
     project = (await service.addAsset(project.id, {
       name: "Shot 1 final candidate",

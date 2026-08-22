@@ -95,6 +95,11 @@ export const workbenchBindingsSchema = z.object({
   libtvCanvasUrl: z.url().optional(),
 });
 
+export const generationModeSchema = z.enum([
+  "local-only",
+  "paid-providers-approved",
+]);
+
 export const createProductionProjectSchema = z.object({
   name: z.string().trim().min(1).max(120),
   brief: z.string().trim().min(3).max(4_000),
@@ -106,6 +111,7 @@ export const createProductionProjectSchema = z.object({
     fps: 24,
   }),
   workbenchBindings: workbenchBindingsSchema.default({}),
+  generationMode: generationModeSchema.default("local-only"),
 });
 
 export const updateProductionProjectSchema = z
@@ -116,6 +122,7 @@ export const updateProductionProjectSchema = z
     status: z.enum(["active", "archived"]).optional(),
     deliverySpec: deliverySpecSchema.optional(),
     workbenchBindings: workbenchBindingsSchema.optional(),
+    generationMode: generationModeSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "At least one project field is required");
 
@@ -197,6 +204,7 @@ export type CharacterReferenceViewType = z.infer<typeof characterReferenceViewTy
 export type CharacterReferenceView = z.infer<typeof characterReferenceViewSchema>;
 export type DeliverySpec = z.infer<typeof deliverySpecSchema>;
 export type WorkbenchBindings = z.infer<typeof workbenchBindingsSchema>;
+export type GenerationMode = z.infer<typeof generationModeSchema>;
 
 export interface ProjectAsset {
   id: string;
@@ -262,6 +270,7 @@ export interface ProductionProject {
   updatedAt: string;
   deliverySpec: DeliverySpec;
   workbenchBindings: WorkbenchBindings;
+  generationMode: GenerationMode;
   orchestrationMode: "agent-directed";
   agentHost?: string;
   productionPlan?: StoryProductionPlan;
@@ -290,6 +299,7 @@ export function createProductionProject(
     updatedAt: timestamp,
     deliverySpec: input.deliverySpec,
     workbenchBindings: input.workbenchBindings,
+    generationMode: input.generationMode,
     orchestrationMode: "agent-directed",
     operations: [],
     assets: [],
@@ -373,6 +383,7 @@ export function updateProductionProject(
   if (input.status !== undefined) updated.status = input.status;
   if (input.deliverySpec !== undefined) updated.deliverySpec = input.deliverySpec;
   if (input.workbenchBindings !== undefined) updated.workbenchBindings = input.workbenchBindings;
+  if (input.generationMode !== undefined) updated.generationMode = input.generationMode;
   return touchProject(updated, now);
 }
 

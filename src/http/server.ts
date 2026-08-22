@@ -408,7 +408,7 @@ export function buildServer(options: BuildServerOptions) {
     const projectLink = projectJobInputSchema.parse(request.body);
     if (projectLink.projectId) {
       if (!options.projectService) return projectServiceUnavailable(reply);
-      await options.projectService.assertProjectAndScene(projectLink.projectId, projectLink.sceneId);
+      await options.projectService.assertVideoJobAllowed(projectLink.projectId, projectLink.sceneId);
     }
     const job = await options.service.create(request.body);
     if (job.request.projectId && options.projectService) {
@@ -421,7 +421,7 @@ export function buildServer(options: BuildServerOptions) {
     if (!options.projectService) return projectServiceUnavailable(reply);
     const { id } = projectParamsSchema.parse(request.params);
     const body = projectJobInputSchema.parse(request.body);
-    await options.projectService.assertProjectAndScene(id, body.sceneId);
+    await options.projectService.assertVideoJobAllowed(id, body.sceneId);
     const job = await options.service.create({ ...body, projectId: id });
     await options.projectService.attachJob(id, job.id, job.request.sceneId);
     return reply.code(202).send(job);

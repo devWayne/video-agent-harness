@@ -174,6 +174,7 @@ function hydrateProductionProject(project: ProductionProject): ProductionProject
   return {
     ...project,
     orchestrationMode: "agent-directed",
+    generationMode: project.generationMode ?? "local-only",
     operations: project.operations ?? [],
     editorialTimelines: project.editorialTimelines ?? [],
   };

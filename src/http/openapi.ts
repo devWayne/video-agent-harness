@@ -300,7 +300,7 @@ export const openApiDocument = {
       },
       patch: {
         tags: ["Projects"],
-        summary: "Update project metadata, delivery spec or workbench bindings",
+        summary: "Update project metadata, delivery spec, workbench bindings or generation mode",
         security: [{ bearerAuth: [] }],
         parameters: [{ $ref: "#/components/parameters/ProjectId" }],
         responses: { "200": { description: "Updated project" } },
@@ -983,6 +983,12 @@ export const openApiDocument = {
               libtvCanvasUuid: { type: "string", format: "uuid" },
               libtvCanvasUrl: { type: "string", format: "uri" },
             },
+          },
+          generationMode: {
+            type: "string",
+            enum: ["local-only", "paid-providers-approved"],
+            default: "local-only",
+            description: "Hard provider gate. local-only blocks LibTV and online video generation until explicit user approval.",
           },
         },
       },

@@ -59,6 +59,7 @@ describe("production project API", () => {
           comfyuiProfileId: "h3-ref2va-four-image-identity-control",
           libtvCanvasUuid: "11111111-1111-4111-8111-111111111111",
         },
+        generationMode: "paid-providers-approved",
       },
     });
     expect(created.statusCode).toBe(201);
@@ -156,6 +157,56 @@ describe("production project API", () => {
     });
     expect(crossProjectPack.statusCode).toBe(409);
     expect(crossProjectPack.json<{ code: string }>().code).toBe("PROJECT_CONFLICT");
+
+    await server.close();
+    repository.close();
+  });
+
+  it("defaults projects to local-only and blocks project video jobs until explicit unlock", async () => {
+    const repository = new SqliteVideoJobRepository(":memory:");
+    const dataDirectory = await mkdtemp(join(tmpdir(), "local-lock-"));
+    temporaryDirectories.push(dataDirectory);
+    const workflow = new WorkflowEngine({
+      repository,
+      director: new DeterministicDirector(),
+      candidatePipeline: new RecipeCandidateGenerationPipeline(
+        new DirectShotRecipePlanner(),
+        [new DirectVideoStepExecutor({ provider: new MockVideoProvider(0), pollIntervalMs: 1, timeoutMs: 1_000 })],
+        "direct",
+      ),
+      evaluator: new FirstSuccessfulCandidateEvaluator(),
+      deliveryPipeline: new ManifestDeliveryPipeline(new ManifestWriter(dataDirectory)),
+      candidatesPerShot: 1,
+    });
+    const dispatcher = new WorkflowDispatcher(workflow);
+    const server = buildServer({
+      service: new VideoJobService(repository, dispatcher),
+      projectService: new ProductionProjectService(repository, repository),
+    });
+
+    const created = await server.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: { name: "Local locked", brief: "Local generation only until the user explicitly unlocks it." },
+    });
+    const project = created.json<ProductionProject>();
+    expect(project.generationMode).toBe("local-only");
+
+    const blocked = await server.inject({
+      method: "POST",
+      url: `/v1/projects/${project.id}/video-jobs`,
+      payload: { brief: "This must not reach an online provider", durationSeconds: 5 },
+    });
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json<{ message: string }>().message).toContain("locked to local generation");
+
+    const unlocked = await server.inject({
+      method: "PATCH",
+      url: `/v1/projects/${project.id}`,
+      payload: { generationMode: "paid-providers-approved" },
+    });
+    expect(unlocked.statusCode).toBe(200);
+    expect(unlocked.json<ProductionProject>().generationMode).toBe("paid-providers-approved");
 
     await server.close();
     repository.close();

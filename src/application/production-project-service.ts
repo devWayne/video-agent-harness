@@ -295,6 +295,7 @@ export class ProductionProjectService {
     const project = await this.projects.findProjectById(id);
     if (!project) return undefined;
     const operation = requireOperation(project, operationId);
+    assertGenerationModeAllowsExecutor(project, operation.executor);
     assertDependenciesPassed(project, operation.dependsOnOperationIds);
     const updated = startProjectOperation(project, operationId, startProductionOperationSchema.parse(input));
     await this.projects.saveProject(updated);
@@ -353,6 +354,16 @@ export class ProductionProjectService {
     if (!project) throw new ProductionProjectNotFoundError();
     if (sceneId && !project.scenes.some((scene) => scene.id === sceneId)) {
       throw new ProductionProjectConflictError("Scene does not belong to this project");
+    }
+    return project;
+  }
+
+  async assertVideoJobAllowed(id: string, sceneId?: string): Promise<ProductionProject> {
+    const project = await this.assertProjectAndScene(id, sceneId);
+    if (project.generationMode === "local-only") {
+      throw new ProductionProjectConflictError(
+        "Project is locked to local generation; paid or online video jobs require explicit user approval",
+      );
     }
     return project;
   }
@@ -477,6 +488,7 @@ function assertOperationTarget(
   if (!project.productionPlan) {
     throw new ProductionProjectConflictError("Save a structured production plan before creating operations");
   }
+  assertGenerationModeAllowsExecutor(project, executor);
   const planScenes = project.productionPlan.scenes;
   const shot = planScenes.flatMap((scene) => scene.shots).find((item) => item.id === shotId);
   const scene = planScenes.find((item) => item.id === sceneId);
@@ -494,12 +506,23 @@ function assertOperationTarget(
 
   const allowed: Record<ProductionOperationKind, ProductionExecutor[]> = {
     "control-generation": ["comfyui", "manual"],
-    "final-render": ["libtv", "online-video", "manual"],
+    "final-render": ["comfyui", "libtv", "online-video", "manual"],
     assembly: ["hyperframes", "libtv", "manual"],
     delivery: ["delivery", "manual"],
   };
   if (!allowed[kind].includes(executor)) {
     throw new ProductionProjectConflictError(`Executor ${executor} cannot execute ${kind}`);
+  }
+}
+
+function assertGenerationModeAllowsExecutor(
+  project: ProductionProject,
+  executor: ProductionExecutor,
+): void {
+  if (project.generationMode === "local-only" && ["libtv", "online-video"].includes(executor)) {
+    throw new ProductionProjectConflictError(
+      `Executor ${executor} is blocked while project generationMode is local-only`,
+    );
   }
 }
 

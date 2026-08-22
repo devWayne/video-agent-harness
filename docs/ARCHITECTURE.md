@@ -71,6 +71,13 @@ Harness EditorialTimeline：候选版本、片段替换、画面/字幕/旁白/�
 
 Runtime 负责 Schema 和跨项目引用校验，不改写创作内容。
 
+项目还保存一个可执行的 `generationMode`：
+
+- `local-only`（默认）：只允许本地 ComfyUI/H3、手工导入和本地确定性工具。Runtime 拒绝 LibTV 与 `online-video` 生成操作，也拒绝项目级旧 `/video-jobs` 入口。
+- `paid-providers-approved`：仅在用户明确授权当前项目使用付费渲染后设置。API Key、可用余额、既有 Provider 配置和其他项目的授权都不能自动解锁。
+
+这样生成授权属于项目账本，而不是 Codex 会话里的临时约定；Claude Code 等兼容 Agent Host 读取同一项目时也会受到相同门禁。
+
 ### `ProductionOperation`
 
 由主 Agent 逐项声明并通过 `/v1/projects/:id/operations` 记录：
@@ -158,6 +165,7 @@ OpenChatCut 通过 `EditorialWorkspaceAdapter` 接入。Harness 把时间线、�
 | `design-character-reference-pack` 与多角度 Character Pack 契约 | 已实现第一版 |
 | `StoryProductionPlan` 持久化与严格验证 | 已实现 |
 | `ProductionOperation` 执行状态、依赖、资产与评审门禁 | 已实现 |
+| 项目级 `local-only / paid-providers-approved` 在线生成硬门禁 | 已实现，并覆盖 Operation 与项目 VideoJob 入口 |
 | Assembly 前“所有镜头终稿均接受”校验 | 已实现 |
 | Delivery 前“母版已接受”校验 | 已实现 |
 | 内置 React 控制台 | 已删除；Runtime 仅提供无头 API |
