@@ -70,6 +70,10 @@ OPENCHATCUT_APPROVAL_MODE=manual
 
 这让资产导入和时间线编辑成为两个可审计步骤。后续可以补 `AssetImportAdapter`，但不得把临时 URL 或浏览器私有状态变成唯一资产来源。
 
+当 OpenChatCut 编辑器已经打开目标工程时，MCP 服务会在 `openchatcut_status.connectedProjectIds` 中暴露该工程。Adapter 此时不再调用离线 `target_project` 抢占工程所有权，而把 `editorProjectId` 传给 `begin_edit_session`，通过浏览器桥接在当前工程内原子提交。编辑器没有连接时，仍使用原来的 server-direct target 路径。两条路径均保留显式素材映射和 edit session 审计。
+
+2026-08-22 已完成 Antom 真实纵向联调：9 段画面、1 段本地预览旁白和 1 段本地音乐进入同一 52 秒时间线，Harness 回写 OpenChatCut Project ID、Edit Session ID、同步版本和 `applied` 状态，并分别锁定 picture/audio revision。
+
 ## 与其他工作台的关系
 
 | 系统 | 解决的问题 | 是否保存 Harness 最终事实 |

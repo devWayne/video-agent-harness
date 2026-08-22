@@ -44,8 +44,14 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
     assertEveryAssetIsBound(input);
     const client = this.options.clientFactory();
     try {
+      const serviceStatus = await client.callTool("openchatcut_status", {});
+      const browserConnected = Boolean(
+        input.externalProjectId && connectedProjectIds(serviceStatus).includes(input.externalProjectId),
+      );
       const project = input.externalProjectId
-        ? await this.targetProject(client, input.externalProjectId)
+        ? browserConnected
+          ? { projectId: input.externalProjectId }
+          : await this.targetProject(client, input.externalProjectId)
         : await this.createProject(client, input);
       const projectId = input.externalProjectId ?? requiredString(project, "projectId", "id");
       const editorUrl = optionalString(project, "editorUrl")
@@ -55,6 +61,7 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
       const begun = await client.callTool("begin_edit_session", {
         clientName: "Video Agent Harness",
         approvalMode: input.approvalMode,
+        ...(browserConnected ? { editorProjectId: projectId } : {}),
       });
       const editSessionId = requiredString(begun, "editSessionId", "id");
       const externalTimeline = parseActiveTimeline(await client.callTool("read_project", {
@@ -248,6 +255,13 @@ function optionalString(value: Record<string, unknown>, ...keys: string[]): stri
     }
   }
   return undefined;
+}
+
+function connectedProjectIds(value: Record<string, unknown>): string[] {
+  const candidate = value.connectedProjectIds;
+  return Array.isArray(candidate)
+    ? candidate.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
 }
 
 function openChatCutTrackType(kind: EditorialTrackKind): "video" | "audio" | "caption" {

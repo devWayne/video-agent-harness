@@ -27,7 +27,7 @@
 | 备用 4K 交付 | 阿里云 IMS SR5 + OSS | IMS/OSS Provider 和 Cloud Delivery | 否 | 契约已实现 | 单元契约和付费前预检已完成；当前账号侧完整 OSS→IMS→OSS 纵向链路未验收 |
 | 商业旁白 | 阿里云百炼 Qwen Audio 3.0 Plus | Voiceover Provider、OpenAPI、可恢复时间轴脚本 | 是 | 生产实证 | 29 条 Cue、48 kHz 单声道 WAV，最终与 4K 画面封装；临时 URL 必须立即本地化 |
 | 背景音乐 | 火山引擎 BigMusic v5.0 纯音乐 | `VolcengineBigMusicProvider`、Music OpenAPI、预检/生成 CLI、FFmpeg 商业混音 | 是 | 生产实证 | 119.86 秒商业配乐已生成；以 −24 dB 基准和 8:1 旁白侧链闪避混入 118.333 秒 4K 成片，实测 −16.2 LUFS、真峰值 −3.8 dBFS |
-| 多轨编辑工作区 | OpenChatCut | `EditorialWorkspaceAdapter`、Streamable HTTP MCP | 尚未进入 Bettr 编辑 | 契约已实现 | 支持多轨、局部替换、标记和人工 review；媒体需先导入素材池并提供 Asset 映射，Harness 仍是事实源 |
+| 多轨编辑工作区 | OpenChatCut | `EditorialWorkspaceAdapter`、Streamable HTTP MCP | Antom 本地成片已使用 | 生产实证 | 9 段画面、旁白和音乐已同步为 11 项时间线并回写 `applied`；支持浏览器连接工程和 server-direct 两条路径，Harness 仍是事实源 |
 | 无头控制 API | Fastify Runtime | `src/http`，默认 4100 | 是 | 契约已实现 | 不再托管 React UI；对 Agent Host、CLI 和外部编辑工作区提供统一契约 |
 
 ## 本机当前启用组合
@@ -59,5 +59,5 @@ DELIVERY_MODE=simulation
 1. 将已验证的 Seedance、H3、VOD、Qwen Audio 执行结果统一登记为 Project Asset 和 Production Operation，而不是仅由项目脚本保存外部 JSON。
 2. 将已经新增的 `voiceover-take`、`voiceover-master`、音乐、音效、字幕和编辑预览资产角色接入真实 Project 生产记录，并补充音频阶段门禁。
 3. 把 Codex/人工评审结果持续回写 Runtime；当前没有可独立部署的 VLM 自动质量服务。
-4. 用真实 OpenChatCut 项目完成一次“素材导入映射 → staged timeline → 人工批准 → 回写同步版本”的纵向联调。
+4. 为 OpenChatCut 增加正式 `AssetImportAdapter`，在不扩大任意本地文件读取权限的前提下替代当前显式预导入步骤。
 5. 完成一次真实 H3→LibTV V2V 闭环后，再决定是否把它提升为默认受控路线。

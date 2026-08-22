@@ -63,6 +63,7 @@ describe("OpenChatCut editorial workspace adapter", () => {
       stagedMarkerCount: 1,
     });
     expect(client.calls.map((call) => call.name)).toEqual([
+      "openchatcut_status",
       "create_project",
       "target_project",
       "begin_edit_session",
@@ -120,18 +121,52 @@ describe("OpenChatCut editorial workspace adapter", () => {
       adds: [{ fromFrame: 30, durationInFrames: 60 }],
     });
   });
+
+  it("uses the browser-owned project directly when the editor bridge is connected", async () => {
+    const client = new FakeOpenChatCutClient();
+    client.connectedProjectIds = ["occ-project-1"];
+    const adapter = new OpenChatCutEditorialWorkspaceAdapter({
+      clientFactory: () => client,
+      editorBaseUrl: "http://127.0.0.1:5199",
+    });
+    const timeline = createEditorialTimeline(createEditorialTimelineSchema.parse({
+      name: "Connected editor",
+      tracks: [{
+        name: "V1 Picture",
+        kind: "video",
+        role: "picture",
+        clips: [{ assetId: videoAssetId, timelineStartFrame: 0, durationFrames: 24 }],
+      }],
+    }));
+
+    await adapter.syncTimeline({
+      externalProjectId: "occ-project-1",
+      projectName: "Antom commercial",
+      projectDescription: "Local-only master",
+      timeline,
+      approvalMode: "auto",
+      assetBindings: { [videoAssetId]: "pool-video-1" },
+    });
+
+    expect(client.calls.some((call) => call.name === "target_project")).toBe(false);
+    expect(client.calls.find((call) => call.name === "begin_edit_session")?.input).toMatchObject({
+      editorProjectId: "occ-project-1",
+    });
+  });
 });
 
 class FakeOpenChatCutClient implements OpenChatCutToolClient {
   calls: Array<{ name: string; input: Record<string, unknown> }> = [];
   closed = false;
   readProjectTimeline = { name: "Master", fps: 24, width: 1920, height: 1080 };
+  connectedProjectIds: string[] = [];
   tracks: Array<{ id: string; alias: string; trackType: string; name?: string }> = [
     { id: "track-v1", alias: "V1", trackType: "video", name: "V1 Picture" },
   ];
 
   async callTool(name: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     this.calls.push({ name, input });
+    if (name === "openchatcut_status") return { connectedProjectIds: this.connectedProjectIds };
     if (name === "create_project") {
       return { id: "occ-project-1", editorUrl: "http://127.0.0.1:5199/#/editor/occ-project-1" };
     }

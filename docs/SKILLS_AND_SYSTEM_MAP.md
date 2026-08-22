@@ -31,7 +31,7 @@ Codex GPT（当前主 Agent Host，可替换）
 | 串片与画面锁定 | 总 Skill | EditorialTimeline、候选版本、标记、picture revision/lock | OpenChatCut + HyperFrames/本地确定性媒体工具 | 时间线契约与 OpenChatCut MCP adapter 已实现；Bettr 既有成片用本地工具锁版 |
 | 4K | 总 Skill + Delivery | delivery Operation、可恢复 CLI 状态 | 火山 VOD AIGC / 阿里 IMS | Bettr 118.333 秒 VOD 4K 已完成；IMS 仅契约实现 |
 | 旁白、音乐与声音锁定 | 总 Skill | Voiceover/Music API、Cue Manifest、audio revision/lock | Qwen Audio 3.0 Plus + BigMusic + 本地侧链混音 | 29 Cue、119.86 秒音乐与 4K 双声道终版已完成 |
-| 多轨预览/人工接管 | 无独立创作 Skill | EditorialWorkspaceAdapter + Runtime read model | OpenChatCut | Streamable HTTP MCP 契约已实现；真实项目联调待执行 |
+| 多轨预览/人工接管 | 无独立创作 Skill | EditorialWorkspaceAdapter + Runtime read model | OpenChatCut | Antom 真实项目已完成 9 段画面、旁白和音乐的 11 项时间线同步与版本回写 |
 
 ## 3. 仓库唯一源与链接
 
@@ -85,6 +85,6 @@ Claude Code 或其他 Host 只要读取仓库 Skill、结构化清单和 Runtime
 - 已新增旁白 Take/母带、音乐、音效、字幕和编辑预览角色；仍需把现有 Bettr 文件正式登记到 Project 账本。
 - 需要把 Qwen Audio 时间轴生成、VOD 本地 CLI 和 Seedance 分段批处理注册为项目级可恢复操作。
 - 需要一个可替换的评测适配器；当前 Codex/人工评价必须显式回写，不能把 Provider 成功等同于质量通过。
-- OpenChatCut 同步契约已实现；仍需真实验证素材池映射、人工批准和同步版本回写。
+- OpenChatCut 的真实素材映射、编辑会话、原子应用和同步版本回写已经在 Antom 本地 52 秒成片验证；下一步是补正式 `AssetImportAdapter`，减少手工导入成本。
 
 完整服务成熟度见 [`SERVICE_CATALOG.md`](./SERVICE_CATALOG.md)，Bettr 方法与资产策略见 [`PRODUCTION_ASSETS.md`](./PRODUCTION_ASSETS.md)。

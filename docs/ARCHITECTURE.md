@@ -170,7 +170,7 @@ OpenChatCut 通过 `EditorialWorkspaceAdapter` 接入。Harness 把时间线、�
 | Delivery 前“母版已接受”校验 | 已实现 |
 | 内置 React 控制台 | 已删除；Runtime 仅提供无头 API |
 | 多轨 `EditorialTimeline`、局部替换、标记、画面/声音锁版 | 已实现第一版 |
-| OpenChatCut Streamable HTTP MCP 适配器 | 已实现第一版；要求预先导入媒体并提供 Asset 映射，真实编辑器联调待执行 |
+| OpenChatCut Streamable HTTP MCP 适配器 | 已实现并完成 Antom 真实联调；支持浏览器已连接工程与 server-direct 工程两条路径，要求预先导入媒体并提供 Asset 映射 |
 | ComfyUI API、LibTV CLI、百炼 Wan、HyperFrames、IMS 旧适配器 | 已存在，可复用 |
 | 新 Operation API 自动调度 ComfyUI/在线模型执行器 | 待把现有 Provider 适配器接入；当前可由 Codex/Skill 执行后回写操作 |
 | Seedance 2.5 云端最终视频 Provider | 已接入方舟异步任务 API、轮询、取消、多模态输入和 480P/720P Profile |
