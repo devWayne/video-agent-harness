@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1280" viewBox="0 0 1800 1280" role="img" aria-labelledby="title desc">
   <title id="title">Agent-directed Video Production Architecture</title>
-  <desc id="desc">Codex GPT and repository skills own story, route testing, review and retry decisions. TypeScript Runtime stores facts. H3 is optional control evidence, Seedance or another online provider renders finals, deterministic finishing locks picture, and VOD or IMS plus Qwen Audio complete delivery. Nomi or the compatibility Console is a replaceable view.</desc>
+  <desc id="desc">Codex GPT and repository skills own story, route testing, review and retry decisions. TypeScript Runtime stores facts and the authoritative editorial timeline. OpenChatCut is a replaceable multitrack workspace. H3 is optional control evidence, online providers render finals, and deterministic delivery locks picture and audio.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#091113"/><stop offset="1" stop-color="#101819"/></linearGradient>
     <linearGradient id="agent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18395a"/><stop offset="1" stop-color="#10283d"/></linearGradient>
@@ -40,12 +40,12 @@
   <rect x="1370" y="399" width="330" height="50" rx="10" fill="#0e2a22" stroke="#4d987b"/><text x="1388" y="422" class="boxTitle">Asset / Cost / Delivery Ledger</text><text x="1388" y="441" class="boxText">SQLite now · production DB later</text>
 
   <rect x="70" y="495" width="1660" height="130" rx="18" fill="url(#console)" stroke="#74539b" opacity=".97" filter="url(#shadow)"/>
-  <text x="95" y="530" class="laneTitle">03 · 可替换创意工作区与兼容 Console（展示与人工接管层）</text>
-  <text x="95" y="554" class="laneSub">Nomi 或兼容 React UI 读取 Runtime 投影；工作区可替换，Project / Operation / Review 事实不可私藏</text>
+  <text x="95" y="530" class="laneTitle">03 · OpenChatCut 可替换编辑工作区（多轨预览与人工接管层）</text>
+  <text x="95" y="554" class="laneSub">通过 MCP 同步 Harness EditorialTimeline；Project / Asset / Revision / Lock 事实仍由 Runtime 保存</text>
   <rect x="95" y="574" width="355" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="112" y="595" class="boxText">不运行隐藏 Director · 不复制节点图 · 不自动推进门禁</text>
   <rect x="470" y="574" width="345" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="487" y="595" class="boxText">Plan / Operation / Asset / Review 可视化</text>
   <rect x="835" y="574" width="345" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="852" y="595" class="boxText">人工 accept / reject 必须写入 Runtime</text>
-  <rect x="1200" y="574" width="500" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="1217" y="595" class="boxText">3321 UI 已降级；Nomi 尚需 Runtime 双向同步适配器</text>
+  <rect x="1200" y="574" width="500" height="30" rx="8" fill="#251a35" stroke="#76539e"/><text x="1217" y="595" class="boxText">多轨串片 · 局部替换 · 音频轨 · 标记 · manual review</text>
 
   <!-- Main production flow -->
   <text x="70" y="690" class="laneTitle">04 · 一次真实生产的阶段链路</text>
@@ -82,11 +82,11 @@
   <rect x="910" y="930" width="820" height="245" rx="18" fill="#111b1c" stroke="#38514f"/>
   <text x="940" y="968" class="laneTitle">生成模型结束后：确定性成片与交付</text>
   <rect x="940" y="995" width="220" height="110" rx="12" fill="url(#runtime)" stroke="#4d987b"/>
-  <text x="960" y="1024" class="boxTitle">Accepted Shot Manifest</text><text x="960" y="1050" class="boxText">计划中的每个镜头</text><text x="960" y="1071" class="boxText">都必须有已接受终稿</text>
+  <text x="960" y="1024" class="boxTitle">EditorialTimeline</text><text x="960" y="1050" class="boxText">Accepted shots + candidates</text><text x="960" y="1071" class="boxText">picture/audio multitrack</text>
   <rect x="1190" y="995" width="220" height="110" rx="12" fill="url(#external)" stroke="#a86f35"/>
   <text x="1210" y="1024" class="boxTitle">Deterministic Picture Lock</text><text x="1210" y="1050" class="boxText">端点 / 裁切 / 转场 / 字幕</text><text x="1210" y="1071" class="boxText">HyperFrames 或媒体工具</text>
   <rect x="1440" y="995" width="260" height="110" rx="12" fill="url(#external)" stroke="#a86f35"/>
-  <text x="1460" y="1024" class="boxTitle">4K + Voice + Delivery</text><text x="1460" y="1050" class="boxText">VOD / IMS · Qwen Audio</text><text x="1460" y="1071" class="boxText">Mix / QC / Manifest / Archive</text>
+  <text x="1460" y="1024" class="boxTitle">4K + Voice + Music</text><text x="1460" y="1050" class="boxText">VOD / IMS · Qwen · BigMusic</text><text x="1460" y="1071" class="boxText">Audio lock / QC / Archive</text>
   <path d="M1160 1050H1185 M1410 1050H1435" stroke="#e1a75f" stroke-width="3" marker-end="url(#arrowOrange)"/>
   <text x="940" y="1142" class="tiny">禁止默认把已剪好的多场景母版再次送入生成模型重绘；这会破坏人物、字幕、剪点和音画同步。</text>
 
@@ -96,9 +96,9 @@
   <rect x="100" y="995" width="92" height="24" rx="12" fill="#4c88b8"/><text x="119" y="1012" class="badge">AGENT</text><text x="210" y="1012" class="boxText">创作、路由、评审、重试与接受决定</text>
   <rect x="100" y="1033" width="92" height="24" rx="12" fill="#4d987b"/><text x="113" y="1050" class="badge">RUNTIME</text><text x="210" y="1050" class="boxText">校验、执行、恢复、事实、门禁和审计</text>
   <rect x="100" y="1071" width="92" height="24" rx="12" fill="#a86f35"/><text x="111" y="1088" class="badge">EXTERNAL</text><text x="210" y="1088" class="boxText">ComfyUI、Seedance、LibTV、VOD/IMS、Qwen Audio</text>
-  <rect x="100" y="1109" width="92" height="24" rx="12" fill="#76539e"/><text x="111" y="1126" class="badge">WORKSPACE</text><text x="210" y="1126" class="boxText">Nomi/Console 可替换；不得成为唯一事实源</text>
+  <rect x="100" y="1109" width="92" height="24" rx="12" fill="#76539e"/><text x="111" y="1126" class="badge">WORKSPACE</text><text x="210" y="1126" class="boxText">OpenChatCut 可替换；不得成为唯一事实源</text>
   <text x="100" y="1158" class="tiny">旧 PiDirector / WorkflowEngine / FirstSuccessfulCandidateEvaluator 仅保留给 Legacy VideoJob 回归，</text>
   <text x="100" y="1177" class="tiny">不再进入新的 Agent-directed 主生产链。</text>
 
-  <text x="70" y="1242" class="sub">Repository source of truth: Skills + CharacterPack + ProductionProject + StoryProductionPlan + ProductionOperation + ProjectAsset + explicit Review</text>
+  <text x="70" y="1242" class="sub">Repository source of truth: Skills + ProductionProject + StoryProductionPlan + ProductionOperation + ProjectAsset + EditorialTimeline + explicit Review</text>
 </svg>

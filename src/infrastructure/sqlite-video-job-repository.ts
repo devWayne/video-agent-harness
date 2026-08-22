@@ -175,5 +175,6 @@ function hydrateProductionProject(project: ProductionProject): ProductionProject
     ...project,
     orchestrationMode: "agent-directed",
     operations: project.operations ?? [],
+    editorialTimelines: project.editorialTimelines ?? [],
   };
 }

@@ -1,4 +1,4 @@
 interface:
   display_name: "AI 视频总导演"
-  short_description: "从创意与分镜到终稿评审、旁白制作、4K增强和可追溯商业交付"
-  default_prompt: "Use $create-production-video to direct this production from brief and route testing through final render, picture lock, audio, 4K delivery, and archive."
+  short_description: "从创意分镜到多轨审片、4K与音频锁版的可追溯商业交付"
+  default_prompt: "Use $create-production-video to direct this production from brief and storyboard through provider review, authoritative multitrack editing, picture/audio lock, 4K delivery, and archive."

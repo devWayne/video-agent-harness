@@ -1,4 +1,4 @@
-# Agent, Runtime, Studio, and Provider boundary
+# Agent, Runtime, editorial workspace, and Provider boundary
 
 ## Agent and Skills
 
@@ -8,9 +8,9 @@ The Agent Host executes `create-production-video` and owns decisions: character 
 
 Runtime is not a second agent. It validates typed commands, invokes Providers, checkpoints asynchronous task IDs, stores immutable assets and evaluations, exposes resumable state, enforces budgets, and writes manifests. It must never mark a visual candidate acceptable without a recorded evaluation decision.
 
-## Studio or creative workspace
+## Editorial workspace
 
-The UI is replaceable. Nomi, the compatibility Production Console, or another workspace may read Runtime projections and send operator commands. Show project structure, references, stages, Provider tasks, candidates, reviews, costs, and deliveries. Do not duplicate ComfyUI or LibTV node editors and do not hide authoritative state in browser-only or workspace-private storage.
+The UI is replaceable. OpenChatCut or another compatible workspace may read Runtime projections and send operator commands. Use it for multitrack playback, local replacement, narration/music/SFX alignment, markers and human review. Runtime owns the authoritative timeline, candidate lineage, picture/audio revisions and locks. Do not duplicate ComfyUI or LibTV node editors and do not hide authoritative state in browser-only or workspace-private storage.
 
 ## Providers
 

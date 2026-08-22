@@ -7,6 +7,7 @@ import {
   addScenePackSchema,
   addStoryScene,
   addStorySceneSchema,
+  appendEditorialTimeline,
   attachVideoJob,
   appendProductionOperation,
   completeProjectOperation,
@@ -14,12 +15,32 @@ import {
   createProductionProjectSchema,
   failProjectOperation,
   reviewProjectOperation,
+  replaceEditorialTimeline as replaceProjectEditorialTimeline,
   saveProductionPlan,
   startProjectOperation,
   updateProductionProject,
   updateProductionProjectSchema,
   type ProductionProject,
 } from "../domain/production-project.js";
+import {
+  addEditorialMarker,
+  addEditorialMarkerSchema,
+  createEditorialTimeline,
+  createEditorialTimelineSchema,
+  lockEditorialAudio,
+  lockEditorialPicture,
+  lockEditorialTimelineSchema,
+  recordEditorialWorkspaceSync,
+  replaceEditorialClip,
+  replaceEditorialClipSchema,
+  type EditorialTimeline,
+  type EditorialTrackKind,
+} from "../domain/editorial-timeline.js";
+import {
+  syncEditorialWorkspaceSchema,
+  type EditorialWorkspaceAdapter,
+  type EditorialWorkspaceSyncResult,
+} from "../domain/editorial-workspace.js";
 import {
   completeProductionOperationSchema,
   createProductionOperationSchema,
@@ -55,6 +76,7 @@ export class ProductionProjectService {
   constructor(
     private readonly projects: ProductionProjectRepository,
     private readonly jobs: VideoJobRepository,
+    private readonly editorialWorkspace?: EditorialWorkspaceAdapter,
   ) {}
 
   async create(input: unknown): Promise<ProductionProject> {
@@ -132,6 +154,106 @@ export class ProductionProjectService {
     const updated = addStoryScene(project, parsed);
     await this.projects.saveProject(updated);
     return updated;
+  }
+
+  editorialWorkspaceCapabilities() {
+    return this.editorialWorkspace?.capabilities();
+  }
+
+  async listEditorialTimelines(id: string): Promise<EditorialTimeline[] | undefined> {
+    const project = await this.projects.findProjectById(id);
+    return project?.editorialTimelines;
+  }
+
+  async getEditorialTimeline(id: string, timelineId: string): Promise<EditorialTimeline | undefined> {
+    const project = await this.projects.findProjectById(id);
+    return project?.editorialTimelines.find((timeline) => timeline.id === timelineId);
+  }
+
+  async createEditorialTimeline(id: string, input: unknown): Promise<ProductionProject | undefined> {
+    const project = await this.projects.findProjectById(id);
+    if (!project) return undefined;
+    const timeline = createEditorialTimeline(createEditorialTimelineSchema.parse(input));
+    assertEditorialAssets(project, timeline);
+    const updated = appendEditorialTimeline(project, timeline);
+    await this.projects.saveProject(updated);
+    return updated;
+  }
+
+  async replaceEditorialClip(
+    id: string,
+    timelineId: string,
+    clipId: string,
+    input: unknown,
+  ): Promise<ProductionProject | undefined> {
+    const project = await this.projects.findProjectById(id);
+    if (!project) return undefined;
+    const timeline = requireEditorialTimeline(project, timelineId);
+    const parsed = replaceEditorialClipSchema.parse(input);
+    const track = timeline.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId));
+    if (!track) throw new ProductionProjectConflictError("Editorial clip does not belong to this timeline");
+    assertEditorialAsset(project, parsed.assetId, track.kind);
+    const updatedTimeline = replaceEditorialClip(timeline, clipId, parsed);
+    const updated = replaceProjectEditorialTimeline(project, updatedTimeline);
+    await this.projects.saveProject(updated);
+    return updated;
+  }
+
+  async addEditorialMarker(
+    id: string,
+    timelineId: string,
+    input: unknown,
+  ): Promise<ProductionProject | undefined> {
+    return this.updateEditorialTimeline(id, timelineId, (timeline) =>
+      addEditorialMarker(timeline, addEditorialMarkerSchema.parse(input)));
+  }
+
+  async lockEditorialPicture(
+    id: string,
+    timelineId: string,
+    input: unknown,
+  ): Promise<ProductionProject | undefined> {
+    return this.updateEditorialTimeline(id, timelineId, (timeline) =>
+      lockEditorialPicture(timeline, lockEditorialTimelineSchema.parse(input)));
+  }
+
+  async lockEditorialAudio(
+    id: string,
+    timelineId: string,
+    input: unknown,
+  ): Promise<ProductionProject | undefined> {
+    return this.updateEditorialTimeline(id, timelineId, (timeline) =>
+      lockEditorialAudio(timeline, lockEditorialTimelineSchema.parse(input)));
+  }
+
+  async syncEditorialTimeline(
+    id: string,
+    timelineId: string,
+    input: unknown,
+  ): Promise<{ project: ProductionProject; sync: EditorialWorkspaceSyncResult } | undefined> {
+    const project = await this.projects.findProjectById(id);
+    if (!project) return undefined;
+    if (!this.editorialWorkspace) {
+      throw new ProductionProjectConflictError("Editorial workspace adapter is not configured");
+    }
+    const timeline = requireEditorialTimeline(project, timelineId);
+    const parsed = syncEditorialWorkspaceSchema.parse(input);
+    const sync = await this.editorialWorkspace.syncTimeline({
+      ...parsed,
+      projectName: project.name,
+      projectDescription: project.brief,
+      timeline,
+    });
+    const syncedTimeline = recordEditorialWorkspaceSync(timeline, {
+      provider: "openchatcut",
+      projectId: sync.projectId,
+      editorUrl: sync.editorUrl,
+      syncStatus: sync.status,
+      editSessionId: sync.editSessionId,
+    });
+    const updated = replaceProjectEditorialTimeline(project, syncedTimeline);
+    await this.projects.saveProject(updated);
+    return { project: updated, sync };
   }
 
   async savePlan(id: string, input: unknown): Promise<ProductionProject | undefined> {
@@ -241,6 +363,18 @@ export class ProductionProjectService {
     await this.projects.saveProject(updated);
     return updated;
   }
+
+  private async updateEditorialTimeline(
+    id: string,
+    timelineId: string,
+    update: (timeline: EditorialTimeline) => EditorialTimeline,
+  ): Promise<ProductionProject | undefined> {
+    const project = await this.projects.findProjectById(id);
+    if (!project) return undefined;
+    const updated = replaceProjectEditorialTimeline(project, update(requireEditorialTimeline(project, timelineId)));
+    await this.projects.saveProject(updated);
+    return updated;
+  }
 }
 
 export class ProductionProjectNotFoundError extends Error {
@@ -265,6 +399,42 @@ function assertAssetsBelongToProject(project: ProductionProject, assetIds: strin
   const projectAssetIds = new Set(project.assets.map((asset) => asset.id));
   if (assetIds.some((assetId) => !projectAssetIds.has(assetId))) {
     throw new ProductionProjectConflictError("Reference asset does not belong to this project");
+  }
+}
+
+function requireEditorialTimeline(project: ProductionProject, timelineId: string): EditorialTimeline {
+  const timeline = project.editorialTimelines.find((candidate) => candidate.id === timelineId);
+  if (!timeline) throw new ProductionProjectConflictError("Editorial timeline does not belong to this project");
+  return timeline;
+}
+
+function assertEditorialAssets(project: ProductionProject, timeline: EditorialTimeline): void {
+  for (const track of timeline.tracks) {
+    for (const clip of track.clips) {
+      assertEditorialAsset(project, clip.assetId, track.kind);
+      for (const candidateAssetId of clip.candidateAssetIds) {
+        assertEditorialAsset(project, candidateAssetId, track.kind);
+      }
+    }
+  }
+}
+
+function assertEditorialAsset(
+  project: ProductionProject,
+  assetId: string,
+  trackKind: EditorialTrackKind,
+): void {
+  const asset = project.assets.find((candidate) => candidate.id === assetId);
+  if (!asset) throw new ProductionProjectConflictError("Editorial asset does not belong to this project");
+  const compatible = trackKind === "audio"
+    ? asset.mediaType === "audio"
+    : trackKind === "caption"
+      ? ["document", "image"].includes(asset.mediaType)
+      : ["video", "image"].includes(asset.mediaType);
+  if (!compatible) {
+    throw new ProductionProjectConflictError(
+      `Asset ${assetId} (${asset.mediaType}) is not compatible with a ${trackKind} track`,
+    );
   }
 }
 

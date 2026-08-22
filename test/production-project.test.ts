@@ -160,4 +160,49 @@ describe("production project API", () => {
     await server.close();
     repository.close();
   });
+
+  it("persists an editorial timeline and invalidates picture lock after replacing one clip", async () => {
+    const repository = new SqliteVideoJobRepository(":memory:");
+    const service = new ProductionProjectService(repository, repository);
+    let project = await service.create({ name: "Editorial test", brief: "Test local candidate replacement." });
+    project = (await service.addAsset(project.id, {
+      name: "Shot A",
+      mediaType: "video",
+      role: "accepted-shot",
+      uri: "https://assets.example/shot-a.mp4",
+    }))!;
+    const firstAssetId = project.assets[0]!.id;
+    project = (await service.addAsset(project.id, {
+      name: "Shot B",
+      mediaType: "video",
+      role: "final-candidate",
+      uri: "https://assets.example/shot-b.mp4",
+      parentAssetId: firstAssetId,
+    }))!;
+    const secondAssetId = project.assets[1]!.id;
+    project = (await service.createEditorialTimeline(project.id, {
+      name: "Master timeline",
+      tracks: [{
+        name: "V1 Picture",
+        kind: "video",
+        role: "picture",
+        clips: [{ assetId: firstAssetId, timelineStartFrame: 0, durationFrames: 120 }],
+      }],
+    }))!;
+    const timelineId = project.editorialTimelines[0]!.id;
+    const clipId = project.editorialTimelines[0]!.tracks[0]!.clips[0]!.id;
+    project = (await service.lockEditorialPicture(project.id, timelineId, { lockedBy: "reviewer" }))!;
+    project = (await service.replaceEditorialClip(project.id, timelineId, clipId, {
+      assetId: secondAssetId,
+      mode: "preserve-slot",
+    }))!;
+
+    const persisted = await repository.findProjectById(project.id);
+    expect(persisted?.editorialTimelines[0]).toMatchObject({
+      pictureRevision: 2,
+      pictureLock: { revision: 1, lockedBy: "reviewer" },
+      tracks: [{ clips: [{ assetId: secondAssetId, candidateAssetIds: [firstAssetId, secondAssetId] }] }],
+    });
+    repository.close();
+  });
 });

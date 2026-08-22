@@ -42,7 +42,10 @@ import { DirectVideoStepExecutor } from "./providers/direct-video-step-executor.
 import { LibTvCliClient } from "./providers/libtv-cli-client.js";
 import { LibTvGenerationStepExecutor } from "./providers/libtv-generation-step-executor.js";
 import { MockVideoProvider } from "./providers/mock-video-provider.js";
+import { OpenChatCutEditorialWorkspaceAdapter } from "./providers/openchatcut-editorial-workspace-adapter.js";
+import { OpenChatCutMcpClient } from "./providers/openchatcut-mcp-client.js";
 import { VolcengineSeedanceProvider } from "./providers/volcengine-seedance-provider.js";
+import { VolcengineBigMusicProvider } from "./providers/volcengine-bigmusic-provider.js";
 import { VolcengineTosOutputStore } from "./providers/volcengine-tos-output-store.js";
 import {
   VolcengineVodAigcUpscaleProvider,
@@ -78,8 +81,10 @@ export function createRuntime(config: AppConfig) {
       : { upscaleCnyPerSecond: config.COST_4K_CNY_PER_SECOND }),
     ...(deliverySigner ? { deliverySigner } : {}),
   });
-  const projectService = new ProductionProjectService(repository, repository);
+  const editorialWorkspace = createEditorialWorkspace(config);
+  const projectService = new ProductionProjectService(repository, repository, editorialWorkspace);
   const voiceoverProvider = createVoiceoverProvider(config);
+  const musicProvider = createMusicProvider(config);
 
   return {
     repository,
@@ -91,7 +96,46 @@ export function createRuntime(config: AppConfig) {
     service,
     projectService,
     voiceoverProvider,
+    musicProvider,
+    editorialWorkspace,
   };
+}
+
+function createEditorialWorkspace(config: AppConfig) {
+  if (config.EDITORIAL_WORKSPACE_PROVIDER === "none") return undefined;
+  return new OpenChatCutEditorialWorkspaceAdapter({
+    editorBaseUrl: config.OPENCHATCUT_EDITOR_URL,
+    clientFactory: () => new OpenChatCutMcpClient({
+      mcpUrl: config.OPENCHATCUT_MCP_URL,
+      ...(config.OPENCHATCUT_MCP_TOKEN ? { bearerToken: config.OPENCHATCUT_MCP_TOKEN } : {}),
+    }),
+  });
+}
+
+function createMusicProvider(config: AppConfig) {
+  if (config.MUSIC_PROVIDER === "none") return undefined;
+  const accessKeyId =
+    config.VOLCENGINE_MUSIC_ACCESS_KEY_ID ?? config.VOLCENGINE_VOD_ACCESS_KEY_ID;
+  const secretAccessKey =
+    config.VOLCENGINE_MUSIC_SECRET_ACCESS_KEY ?? config.VOLCENGINE_VOD_SECRET_ACCESS_KEY;
+  const sessionToken =
+    config.VOLCENGINE_MUSIC_SESSION_TOKEN ?? config.VOLCENGINE_VOD_SESSION_TOKEN;
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("Volcengine BigMusic configuration was not validated");
+  }
+  return new VolcengineBigMusicProvider({
+    accessKeyId,
+    secretAccessKey,
+    ...(sessionToken ? { sessionToken } : {}),
+    endpoint: config.VOLCENGINE_MUSIC_ENDPOINT,
+    region: config.VOLCENGINE_MUSIC_REGION,
+    billingMode: config.VOLCENGINE_MUSIC_BILLING_MODE,
+    defaultDurationSeconds: config.VOLCENGINE_MUSIC_DEFAULT_DURATION_SECONDS,
+    enablePromptRewrite: config.VOLCENGINE_MUSIC_ENABLE_INPUT_REWRITE,
+    aigcWatermark: config.VOLCENGINE_MUSIC_AIGC_WATERMARK,
+    commercialSafetyPrefix: config.VOLCENGINE_MUSIC_COMMERCIAL_SAFETY_PREFIX,
+    requestTimeoutMs: config.VOLCENGINE_MUSIC_REQUEST_TIMEOUT_MS,
+  });
 }
 
 function createVoiceoverProvider(config: AppConfig) {

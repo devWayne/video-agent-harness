@@ -8,7 +8,7 @@
 
 本系统不是一个常驻的“Pi Director Agent”，也不是 ComfyUI 或 LibTV 的另一层皮肤。新的主架构是：
 
-> Codex GPT 作为主 Agent，通过仓库内 Skill 做创作、路由、看片与重试决策；TypeScript Runtime 只执行明确操作并保存事实；Production Console 只把这些事实可视化。
+> Codex GPT 作为主 Agent，通过仓库内 Skill 做创作、路由、看片与重试决策；TypeScript Runtime 执行明确操作、保存事实并维护可编辑时间线；OpenChatCut 是可替换的多轨编辑工作区。
 
 `Harness` 表示工程化约束与执行能力，不再表示另一个会自行创作的 Agent。它由仓库 Skill、Runtime 契约、门禁和数据账本共同构成。
 
@@ -19,7 +19,7 @@
 | 主 Agent | Codex GPT；未来可换 Claude Code 等兼容 Host | 理解需求、设计并生成多角度人物参考、故事/分镜设计、选择 Skill 和 Provider、看片、诊断、重试与接受 | 不把会话历史当唯一生产记录 |
 | Skill 知识层 | `skills/`（唯一源）与 `.agents/skills/`、`.claude/skills/`（项目链接） | 固化创作流程、H3 参数方法、质量准则、LibTV CLI 用法和交付策略 | 不保存密钥、内网地址或项目私有数据 |
 | Runtime 事实与执行层 | `src/` TypeScript/Node.js | 校验命令、调用 Provider、保存任务 ID、资产、血缘、评审、成本与 Manifest | 不发明故事、不选“第一个成功结果”、不静默接受候选 |
-| 端侧投影层 | `web/` React Production Console | 展示计划、镜头、操作、素材、评审、失败和交付；跳转外部工作台；支持人工接管 | 不做第二个 Agent，不复制 ComfyUI/LibTV 编辑器 |
+| 编辑工作区层 | OpenChatCut MCP adapter（外部单独部署） | 多轨串片、局部替换、音轨、标记和人工审片；把结果回写 Runtime | 不做第二个 Agent，不保存唯一事实，不复制 ComfyUI/LibTV 生成工作台 |
 
 外部执行面包括当前 Host 的图像生成能力、局域网 ComfyUI/H3、LibTV CLI/Canvas、Seedance、MiniMax 在线视频模型、HyperFrames、OSS/IMS 等。它们都是可替换执行器，不拥有人物定版、跨镜头叙事和验收权。
 
@@ -50,9 +50,10 @@ Codex 严格终稿评审与局部重做
   ↓
 Accepted final shots
   ↓
-确定性画面锁定：端点恢复、剪辑、字幕、转场与品牌包装
+Harness EditorialTimeline：候选版本、片段替换、画面/字幕/旁白/音乐/SFX 多轨
+  ↔ OpenChatCut：可替换的人工串片与精修界面
   ↓
-一次性 4K → 分 Cue 旁白与混音 → QC / Manifest / Archive
+画面锁版 → 一次性 4K → 分 Cue 旁白与侧链混音 → 声音锁版 → QC / Manifest / Archive
 ```
 
 关键约束：在线生成模型处理单个镜头或边界明确的场景段，不默认重绘已经剪好的多场景母版。否则人物、字幕、剪点和音画同步会再次变得不确定。
@@ -134,18 +135,20 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 
 它不是固定必经层。某个镜头可以走 `ComfyUI → Seedance`、`ComfyUI → MiniMax cloud`、`ComfyUI → LibTV model`，也可以在不需要骨架时直接进入在线终稿。LibTV 的 Canvas 不是系统事实来源；被接受的节点和产物必须回收到 Runtime。
 
-## 8. Production Console 的定位
+## 8. 多轨时间线与编辑工作区
 
-3321 上的端侧 UI 是兼容 Production Console，不再是主创作入口。API/Runtime 可独立使用；Nomi、Codex、ComfyUI 或 LibTV 可以作为操作界面，但产生的接受决定和资产事实必须回写 Runtime 或生产清单。兼容 Console 能展示：
+旧内置 React 控制台已经删除。Runtime 新增 `EditorialTimeline` 作为编辑事实模型：
 
-- Codex Production Plan；
-- 每个镜头的控制、终稿、组装和交付操作；
-- Provider 任务 ID、尝试次数、错误和依赖；
-- 输入素材、控制资产、在线候选、已接受镜头、母版和交付资产；
-- Codex/人工评审分数与决定；
-- ComfyUI、LibTV、HyperFrames 和交付服务的跳转入口。
+- `V1` 画面、品牌叠加和字幕轨；
+- 原声、旁白、音乐和音效轨；
+- 每个片段的当前 Asset、候选 Asset 列表、源入点、时间线入点和持续帧数；
+- `preserve-slot` 局部替换与 `ripple` 波纹替换；
+- 帧级审片标记；
+- 独立的 picture/audio revision 和锁版证据；替换后旧锁不会消失，但会明确变成 stale。
 
-旧 `/v1/video-jobs` 自动流程保留为迁移和回归入口，在 UI 中放到 `Legacy Autopilot` 区，不再代表主架构。
+OpenChatCut 通过 `EditorialWorkspaceAdapter` 接入。Harness 把时间线、素材映射和人工确认模式送入其 Streamable HTTP MCP；手工模式先进入 review，自动模式也只在 `review_edit_session` 时原子应用。第一版要求媒体已导入 OpenChatCut 素材池，并显式提供 Harness Asset ID → Pool Asset ID 映射，避免静默读取任意本地文件。
+
+旧 `/v1/video-jobs` 自动流程只作为迁移和回归入口，不再代表主架构。
 
 ## 9. 当前代码完成度
 
@@ -157,7 +160,9 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 | `ProductionOperation` 执行状态、依赖、资产与评审门禁 | 已实现 |
 | Assembly 前“所有镜头终稿均接受”校验 | 已实现 |
 | Delivery 前“母版已接受”校验 | 已实现 |
-| Production Console 的 Agent 计划、操作账本和门禁投影 | 已实现第一版，但已降为兼容 UI；不继续作为主产品界面投入 |
+| 内置 React 控制台 | 已删除；Runtime 仅提供无头 API |
+| 多轨 `EditorialTimeline`、局部替换、标记、画面/声音锁版 | 已实现第一版 |
+| OpenChatCut Streamable HTTP MCP 适配器 | 已实现第一版；要求预先导入媒体并提供 Asset 映射，真实编辑器联调待执行 |
 | ComfyUI API、LibTV CLI、百炼 Wan、HyperFrames、IMS 旧适配器 | 已存在，可复用 |
 | 新 Operation API 自动调度 ComfyUI/在线模型执行器 | 待把现有 Provider 适配器接入；当前可由 Codex/Skill 执行后回写操作 |
 | Seedance 2.5 云端最终视频 Provider | 已接入方舟异步任务 API、轮询、取消、多模态输入和 480P/720P Profile |
@@ -166,7 +171,6 @@ LibTV 仍可承担多个角色，但都受 Codex 路由控制：
 | MiniMax 云端最终视频 Provider | 尚未接入，需要账号/API Schema 后实现 |
 | 可独立部署的图像生成 Runtime Provider | 尚未接入；当前由 Codex 调用宿主图像生成能力并把批准资产登记回 Runtime |
 | 真实视觉模型自动评分 | 尚未接入；当前新架构要求 Codex/人工显式评审，不再使用首成功自动接受 |
-| Nomi 工作区与 Runtime 双向同步 | 尚未接入；`.nomi/` 当前是本地实验状态且不进入 Git |
 | 多实例数据库、队列、回调、对象存储资产服务 | 生产化后续项 |
 
 ## 10. 兼容代码的处理

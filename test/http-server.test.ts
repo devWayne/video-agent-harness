@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,6 +17,7 @@ import { MockVideoProvider } from "../src/providers/mock-video-provider.js";
 import { DirectVideoStepExecutor } from "../src/providers/direct-video-step-executor.js";
 import type { VideoProvider } from "../src/domain/video-provider.js";
 import type { VoiceoverProvider } from "../src/domain/voiceover-provider.js";
+import type { MusicProvider } from "../src/domain/music-provider.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -43,15 +44,10 @@ describe("video job HTTP API", () => {
       wanCnyPerSecond: 0.25,
       upscaleCnyPerSecond: 0.1,
     });
-    const uiDirectory = await mkdtemp(join(tmpdir(), "video-agent-ui-"));
-    temporaryDirectories.push(uiDirectory);
-    await mkdir(join(uiDirectory, "assets"));
-    await writeFile(join(uiDirectory, "index.html"), "<title>Video Agent Harness</title>");
-    await writeFile(join(uiDirectory, "assets", "app.js"), "globalThis.__harness = true;");
     const server = buildServer({
       service,
       voiceoverProvider: stubVoiceoverProvider(),
-      uiDirectory,
+      musicProvider: stubMusicProvider(),
       runtimeInfo: {
         videoProvider: "mock",
         videoModel: "mock-video-v1",
@@ -91,6 +87,10 @@ describe("video job HTTP API", () => {
     expect(fetched.statusCode).toBe(200);
     expect(fetched.json<{ status: string }>().status).toBe("completed");
     expect((await server.inject({ method: "GET", url: "/health/ready" })).statusCode).toBe(200);
+    expect((await server.inject({ method: "GET", url: "/" })).json()).toMatchObject({
+      service: "video-agent-harness",
+      mode: "headless-production-control-plane",
+    });
     expect((await server.inject({ method: "GET", url: "/v1/workspace" })).json()).toMatchObject({
       workspace: {
         name: "Test Production",
@@ -106,6 +106,15 @@ describe("video job HTTP API", () => {
       paths: {
         "/v1/voiceovers": { post: { tags: ["Voiceovers"] } },
         "/v1/voiceovers/capabilities": { get: { tags: ["Voiceovers"] } },
+        "/v1/music/tracks": { post: { tags: ["Music"] } },
+        "/v1/music/tracks/{taskId}": { get: { tags: ["Music"] } },
+        "/v1/projects/{id}/editorial-timelines": {
+          get: { tags: ["Editorial"] },
+          post: { tags: ["Editorial"] },
+        },
+        "/v1/projects/{id}/editorial-timelines/{timelineId}/workspace-sync": {
+          post: { tags: ["Editorial"] },
+        },
       },
     });
     expect(
@@ -126,12 +135,44 @@ describe("video job HTTP API", () => {
       model: "qwen-audio-3.0-tts-plus",
       audioId: "audio-test",
     });
-    expect((await server.inject({ method: "GET", url: "/" })).body).toContain(
-      "Video Agent Harness",
-    );
-    expect((await server.inject({ method: "GET", url: "/assets/app.js" })).body).toContain(
-      "__harness",
-    );
+    expect(
+      (await server.inject({ method: "GET", url: "/v1/music/capabilities" })).json(),
+    ).toMatchObject({
+      provider: "volcengine-bigmusic",
+      model: "BigMusic-v5.0",
+      defaults: { durationSeconds: 60 },
+    });
+    expect((await server.inject({ method: "GET", url: "/v1/music/usage" })).json()).toEqual({
+      items: [{ productName: "BigMusic", authorizationStatus: "trial" }],
+    });
+    const music = await server.inject({
+      method: "POST",
+      url: "/v1/music/tracks",
+      payload: { prompt: "现代企业介绍片背景纯音乐", durationSeconds: 60 },
+    });
+    expect(music.statusCode).toBe(202);
+    expect(music.json()).toMatchObject({
+      provider: "volcengine-bigmusic",
+      taskId: "music-task-test",
+      status: "submitted",
+    });
+    const musicTask = await server.inject({
+      method: "GET",
+      url: "/v1/music/tracks/music-task-test",
+    });
+    expect(musicTask.json()).toMatchObject({
+      status: "succeeded",
+      audioUrl: "https://example.invalid/music.wav",
+    });
+    const musicDownload = await server.inject({
+      method: "GET",
+      url: "/v1/music/tracks/music-task-test/download",
+    });
+    expect(musicDownload.json()).toMatchObject({
+      taskId: "music-task-test",
+      audioUrl: "https://example.invalid/music.wav",
+      providerUrlTtlSeconds: 31_536_000,
+    });
     const composition = await server.inject({
       method: "POST",
       url: "/v1/compositions/preview",
@@ -294,6 +335,62 @@ function stubVoiceoverProvider(): VoiceoverProvider {
       voice: request.voice ?? "longanlingxin",
       format: request.format ?? "wav",
       sampleRate: request.sampleRate ?? 48_000,
+    }),
+  };
+}
+
+function stubMusicProvider(): MusicProvider {
+  return {
+    name: "volcengine-bigmusic",
+    model: "BigMusic-v5.0",
+    capabilities: () => ({
+      provider: "volcengine-bigmusic",
+      model: "BigMusic-v5.0",
+      mode: "asynchronous",
+      region: "cn-beijing",
+      billingMode: "duration",
+      modelVersion: "v5.0",
+      sourceLanguage: "zh",
+      outputFormat: "wav-provider-default",
+      providerUrlTtlSeconds: 31_536_000,
+      defaults: {
+        durationSeconds: 60,
+        enablePromptRewrite: false,
+        aigcWatermark: false,
+        commercialSafetyPrefix: "原创、无人声；",
+      },
+      duration: {
+        minimumSeconds: 30,
+        maximumSeconds: 120,
+        segmentMinimumSeconds: 5,
+        supportedSegmentNames: ["intro", "verse", "chorus", "inst", "bridge", "outro"],
+        precedence: ["segments total", "duration in prompt", "durationSeconds"],
+      },
+      supportsCallback: true,
+      supportsCustomTosBucket: true,
+      supportsImplicitWatermark: true,
+      copyrightGuard: {
+        providerCheckEnabled: true,
+        rejectionCode: "50000001",
+        guidance: ["Do not imitate existing music."],
+      },
+    }),
+    preflight: async () => [{ productName: "BigMusic", authorizationStatus: "trial" }],
+    submit: async () => ({
+      provider: "volcengine-bigmusic",
+      model: "BigMusic-v5.0",
+      taskId: "music-task-test",
+      status: "submitted",
+      requestId: "request-music-test",
+    }),
+    getTask: async (taskId) => ({
+      provider: "volcengine-bigmusic",
+      model: "BigMusic-v5.0",
+      taskId,
+      status: "succeeded",
+      progress: 100,
+      audioUrl: "https://example.invalid/music.wav",
+      durationSeconds: 60,
     }),
   };
 }

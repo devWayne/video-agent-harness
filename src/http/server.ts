@@ -1,7 +1,4 @@
 import { timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyReply } from "fastify";
 import { z, ZodError } from "zod";
 import {
@@ -19,16 +16,25 @@ import {
 } from "../application/hyperframes-composition-service.js";
 import { VideoJobRetryError } from "../domain/video-job.js";
 import { ProductionOperationTransitionError } from "../domain/production-operation.js";
+import { EditorialTimelineError } from "../domain/editorial-timeline.js";
+import { EditorialWorkspaceError } from "../domain/editorial-workspace.js";
 import {
   VoiceoverProviderError,
   voiceoverRequestSchema,
   type VoiceoverProvider,
 } from "../domain/voiceover-provider.js";
+import {
+  MusicProviderError,
+  musicTrackRequestSchema,
+  type MusicProvider,
+} from "../domain/music-provider.js";
 import { openApiDocument } from "./openapi.js";
 
 const jobParamsSchema = z.object({ id: z.uuid() });
 const projectParamsSchema = z.object({ id: z.uuid() });
 const projectOperationParamsSchema = z.object({ id: z.uuid(), operationId: z.uuid() });
+const editorialTimelineParamsSchema = z.object({ id: z.uuid(), timelineId: z.uuid() });
+const editorialClipParamsSchema = z.object({ id: z.uuid(), timelineId: z.uuid(), clipId: z.uuid() });
 const projectJobInputSchema = z
   .object({ projectId: z.uuid().optional(), sceneId: z.uuid().optional() })
   .passthrough();
@@ -41,14 +47,18 @@ const compositionPreviewParamsSchema = z.object({
 const downloadQuerySchema = z.object({
   expiresSeconds: z.coerce.number().int().min(60).max(3_600).default(900),
 });
+const musicTaskParamsSchema = z.object({
+  taskId: z.string().trim().min(1).max(200),
+});
 
 export interface BuildServerOptions {
   service: VideoJobService;
   projectService?: ProductionProjectService;
   voiceoverProvider?: VoiceoverProvider;
+  musicProvider?: MusicProvider;
   logger?: boolean;
   apiKey?: string;
-  uiDirectory?: string;
+  editorialWorkspaceApprovalMode?: "manual" | "auto";
   runtimeInfo?: {
     videoProvider: "mock" | "bailian" | "volcengine";
     videoModel: string;
@@ -57,11 +67,13 @@ export interface BuildServerOptions {
     generationResolution: "480P" | "720P" | "1080P";
     voiceoverProvider?: "none" | "bailian-qwen-audio";
     voiceoverModel?: string;
+    musicProvider?: "none" | "volcengine-bigmusic";
+    musicModel?: string;
   };
   workspaceInfo?: {
     name: string;
     controlSurfaces: Array<{
-      id: "comfyui" | "libtv" | "hyperframes" | "delivery";
+      id: "comfyui" | "libtv" | "editorial-workspace" | "hyperframes" | "delivery";
       name: string;
       role: string;
       status: "ready" | "configured" | "not-configured" | "disabled";
@@ -84,6 +96,10 @@ export function buildServer(options: BuildServerOptions) {
             "*.apiKey",
             "*.BAILIAN_API_KEY",
             "*.ARK_API_KEY",
+            "*.VOLCENGINE_MUSIC_ACCESS_KEY_ID",
+            "*.VOLCENGINE_MUSIC_SECRET_ACCESS_KEY",
+            "*.VOLCENGINE_MUSIC_SESSION_TOKEN",
+            "*.OPENCHATCUT_MCP_TOKEN",
           ],
           censor: "[REDACTED]",
         },
@@ -95,15 +111,6 @@ export function buildServer(options: BuildServerOptions) {
   });
   const compositionService = options.compositionService ?? new HyperframesCompositionService();
 
-  if (options.uiDirectory && existsSync(join(options.uiDirectory, "index.html"))) {
-    void server.register(fastifyStatic, {
-      root: options.uiDirectory,
-      prefix: "/",
-      decorateReply: true,
-    });
-    server.get("/", (_request, reply) => reply.sendFile("index.html", options.uiDirectory));
-  }
-
   server.addHook("onRequest", async (request, reply) => {
     if (!options.apiKey || !request.url.startsWith("/v1/")) return;
     const presented = request.headers.authorization?.replace(/^Bearer\s+/i, "");
@@ -113,6 +120,12 @@ export function buildServer(options: BuildServerOptions) {
   });
 
   server.get("/health", () => ({ status: "ok" }));
+  server.get("/", () => ({
+    service: "video-agent-harness",
+    mode: "headless-production-control-plane",
+    api: "/openapi.json",
+    health: "/health/ready",
+  }));
   server.get("/health/live", () => ({ status: "ok" }));
   server.get("/health/ready", async (_request, reply) => {
     const ready = await options.service.readiness();
@@ -139,6 +152,49 @@ export function buildServer(options: BuildServerOptions) {
     return reply.code(201).send(result);
   });
 
+  server.get("/v1/music/capabilities", async (_request, reply) => {
+    if (!options.musicProvider) return musicServiceUnavailable(reply);
+    return reply.send(options.musicProvider.capabilities());
+  });
+
+  server.get("/v1/music/usage", async (_request, reply) => {
+    if (!options.musicProvider) return musicServiceUnavailable(reply);
+    return reply.send({ items: await options.musicProvider.preflight() });
+  });
+
+  server.post("/v1/music/tracks", async (request, reply) => {
+    if (!options.musicProvider) return musicServiceUnavailable(reply);
+    const input = musicTrackRequestSchema.parse(request.body);
+    return reply.code(202).send(await options.musicProvider.submit(input));
+  });
+
+  server.get("/v1/music/tracks/:taskId", async (request, reply) => {
+    if (!options.musicProvider) return musicServiceUnavailable(reply);
+    const { taskId } = musicTaskParamsSchema.parse(request.params);
+    return reply.send(await options.musicProvider.getTask(taskId));
+  });
+
+  server.get("/v1/music/tracks/:taskId/download", async (request, reply) => {
+    if (!options.musicProvider) return musicServiceUnavailable(reply);
+    const { taskId } = musicTaskParamsSchema.parse(request.params);
+    const task = await options.musicProvider.getTask(taskId);
+    if (task.status !== "succeeded" || !task.audioUrl) {
+      return reply.code(409).send({
+        code: "MUSIC_TRACK_NOT_READY",
+        message: "The generated music track is not ready for download",
+        task,
+      });
+    }
+    return reply.send({
+      provider: task.provider,
+      taskId: task.taskId,
+      audioUrl: task.audioUrl,
+      providerUrlTtlSeconds: options.musicProvider.capabilities().providerUrlTtlSeconds,
+      retentionInstruction:
+        "Download and import this provider URL into durable project storage; do not use it directly in a published application.",
+    });
+  });
+
   server.get("/v1/projects", async (_request, reply) => {
     if (!options.projectService) return projectServiceUnavailable(reply);
     return reply.send(await options.projectService.list());
@@ -155,6 +211,83 @@ export function buildServer(options: BuildServerOptions) {
     const detail = await options.projectService.getDetail(id);
     if (!detail) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
     return reply.send(detail);
+  });
+
+  server.get("/v1/editorial-workspace/capabilities", async (_request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const capabilities = options.projectService.editorialWorkspaceCapabilities();
+    if (!capabilities) return editorialWorkspaceUnavailable(reply);
+    return reply.send(capabilities);
+  });
+
+  server.get("/v1/projects/:id/editorial-timelines", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id } = projectParamsSchema.parse(request.params);
+    const timelines = await options.projectService.listEditorialTimelines(id);
+    if (!timelines) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(timelines);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id } = projectParamsSchema.parse(request.params);
+    const project = await options.projectService.createEditorialTimeline(id, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.code(201).send(project);
+  });
+
+  server.get("/v1/projects/:id/editorial-timelines/:timelineId", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId } = editorialTimelineParamsSchema.parse(request.params);
+    const timeline = await options.projectService.getEditorialTimeline(id, timelineId);
+    if (!timeline) return reply.code(404).send({ code: "TIMELINE_NOT_FOUND", message: "Editorial timeline not found" });
+    return reply.send(timeline);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines/:timelineId/clips/:clipId/replace", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId, clipId } = editorialClipParamsSchema.parse(request.params);
+    const project = await options.projectService.replaceEditorialClip(id, timelineId, clipId, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(project);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines/:timelineId/markers", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId } = editorialTimelineParamsSchema.parse(request.params);
+    const project = await options.projectService.addEditorialMarker(id, timelineId, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.code(201).send(project);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines/:timelineId/locks/picture", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId } = editorialTimelineParamsSchema.parse(request.params);
+    const project = await options.projectService.lockEditorialPicture(id, timelineId, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(project);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines/:timelineId/locks/audio", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId } = editorialTimelineParamsSchema.parse(request.params);
+    const project = await options.projectService.lockEditorialAudio(id, timelineId, request.body);
+    if (!project) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.send(project);
+  });
+
+  server.post("/v1/projects/:id/editorial-timelines/:timelineId/workspace-sync", async (request, reply) => {
+    if (!options.projectService) return projectServiceUnavailable(reply);
+    const { id, timelineId } = editorialTimelineParamsSchema.parse(request.params);
+    const body = request.body && typeof request.body === "object" && !Array.isArray(request.body)
+      ? request.body as Record<string, unknown>
+      : {};
+    const result = await options.projectService.syncEditorialTimeline(id, timelineId, {
+      approvalMode: options.editorialWorkspaceApprovalMode ?? "manual",
+      ...body,
+    });
+    if (!result) return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Production project not found" });
+    return reply.code(result.sync.status === "applied" ? 200 : 202).send(result);
   });
 
   server.patch("/v1/projects/:id", async (request, reply) => {
@@ -351,6 +484,19 @@ export function buildServer(options: BuildServerOptions) {
     if (error instanceof ProductionOperationTransitionError) {
       return reply.code(409).send({ code: error.code, message: error.message });
     }
+    if (error instanceof EditorialTimelineError) {
+      return reply.code(error.code === "TIMELINE_NOT_FOUND" || error.code === "CLIP_NOT_FOUND" ? 404 : 409).send({
+        code: error.code,
+        message: error.message,
+      });
+    }
+    if (error instanceof EditorialWorkspaceError) {
+      return reply.code(error.retryable ? 503 : 502).send({
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+      });
+    }
     if (error instanceof HyperframesCompositionError) {
       return reply.code(422).send({
         code: error.code,
@@ -359,6 +505,13 @@ export function buildServer(options: BuildServerOptions) {
       });
     }
     if (error instanceof VoiceoverProviderError) {
+      return reply.code(error.retryable ? 503 : 502).send({
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+      });
+    }
+    if (error instanceof MusicProviderError) {
       return reply.code(error.retryable ? 503 : 502).send({
         code: error.code,
         message: error.message,
@@ -383,6 +536,20 @@ function voiceoverServiceUnavailable(reply: FastifyReply) {
   return reply.code(503).send({
     code: "VOICEOVER_SERVICE_UNAVAILABLE",
     message: "Voice-over synthesis is not configured",
+  });
+}
+
+function musicServiceUnavailable(reply: FastifyReply) {
+  return reply.code(503).send({
+    code: "MUSIC_SERVICE_UNAVAILABLE",
+    message: "AI background-music generation is not configured",
+  });
+}
+
+function editorialWorkspaceUnavailable(reply: FastifyReply) {
+  return reply.code(503).send({
+    code: "EDITORIAL_WORKSPACE_UNAVAILABLE",
+    message: "Editorial workspace adapter is not configured",
   });
 }
 

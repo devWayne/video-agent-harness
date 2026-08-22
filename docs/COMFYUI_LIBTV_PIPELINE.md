@@ -127,7 +127,7 @@ npm run dev
 提交一个 5 秒、一个候选的任务：
 
 ```bash
-curl --request POST http://127.0.0.1:3321/v1/video-jobs \
+curl --request POST http://127.0.0.1:4100/v1/video-jobs \
   --header 'content-type: application/json' \
   --data '{
     "brief": "人物向前奔跑，镜头快速跟随并环绕，商业电影质感",

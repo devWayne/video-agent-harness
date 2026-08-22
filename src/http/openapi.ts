@@ -9,7 +9,9 @@ export const openApiDocument = {
   tags: [
     { name: "Workspace" },
     { name: "Voiceovers", description: "Commercial voice-over synthesis and model discovery" },
+    { name: "Music", description: "Commercial instrumental background-music generation" },
     { name: "Projects" },
+    { name: "Editorial", description: "Harness-owned multitrack timeline, revisions, locks and external workspace sync" },
     { name: "Jobs" },
     { name: "Compositions" },
     { name: "Operations" },
@@ -24,6 +26,95 @@ export const openApiDocument = {
           "200": { description: "Runtime profile and non-secret control-surface metadata" },
           "401": { $ref: "#/components/responses/Unauthorized" },
         },
+      },
+    },
+    "/v1/editorial-workspace/capabilities": {
+      get: {
+        tags: ["Editorial"],
+        summary: "Read capabilities of the configured external editorial workspace",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Workspace capabilities" }, "503": { description: "No adapter configured" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines": {
+      get: {
+        tags: ["Editorial"],
+        summary: "List Harness-owned editorial timelines",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "200": { description: "Editorial timelines" }, "404": { $ref: "#/components/responses/NotFound" } },
+      },
+      post: {
+        tags: ["Editorial"],
+        summary: "Create a multitrack timeline with picture, overlay, caption, original audio, voice-over, music and SFX lanes",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }],
+        responses: { "201": { description: "Timeline created" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}": {
+      get: {
+        tags: ["Editorial"],
+        summary: "Read a timeline including revisions, locks, candidates and markers",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/ProjectId" },
+          { $ref: "#/components/parameters/TimelineId" },
+        ],
+        responses: { "200": { description: "Editorial timeline" }, "404": { $ref: "#/components/responses/NotFound" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}/clips/{clipId}/replace": {
+      post: {
+        tags: ["Editorial"],
+        summary: "Replace one active clip while retaining prior candidates and invalidating affected locks",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/ProjectId" },
+          { $ref: "#/components/parameters/TimelineId" },
+          { $ref: "#/components/parameters/ClipId" },
+        ],
+        responses: { "200": { description: "Clip replaced" }, "409": { description: "Asset or track conflict" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}/markers": {
+      post: {
+        tags: ["Editorial"],
+        summary: "Add a frame-accurate review marker",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/ProjectId" },
+          { $ref: "#/components/parameters/TimelineId" },
+        ],
+        responses: { "201": { description: "Marker added" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}/locks/picture": {
+      post: {
+        tags: ["Editorial"],
+        summary: "Lock the current picture revision",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/TimelineId" }],
+        responses: { "200": { description: "Picture revision locked" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}/locks/audio": {
+      post: {
+        tags: ["Editorial"],
+        summary: "Lock the current audio revision",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/TimelineId" }],
+        responses: { "200": { description: "Audio revision locked" } },
+      },
+    },
+    "/v1/projects/{id}/editorial-timelines/{timelineId}/workspace-sync": {
+      post: {
+        tags: ["Editorial"],
+        summary: "Stage the authoritative Harness timeline in OpenChatCut through Streamable HTTP MCP",
+        description: "Media must already exist in the OpenChatCut pool; assetBindings maps Harness asset IDs to pool asset IDs. Manual mode returns awaiting-review.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/ProjectId" }, { $ref: "#/components/parameters/TimelineId" }],
+        responses: { "200": { description: "Workspace sync applied" }, "202": { description: "Workspace sync awaits manual review" }, "503": { description: "Adapter unavailable" } },
       },
     },
     "/v1/voiceovers/capabilities": {
@@ -69,6 +160,106 @@ export const openApiDocument = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+          "502": { description: "Provider returned a terminal or invalid response" },
+          "503": { description: "Provider unavailable, throttled, timed out or not configured" },
+        },
+      },
+    },
+    "/v1/music/capabilities": {
+      get: {
+        tags: ["Music"],
+        summary: "Discover the configured BigMusic v5.0 parameters and safety defaults",
+        description:
+          "Returns non-secret runtime metadata for upstream advertising and introduction-film applications.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Music-generation capabilities",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MusicCapabilities" },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "503": { description: "Music provider is not configured" },
+        },
+      },
+    },
+    "/v1/music/usage": {
+      get: {
+        tags: ["Music"],
+        summary: "Verify BigMusic authorization and read the current provider quota",
+        description:
+          "Read-only QueryUsage preflight. It does not generate music or consume generation quota.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "BigMusic authorization and usage items" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "502": { description: "Provider rejected the account or returned an invalid response" },
+          "503": { description: "Provider unavailable, timed out or not configured" },
+        },
+      },
+    },
+    "/v1/music/tracks": {
+      post: {
+        tags: ["Music"],
+        summary: "Submit an original instrumental background-music task",
+        description:
+          "Uses Volcengine GenBGMForTime for duration billing or GenBGM for package billing. The adapter prepends a commercial originality guard and always requests BigMusic v5.0.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateMusicTrack" } },
+          },
+        },
+        responses: {
+          "202": {
+            description: "Music-generation task accepted",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SubmittedMusicTask" },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "502": { description: "Provider rejected the request, including copyright checks" },
+          "503": { description: "Provider unavailable, throttled, timed out or not configured" },
+        },
+      },
+    },
+    "/v1/music/tracks/{taskId}": {
+      get: {
+        tags: ["Music"],
+        summary: "Query a BigMusic generation task",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/MusicTaskId" }],
+        responses: {
+          "200": {
+            description: "Current task state and provider output when complete",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/MusicTask" } },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "502": { description: "Provider returned a terminal or invalid response" },
+          "503": { description: "Provider unavailable, throttled, timed out or not configured" },
+        },
+      },
+    },
+    "/v1/music/tracks/{taskId}/download": {
+      get: {
+        tags: ["Music"],
+        summary: "Resolve the completed provider download URL",
+        description:
+          "The provider URL is a transfer source, not a durable application asset. Import it into project storage before publication.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/MusicTaskId" }],
+        responses: {
+          "200": { description: "Provider URL and retention instruction" },
+          "409": { description: "Music task has not succeeded" },
           "502": { description: "Provider returned a terminal or invalid response" },
           "503": { description: "Provider unavailable, throttled, timed out or not configured" },
         },
@@ -355,7 +546,15 @@ export const openApiDocument = {
     parameters: {
       JobId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
       ProjectId: { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      TimelineId: { name: "timelineId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      ClipId: { name: "clipId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
       OperationId: { name: "operationId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      MusicTaskId: {
+        name: "taskId",
+        in: "path",
+        required: true,
+        schema: { type: "string", minLength: 1, maxLength: 200 },
+      },
     },
     schemas: {
       VoiceoverHotFixEntry: {
@@ -599,6 +798,165 @@ export const openApiDocument = {
           supportsInstruction: { type: "boolean" },
           supportsSsml: { type: "boolean" },
           supportsHotFix: { type: "boolean" },
+        },
+      },
+      MusicSegment: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "durationSeconds"],
+        properties: {
+          name: {
+            type: "string",
+            enum: ["intro", "verse", "chorus", "inst", "bridge", "outro"],
+            description: "BigMusic v5.0 section name.",
+          },
+          durationSeconds: {
+            type: "integer",
+            minimum: 5,
+            maximum: 120,
+            description:
+              "Section duration. The sum of all sections must be 30–120 seconds; a single section must itself be 30–120 seconds.",
+          },
+        },
+      },
+      MusicImplicitWatermark: {
+        type: "object",
+        additionalProperties: false,
+        required: ["enabled"],
+        properties: {
+          enabled: { type: "boolean" },
+          contentProducer: { type: "string", minLength: 1, maxLength: 200 },
+          produceId: { type: "string", minLength: 1, maxLength: 200 },
+          contentPropagator: { type: "string", minLength: 1, maxLength: 200 },
+          propagateId: { type: "string", minLength: 1, maxLength: 200 },
+        },
+      },
+      CreateMusicTrack: {
+        type: "object",
+        additionalProperties: false,
+        required: ["prompt"],
+        properties: {
+          prompt: {
+            type: "string",
+            minLength: 1,
+            maxLength: 2000,
+            description:
+              "Chinese instrumental-music direction. Describe scene, mood, tempo, instrumentation, narrative arc, space for voice-over and the ending. Do not name or imitate artists, songs or film scores.",
+            examples: [
+              "现代企业科技介绍片，温暖可信、克制高级，95 BPM，钢琴、轻电子节奏与柔和弦乐，给旁白留出中频空间，中段轻微推进，结尾干净自然。",
+            ],
+          },
+          durationSeconds: {
+            type: "integer",
+            minimum: 30,
+            maximum: 120,
+            default: 60,
+            description:
+              "Requested v5.0 duration. Segment totals override a duration in the prompt, which overrides this value.",
+          },
+          segments: {
+            type: "array",
+            minItems: 1,
+            maxItems: 12,
+            items: { $ref: "#/components/schemas/MusicSegment" },
+          },
+          enablePromptRewrite: {
+            type: "boolean",
+            default: false,
+            description: "Allow BigMusic to rewrite the submitted prompt.",
+          },
+          storageBucket: {
+            type: "string",
+            minLength: 3,
+            maxLength: 63,
+            description: "Optional user-owned Volcengine TOS bucket name.",
+          },
+          callbackUrl: {
+            type: "string",
+            format: "uri",
+            description: "Optional HTTPS asynchronous callback URL.",
+          },
+          implicitWatermark: { $ref: "#/components/schemas/MusicImplicitWatermark" },
+          aigcWatermark: {
+            type: "boolean",
+            default: false,
+            description: "Enable the provider's explicit AIGC watermark when the delivery policy requires it.",
+          },
+        },
+      },
+      SubmittedMusicTask: {
+        type: "object",
+        required: ["provider", "model", "taskId", "status"],
+        properties: {
+          provider: { type: "string", const: "volcengine-bigmusic" },
+          model: { type: "string", const: "BigMusic-v5.0" },
+          taskId: { type: "string" },
+          status: { type: "string", const: "submitted" },
+          requestId: { type: "string" },
+          predictedWaitTimeSeconds: { type: "number", minimum: 0 },
+        },
+      },
+      MusicTask: {
+        type: "object",
+        required: ["provider", "model", "taskId", "status", "progress"],
+        properties: {
+          provider: { type: "string", const: "volcengine-bigmusic" },
+          model: { type: "string", const: "BigMusic-v5.0" },
+          taskId: { type: "string" },
+          status: {
+            type: "string",
+            enum: ["submitted", "running", "succeeded", "failed"],
+          },
+          progress: { type: "number", minimum: 0, maximum: 100 },
+          requestId: { type: "string" },
+          audioUrl: {
+            type: "string",
+            format: "uri",
+            description:
+              "Provider transfer URL. Download and import it into durable project storage instead of publishing the URL directly.",
+          },
+          durationSeconds: { type: "number", minimum: 0 },
+          prompt: { type: "string" },
+          storagePath: { type: "string" },
+          styleInfo: { description: "Parsed BigMusic v5.0 StyleInfo metadata." },
+          errorCode: { type: "string" },
+          errorMessage: { type: "string" },
+        },
+      },
+      MusicCapabilities: {
+        type: "object",
+        description:
+          "Runtime-discoverable BigMusic contract, including durations, segment vocabulary, defaults and copyright-check guidance. Contains no secrets.",
+        required: [
+          "provider",
+          "model",
+          "mode",
+          "region",
+          "billingMode",
+          "modelVersion",
+          "sourceLanguage",
+          "outputFormat",
+          "providerUrlTtlSeconds",
+          "defaults",
+          "duration",
+          "copyrightGuard",
+        ],
+        properties: {
+          provider: { type: "string", const: "volcengine-bigmusic" },
+          model: { type: "string", const: "BigMusic-v5.0" },
+          mode: { type: "string", const: "asynchronous" },
+          region: { type: "string", const: "cn-beijing" },
+          billingMode: { type: "string", enum: ["duration", "package"] },
+          modelVersion: { type: "string", const: "v5.0" },
+          sourceLanguage: { type: "string", const: "zh" },
+          outputFormat: { type: "string", const: "wav-provider-default" },
+          providerUrlTtlSeconds: { type: "integer", const: 31536000 },
+          defaults: { type: "object", additionalProperties: true },
+          duration: { type: "object", additionalProperties: true },
+          supportsCallback: { type: "boolean" },
+          supportsCustomTosBucket: { type: "boolean" },
+          supportsImplicitWatermark: { type: "boolean" },
+          copyrightGuard: { type: "object", additionalProperties: true },
         },
       },
       CreateProductionProject: {

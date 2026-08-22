@@ -1,6 +1,6 @@
 # Decisions
 
-> 2026-08-22 status note: D28–D32 are the current production baseline and supersede the fixed-provider, mandatory ComfyUI→LibTV, first-success evaluation, HyperFrames-only finishing, and 3321-as-product assumptions in D3/D4/D7/D11/D15/D17/D24/D26/D27. Older entries remain below as architectural history.
+> 2026-08-22 status note: D28–D33 are the current production baseline and supersede the fixed-provider, mandatory ComfyUI→LibTV, first-success evaluation, HyperFrames-only finishing, and built-in-Studio assumptions in D3/D4/D7/D11/D15/D17/D24/D26/D27. Older entries remain below as architectural history.
 
 ## D0 — 供应商适配层
 
@@ -182,7 +182,7 @@
 
 ## D26 — Studio 是生产控制终端
 
-- **决定：** 3321 Studio 呈现创作规划、H3、LibTV、质量门、后期和交付的阶段状态，提供原生画布跳转，并聚合所有产物与血缘。
+- **决定：** 当时的内置 Studio 设想用于呈现创作规划、H3、LibTV、质量门、后期和交付状态；该界面方案已由 D31/D33 取代。
 - **决定：** Studio 不复制 ComfyUI 节点编辑器和 LibTV 无限画布；专业参数仍在对应工具中编辑，Harness 只保存批准后的 Profile、任务、结果和决策。
 - **原因：** 企业价值来自跨工具编排、可追溯质量闭环和交付控制，而不是再造两个成熟的专业画布。
 - **可逆：** 是；未来可以嵌入受控的画布视图，但职责边界保持不变。
@@ -192,7 +192,7 @@
 - **日期：** 2026-08-18。
 - **决定：** Harness Studio 是项目控制面与资产事实来源；ComfyUI Web UI 是底层生成工作台；LibTV 无限画布是空间化创意工作台。三者共享 Project/Shot/Asset 标识、状态、产物血缘与深链接，但不合并成一个编辑器。
 - **决定：** ComfyUI 和 LibTV 在架构中都拆成“面向人或开发期 Agent 的 Workbench”与“面向 Harness Runtime 的 API/CLI Provider”两个身份。
-- **决定：** 早期“杭州 / 智慧城市”内容只保留为 HyperFrames 回归模板，不再作为 3321 Studio 的默认 Brief、默认成片标题或产品身份。
+- **决定：** 早期“杭州 / 智慧城市”内容只保留为 HyperFrames 回归模板，不再作为产品默认 Brief、默认成片标题或产品身份。
 - **实现状态：** 2026-08-18 已落地 `Project / Story Scene / Character Pack / Scene Pack / Asset Version`、项目级 ComfyUI/LibTV 绑定、关联 VideoJob API 与 Studio 管理界面；二进制直传、按 Shot 深链接和 Provider 自动回收版本仍属后续增强。
 - **原因：** 企业价值来自跨工具的项目治理、统一资产、评价重试、成本审计和交付，而不是复制 ComfyUI 节点编辑器或 LibTV 无限画布。
 - **可逆：** 专业画布未来可以嵌入只读预览或受控子视图，但职责和数据所有权边界不变。
@@ -215,14 +215,21 @@
 - **边界：** Wan 2.7 是真实烟测回退；IMS/OSS 是契约已实现的备用交付；MiniMax cloud 与 LibTV V2V 尚未完成生产实证。
 - **成本策略：** 只增强画面锁定后的完整母版一次；旁白或混音重做不能重复触发 4K。
 
-## D31 — UI is replaceable; 3321 is compatibility only
+## D31 — UI is replaceable
 
-- **决定：** 不再继续把 3321 React UI建设成主创作 Studio。Fastify API 和 Runtime 仍保留；Nomi 或其他工作区可替代 UI。
-- **前提：** 替代工作区必须通过适配器读写 Project/Plan/Asset/Operation/Review，不能把 `.nomi/`、浏览器状态或聊天历史作为唯一事实源。
-- **影响：** D26/D27 中“3321 Studio 是产品控制终端”的部分失效，专业工作台和 Runtime 数据边界仍保留。
+- **决定：** 不再继续建设内置 React 主创作 Studio。Fastify API 和 Runtime 保留；外部工作区通过适配器接入。
+- **前提：** 替代工作区必须读写 Project/Plan/Asset/Operation/Review，不能把浏览器状态或聊天历史作为唯一事实源。
+- **影响：** D26/D27 中“内置 Studio 是产品控制终端”的部分失效，专业工作台和 Runtime 数据边界仍保留。
 
 ## D32 — Production assets are tiered and private by default
 
 - **决定：** Git 只保存代码、Skill、契约、通用脚本、脱敏运行记录和方法。客户媒体、候选/成片、WAV、渲染帧、日志、原始 Manifest、内网地址、绝对路径、云回执和工作区状态只保存在本地或受管资产存储。
 - **合规：** 非叙事性私密/写真人像若需从商业图稿中移除，创建保留布局的本地合规衍生图并保存 parent lineage；不把该处理描述为绕过 Provider 审核。
-- **实现：** `artifacts/`、`tmp/`、`tools/`、`.nomi/` 与恢复收据均由 Git 忽略；仓库提供脱敏 `ProductionRunRecord` 模板。
+- **实现：** `artifacts/`、`tmp/`、`tools/` 与恢复收据均由 Git 忽略；仓库提供脱敏 `ProductionRunRecord` 模板。
+
+## D33 — Headless Runtime plus authoritative editorial timeline
+
+- **决定：** 删除内置 React UI，API 默认端口改为 4100。Runtime 新增多轨 `EditorialTimeline`、候选版本、局部/波纹替换、帧级标记和独立 picture/audio revision lock。
+- **工作区：** OpenChatCut 是首个 `EditorialWorkspaceAdapter`，通过 Streamable HTTP MCP 单独部署；本仓库不内嵌其 AGPL 前端。
+- **资产边界：** 第一版只接受显式 Harness Asset ID → OpenChatCut Media Pool Asset ID 映射，不静默读取任意本地路径。
+- **原因：** 企业价值在 Agent 决策、可恢复生成、资产血缘、版本与锁版，而成熟的线性剪辑交互应复用专用开源编辑器。

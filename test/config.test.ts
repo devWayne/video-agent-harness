@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 
 describe("cloud delivery configuration", () => {
+  it("starts as a headless API and keeps the editorial workspace opt-in", () => {
+    expect(loadConfig({})).toMatchObject({
+      PORT: 4_100,
+      EDITORIAL_WORKSPACE_PROVIDER: "none",
+      OPENCHATCUT_MCP_URL: "http://127.0.0.1:5199/api/external-mcp/mcp",
+      OPENCHATCUT_EDITOR_URL: "http://127.0.0.1:5199",
+      OPENCHATCUT_APPROVAL_MODE: "manual",
+    });
+  });
+
   it("reuses the Beijing Bailian workspace credentials for Qwen Audio voice-over", () => {
     expect(() =>
       loadConfig({ VOICEOVER_PROVIDER: "bailian-qwen-audio" }),
@@ -20,6 +30,28 @@ describe("cloud delivery configuration", () => {
       BAILIAN_TTS_FORMAT: "wav",
       BAILIAN_TTS_SAMPLE_RATE: 48_000,
       BAILIAN_TTS_ENABLE_AIGC_TAG: true,
+    });
+  });
+
+  it("reuses the Volcengine IAM AK/SK for the BigMusic v5.0 provider", () => {
+    expect(() => loadConfig({ MUSIC_PROVIDER: "volcengine-bigmusic" })).toThrow(
+      /VOLCENGINE_MUSIC_ACCESS_KEY_ID or VOLCENGINE_VOD_ACCESS_KEY_ID/,
+    );
+
+    expect(
+      loadConfig({
+        MUSIC_PROVIDER: "volcengine-bigmusic",
+        VOLCENGINE_VOD_ACCESS_KEY_ID: "test-ak",
+        VOLCENGINE_VOD_SECRET_ACCESS_KEY: "test-sk",
+      }),
+    ).toMatchObject({
+      MUSIC_PROVIDER: "volcengine-bigmusic",
+      VOLCENGINE_MUSIC_REGION: "cn-beijing",
+      VOLCENGINE_MUSIC_ENDPOINT: "https://open.volcengineapi.com",
+      VOLCENGINE_MUSIC_BILLING_MODE: "duration",
+      VOLCENGINE_MUSIC_DEFAULT_DURATION_SECONDS: 60,
+      VOLCENGINE_MUSIC_ENABLE_INPUT_REWRITE: false,
+      VOLCENGINE_MUSIC_AIGC_WATERMARK: false,
     });
   });
 

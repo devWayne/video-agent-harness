@@ -8,6 +8,14 @@
 | `GET /health/ready` | Executes a SQLite readiness query; returns 503 when storage is unavailable. |
 | `GET /metrics` | Prometheus text gauges for the current number of jobs in each state. |
 | `GET /openapi.json` | OpenAPI 3.1 contract for the control plane. |
+| `GET/POST /v1/projects/{id}/editorial-timelines` | Read or create the authoritative multitrack timeline. |
+| `POST /v1/projects/{id}/editorial-timelines/{timelineId}/clips/{clipId}/replace` | Replace one candidate in place or ripple downstream timing. |
+| `POST /v1/projects/{id}/editorial-timelines/{timelineId}/locks/{picture|audio}` | Lock one exact picture or audio revision. |
+| `POST /v1/projects/{id}/editorial-timelines/{timelineId}/workspace-sync` | Stage a mapped timeline in OpenChatCut through MCP. |
+| `GET /v1/music/capabilities` | BigMusic v5.0 parameters and non-secret defaults. |
+| `GET /v1/music/usage` | Read-only BigMusic authorization/quota preflight. |
+| `POST /v1/music/tracks` | Submit one asynchronous instrumental generation. |
+| `GET /v1/music/tracks/{taskId}` | Poll generation state and resolve the provider output. |
 
 Set `HARNESS_API_KEY` in production. Every `/v1/*` route then requires
 `Authorization: Bearer <key>`. Health, metrics and OpenAPI endpoints are intended
@@ -34,6 +42,8 @@ every paid or long-running step:
 
 The production voice-over CLI uses a separate cue-level receipt. It saves each Qwen Audio request result before moving to the next Cue, downloads the 24-hour temporary output immediately, preserves raw and picture-conformed WAV files, and resumes only missing Cues. Picture-lock, upscale and narration are separate checkpoints; retrying narration must never resubmit the 4K job.
 
+BigMusic is also asynchronous but is intentionally exposed as submit/query API operations instead of being folded into video-job retry state. `QueryUsage` must pass before the first paid request. A successful `QuerySong` provider URL is only a transfer source: download it immediately, verify the actual container with `ffprobe`, register the owned copy as a project asset, and retain the task/request IDs. The provider's `50000001` copyright rejection is terminal and must not be retried unchanged.
+
 Before step 1, cloud mode performs read-only `GetBucketInfo`,
 `ListMediaProducingJobs`, and `ListMediaConvertJobs` checks. Missing or
 under-scoped Alibaba Cloud credentials therefore fail the job before any paid Wan
@@ -46,7 +56,7 @@ one. ComfyUI resumes by `prompt_id`; LibTV resumes by deterministic canvas node
 names and reuses an existing URL. A retryable failure can be continued with:
 
 ```bash
-curl --request POST http://127.0.0.1:3321/v1/video-jobs/JOB_ID/retry \
+curl --request POST http://127.0.0.1:4100/v1/video-jobs/JOB_ID/retry \
   --header "Authorization: Bearer $HARNESS_API_KEY"
 ```
 
@@ -118,8 +128,10 @@ containers.
 - `VOLCENGINE_VOD_ACCESS_KEY_ID` and `VOLCENGINE_VOD_SECRET_ACCESS_KEY` authorize
   VOD OpenAPI and the VOD-managed TOS output independently; the Ark key cannot
   replace them.
+- `VOLCENGINE_MUSIC_ACCESS_KEY_ID` and `VOLCENGINE_MUSIC_SECRET_ACCESS_KEY` authorize the independent `imagination/cn-beijing` BigMusic OpenAPI. If omitted, the Runtime reuses the VOD IAM AK/SK, but BigMusic product authorization and IAM permissions must still be opened separately.
 - IMS and OSS use the Alibaba Cloud default credential chain.
 - Production should attach a least-privilege RAM role or STS identity.
+- `OPENCHATCUT_MCP_TOKEN` only protects the separately deployed editorial MCP endpoint; it is redacted from logs and never stored in a project timeline or Git.
 - Secrets belong in the deployment secret store, never the image, repository,
   logs or OpenAPI document.
 

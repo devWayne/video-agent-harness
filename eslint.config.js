@@ -10,7 +10,6 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
-      "web-dist/**",
       ".data/**",
       "artifacts/**",
       "tmp/**",

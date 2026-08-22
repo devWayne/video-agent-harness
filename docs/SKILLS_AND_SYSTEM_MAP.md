@@ -28,10 +28,10 @@ Codex GPT（当前主 Agent Host，可替换）
 | 可选控制草稿 | `generate-minimax-h3-shot` | Workflow Profile、control Operation | ComfyUI / MiniMax H3 | FL2VA/REF2VA 真实生成；新 Operation 自动执行仍待接入 |
 | 终稿生成 | 总 Skill | final-render Operation；Direct Provider；批处理 Manifest | Seedance / LibTV 模型 / Wan / MiniMax cloud | Seedance 2.5 已用于 9 段正式成片；Wan 2.7 仅真实烟测；LibTV 闭环待验收 |
 | 看片与局部重做 | `review-video-candidate` + Codex/人工 | Evaluation Report、Operation Review | ffprobe、证据帧、Agent 视觉理解 | 技术检查和人工/Codex 评审已用；独立 VLM 服务未实现 |
-| 画面锁定 | 总 Skill | assembly Operation、Accepted Shot Manifest | HyperFrames 或本地确定性媒体工具 | Bettr 使用端点恢复、裁切、交叉过渡和本地封装；HyperFrames 未用于该终稿 |
+| 串片与画面锁定 | 总 Skill | EditorialTimeline、候选版本、标记、picture revision/lock | OpenChatCut + HyperFrames/本地确定性媒体工具 | 时间线契约与 OpenChatCut MCP adapter 已实现；Bettr 既有成片用本地工具锁版 |
 | 4K | 总 Skill + Delivery | delivery Operation、可恢复 CLI 状态 | 火山 VOD AIGC / 阿里 IMS | Bettr 118.333 秒 VOD 4K 已完成；IMS 仅契约实现 |
-| 旁白与音频 | 总 Skill | Voiceover API、Cue Manifest、生成收据 | Qwen Audio 3.0 Plus + 本地混音/封装 | 29 Cue、48 kHz 母带和最终 4K AAC 封装已完成 |
-| 可视化/人工接管 | 无独立创作 Skill | Runtime read model | Nomi 或兼容 3321 Console | 3321 已降级；Nomi 尚未与 Runtime 同步 |
+| 旁白、音乐与声音锁定 | 总 Skill | Voiceover/Music API、Cue Manifest、audio revision/lock | Qwen Audio 3.0 Plus + BigMusic + 本地侧链混音 | 29 Cue、119.86 秒音乐与 4K 双声道终版已完成 |
+| 多轨预览/人工接管 | 无独立创作 Skill | EditorialWorkspaceAdapter + Runtime read model | OpenChatCut | Streamable HTTP MCP 契约已实现；真实项目联调待执行 |
 
 ## 3. 仓库唯一源与链接
 
@@ -51,9 +51,8 @@ skills/                         # 唯一可提交 Skill 源
 .claude/skills/*                # 指向 skills/* 的本地符号链接，Git 忽略
 
 src/domain/                     # Project、Plan、Operation、Asset、Review 契约
-src/providers/                  # Seedance、Wan、Qwen Audio、VOD、IMS、ComfyUI、LibTV
+src/providers/                  # Seedance、Wan、Qwen Audio、VOD、IMS、ComfyUI、LibTV、OpenChatCut
 scripts/                        # 通用、可恢复、可审计的生产 CLI
-web/                            # 兼容 UI，不是主创作入口
 ```
 
 运行 `npm run skills:install -- --host=all` 后，Codex 与 Claude Code 读取同一份仓库 Skill；修改一处即可同步。不要修改链接目标目录里的副本。
@@ -67,13 +66,13 @@ Codex 是当前主 Agent，但以下状态必须脱离聊天保存：
 3. 候选、确定性修复、评分和接受理由；
 4. 图片锁定、4K、Cue、混音、QC、成本和哈希。
 
-Claude Code 或其他 Host 只要读取仓库 Skill、结构化清单和 Runtime API，就可以继续任务。Nomi 是可替换工作区，不是 Agent Host 契约或持久化层。
+Claude Code 或其他 Host 只要读取仓库 Skill、结构化清单和 Runtime API，就可以继续任务。OpenChatCut 是可替换编辑工作区，不是 Agent Host 契约或持久化层。
 
 ## 5. 本次应更新的 Skill
 
 | Skill | 本次更新 |
 | --- | --- |
-| `create-production-video` | 增加路线 A/B、长片分段、权威端点、合规衍生图、画面锁定、一次性 4K、分 Cue 旁白和脱敏 Run Record |
+| `create-production-video` | 增加路线 A/B、长片分段、权威端点、EditorialTimeline、多轨人工审片、画面/声音分离锁版、一次性 4K、分 Cue 旁白和脱敏 Run Record |
 | `direct-aigc-motion-graphics` | 增加 H3 与 direct-keyframes 的终稿级比较、长片边界和 endpoint-restore |
 | `review-video-candidate` | 增加路线比较、原始/修复资产分离、分段边界、4K 与音频交付检查 |
 | `generate-minimax-h3-shot` | 现有 REF2VA/FL2VA 方法仍有效；后续需把 Bettr 实测 Profile 的服务端版本/hash 登记到正式 Profile Registry |
@@ -83,9 +82,9 @@ Claude Code 或其他 Host 只要读取仓库 Skill、结构化清单和 Runtime
 ## 6. 仍需补齐的 Harness 能力
 
 - 新 ProductionOperation API 当前负责账本和门禁，但没有自动调度所有 Provider；Bettr 的批处理事实仍部分存在于脚本清单。
-- 需要正式资产角色承载原始关键帧、隐私安全衍生图、旁白 Take/母带、字幕和 QC 证据。
+- 已新增旁白 Take/母带、音乐、音效、字幕和编辑预览角色；仍需把现有 Bettr 文件正式登记到 Project 账本。
 - 需要把 Qwen Audio 时间轴生成、VOD 本地 CLI 和 Seedance 分段批处理注册为项目级可恢复操作。
 - 需要一个可替换的评测适配器；当前 Codex/人工评价必须显式回写，不能把 Provider 成功等同于质量通过。
-- 需要 Nomi↔Runtime 同步协议；在此之前不要把 `.nomi/` 当作可审计生产状态。
+- OpenChatCut 同步契约已实现；仍需真实验证素材池映射、人工批准和同步版本回写。
 
 完整服务成熟度见 [`SERVICE_CATALOG.md`](./SERVICE_CATALOG.md)，Bettr 方法与资产策略见 [`PRODUCTION_ASSETS.md`](./PRODUCTION_ASSETS.md)。

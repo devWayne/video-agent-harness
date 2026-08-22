@@ -26,9 +26,9 @@
 | 4K 画质增强 | 火山 VOD AIGC Standard + VOD 托管 TOS | `VolcengineVodAigcUpscaleProvider`、`vod:upscale-4k` | 是 | 生产实证 | 118.333 秒 1280×720 母版已升级为 3840×2160、24 fps；只对画面锁定母版执行一次 |
 | 备用 4K 交付 | 阿里云 IMS SR5 + OSS | IMS/OSS Provider 和 Cloud Delivery | 否 | 契约已实现 | 单元契约和付费前预检已完成；当前账号侧完整 OSS→IMS→OSS 纵向链路未验收 |
 | 商业旁白 | 阿里云百炼 Qwen Audio 3.0 Plus | Voiceover Provider、OpenAPI、可恢复时间轴脚本 | 是 | 生产实证 | 29 条 Cue、48 kHz 单声道 WAV，最终与 4K 画面封装；临时 URL 必须立即本地化 |
-| 背景音乐 | 暂无生产 Provider | 无 | 否 | 未纳入 | 本轮按用户要求暂停，不进入当前主链路、Skill 或验收声明 |
-| 创意工作区 | Nomi 项目目录 | 本地 `.nomi/`，已 Git 忽略 | 仅局部探索 | 实验工具 | 可作为创作界面，但尚未与 Runtime Project/Operation 双向同步，不是系统事实源 |
-| 旧本地控制台 | 3321 React Production Console | `web/` + Fastify 静态服务 | 非成片必要 | 兼容/待退役 | API 仍使用 3321；旧 UI 不再被定义为主创作入口。是否删除前端代码应与 API 端口拆分处理 |
+| 背景音乐 | 火山引擎 BigMusic v5.0 纯音乐 | `VolcengineBigMusicProvider`、Music OpenAPI、预检/生成 CLI、FFmpeg 商业混音 | 是 | 生产实证 | 119.86 秒商业配乐已生成；以 −24 dB 基准和 8:1 旁白侧链闪避混入 118.333 秒 4K 成片，实测 −16.2 LUFS、真峰值 −3.8 dBFS |
+| 多轨编辑工作区 | OpenChatCut | `EditorialWorkspaceAdapter`、Streamable HTTP MCP | 尚未进入 Bettr 编辑 | 契约已实现 | 支持多轨、局部替换、标记和人工 review；媒体需先导入素材池并提供 Asset 映射，Harness 仍是事实源 |
+| 无头控制 API | Fastify Runtime | `src/http`，默认 4100 | 是 | 契约已实现 | 不再托管 React UI；对 Agent Host、CLI 和外部编辑工作区提供统一契约 |
 
 ## 本机当前启用组合
 
@@ -39,6 +39,7 @@ GENERATION_PIPELINE=direct
 VIDEO_PROVIDER=volcengine
 DIRECT_GENERATION_RESOLUTION=720P
 VOICEOVER_PROVIDER=bailian-qwen-audio
+MUSIC_PROVIDER=volcengine-bigmusic
 UPSCALE_PROVIDER=volcengine-vod
 DELIVERY_MODE=simulation
 ```
@@ -47,15 +48,16 @@ DELIVERY_MODE=simulation
 
 ## 凭据与流量边界
 
-- Seedance 使用方舟 Bearer API Key；VOD/TOS 使用另一套 IAM AK/SK；两者不可混用。
+- Seedance 使用方舟 Bearer API Key；VOD/TOS 与 BigMusic 使用 IAM AK/SK；方舟 Key 与 IAM AK/SK 不可混用。
+- BigMusic 是独立的 `imagination/cn-beijing` OpenAPI 服务；复用 VOD IAM AK/SK 不代表账号已经开通音乐产品授权。
 - Qwen Audio 与 Wan 复用北京地域百炼 Workspace 和 API Key，但模型权限、计费和临时产物生命周期各自独立。
-- ComfyUI 内网地址、LibTV Canvas ID、Nomi 状态、云账号、Bucket/Space、绝对路径和签名 URL只进入 `.env.local` 或本地生产目录。
+- ComfyUI 内网地址、LibTV Canvas ID、OpenChatCut MCP/Editor 地址与令牌、云账号、Bucket/Space、绝对路径和签名 URL只进入 `.env.local` 或本地生产目录。
 - Git 只保存代码、Skill、非敏感契约、脱敏案例记录和文档；大体积视频、渲染帧、日志、缓存和私有生产清单由 `.gitignore` 排除。
 
 ## 下一批工程缺口
 
 1. 将已验证的 Seedance、H3、VOD、Qwen Audio 执行结果统一登记为 Project Asset 和 Production Operation，而不是仅由项目脚本保存外部 JSON。
-2. 为 `voiceover-take`、`voiceover-master`、字幕、QC 证据和隐私安全参考图补充正式资产角色与音频阶段门禁。
+2. 将已经新增的 `voiceover-take`、`voiceover-master`、音乐、音效、字幕和编辑预览资产角色接入真实 Project 生产记录，并补充音频阶段门禁。
 3. 把 Codex/人工评审结果持续回写 Runtime；当前没有可独立部署的 VLM 自动质量服务。
-4. 决定 Nomi 与 Runtime 的同步方式；在此之前，Nomi 是视图/工作区，不是生产账本。
+4. 用真实 OpenChatCut 项目完成一次“素材导入映射 → staged timeline → 人工批准 → 回写同步版本”的纵向联调。
 5. 完成一次真实 H3→LibTV V2V 闭环后，再决定是否把它提升为默认受控路线。

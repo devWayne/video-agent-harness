@@ -34,11 +34,11 @@ npm run skills:install -- --host=all --copy
 - `.env.local`、AccessKey、API Key、Bearer Token、Cookie 和登录会话；
 - ComfyUI 的局域网地址、端口和本机 Workflow 绝对路径；
 - LibTV Project UUID、画布 URL 和 CLI 登录状态；
-- 阿里云账号、Bucket、工作空间 ID、火山方舟 API Key、火山 VOD/TOS AK/SK、VOD 空间名和本地素材路径；
+- OpenChatCut MCP/Editor 地址、可选 Bearer Token、Project ID、素材池映射和本地编辑状态；
+- 阿里云账号、Bucket、工作空间 ID、火山方舟 API Key、火山 VOD/TOS/BigMusic IAM AK/SK、VOD 空间名和本地素材路径；
 - 本地 4K 命令产生的 `*.volcengine-vod-4k.json` 恢复收据与上传 Checkpoint；
 - `.data/` 中的 SQLite、Manifest、中间视频和控制资产；
 - `artifacts/`、`tmp/`、`tools/` 中的项目媒体、渲染帧、一次性脚本、日志和含绝对路径/内网地址的原始 Manifest；
-- `.nomi/` 工作区记忆、对话、备份和本机根路径；
 - `.claude/settings.local.json` 及其他宿主私有授权配置。
 
 提交前至少运行：

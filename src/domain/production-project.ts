@@ -14,6 +14,7 @@ import {
   type StartProductionOperationInput,
 } from "./production-operation.js";
 import type { StoryProductionPlan } from "./story-production.js";
+import type { EditorialTimeline } from "./editorial-timeline.js";
 
 const shortText = z.string().trim().min(1).max(200);
 const optionalLongText = z.string().trim().max(4_000).optional();
@@ -34,10 +35,15 @@ export const projectAssetRoleSchema = z.enum([
   "scene-reference",
   "style-reference",
   "voice-reference",
+  "voiceover-take",
+  "voiceover-master",
   "music",
+  "sound-effect",
+  "subtitle",
   "control-asset",
   "final-candidate",
   "accepted-shot",
+  "editorial-preview",
   "assembly-master",
   "delivery-master",
   "other",
@@ -50,6 +56,7 @@ export const projectAssetSourceSchema = z.enum([
   "libtv",
   "online-video",
   "hyperframes",
+  "editorial-workspace",
   "delivery",
 ]);
 
@@ -263,6 +270,7 @@ export interface ProductionProject {
   characterPacks: CharacterPack[];
   scenePacks: ScenePack[];
   scenes: StoryScene[];
+  editorialTimelines: EditorialTimeline[];
   videoJobIds: string[];
 }
 
@@ -288,6 +296,7 @@ export function createProductionProject(
     characterPacks: [],
     scenePacks: [],
     scenes: [],
+    editorialTimelines: [],
     videoJobIds: [],
   };
 }
@@ -474,6 +483,32 @@ export function attachVideoJob(
       )
     : project.scenes;
   return touchProject({ ...project, videoJobIds, scenes }, now);
+}
+
+export function appendEditorialTimeline(
+  project: ProductionProject,
+  timeline: EditorialTimeline,
+  now = new Date(),
+): ProductionProject {
+  return touchProject({
+    ...project,
+    editorialTimelines: [...project.editorialTimelines, timeline],
+  }, now);
+}
+
+export function replaceEditorialTimeline(
+  project: ProductionProject,
+  timeline: EditorialTimeline,
+  now = new Date(),
+): ProductionProject {
+  if (!project.editorialTimelines.some((candidate) => candidate.id === timeline.id)) {
+    throw new Error(`Editorial timeline ${timeline.id} not found`);
+  }
+  return touchProject({
+    ...project,
+    editorialTimelines: project.editorialTimelines.map((candidate) =>
+      candidate.id === timeline.id ? timeline : candidate),
+  }, now);
 }
 
 function touchProject(project: ProductionProject, now: Date): ProductionProject {

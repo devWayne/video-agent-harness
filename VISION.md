@@ -18,10 +18,11 @@ PDF / images / reference video
   → Codex/human review and deterministic picture lock
   → one VOD AIGC Standard 4K enhancement
   → Qwen Audio cue-level narration and final mux
+  → sidechain-ducked commercial music and audio lock
   → technical QC, hashes, receipts and local archive
 ```
 
-Bettr validated 28 source pages, 27 atomic shots, 9 cloud segments, a 118.333-second 720P picture lock, 3840×2160 enhancement, 29 narration Cues, and a 4K H.264/AAC delivery.
+Bettr validated 28 source pages, 27 atomic shots, 9 cloud segments, a 118.333-second 720P picture lock, 3840×2160 enhancement, 29 narration Cues, 119.86 seconds of generated commercial music, and a sidechain-ducked 4K H.264/AAC delivery.
 
 ## Product principles
 
@@ -41,15 +42,15 @@ Harness is the combination of repository Skills, TypeScript contracts, Provider 
 
 The new `ProductionOperation` API currently provides state transitions, dependencies and review gates. It does not yet auto-dispatch every verified Provider; recoverable scripts may execute missing operations, but their results must be recorded back into the project ledger or a sanitized run record.
 
-## UI boundary
+## Editorial workspace boundary
 
-The 3321 React UI is a compatibility projection and is no longer the target creative product. Nomi or another open-source workspace may become the primary interface after a Runtime synchronization adapter exists. Runtime Project/Plan/Asset/Operation/Review data remains the source of truth.
+The built-in React UI has been removed. Harness exposes a headless API and an authoritative `EditorialTimeline`; OpenChatCut is the first replaceable multitrack workspace adapter. Runtime Project/Plan/Asset/Operation/Review/Timeline data remains the source of truth.
 
 ## Next acceptance slice
 
 1. Register Seedance batch segments, H3 Profiles, VOD upscale and Qwen Audio Cue production as project-level recoverable Operations.
-2. Add formal asset roles for source keyframes, sanitized derivatives, narration takes/master, subtitle tracks and QC evidence.
+2. Register the newly typed narration, music, SFX, subtitle and editorial-preview asset roles in a complete production ledger.
 3. Persist Codex/human route A/B and final review evidence in Runtime for a complete production.
-4. Implement Nomi↔Runtime import, write-back, conflict handling and deep links.
+4. Validate one real OpenChatCut sync with preimported media, manual proposal approval and Runtime version write-back.
 5. Validate one real H3→LibTV V2V shot before deciding whether it deserves a standard route.
 6. Add an interchangeable visual evaluation adapter without coupling the system to Codex.

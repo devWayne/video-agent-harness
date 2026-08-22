@@ -1,5 +1,4 @@
 import { config as loadDotenv } from "dotenv";
-import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import { buildServer } from "./http/server.js";
 import { createRuntime } from "./runtime.js";
@@ -12,8 +11,9 @@ const server = buildServer({
   service: runtime.service,
   projectService: runtime.projectService,
   ...(runtime.voiceoverProvider ? { voiceoverProvider: runtime.voiceoverProvider } : {}),
+  ...(runtime.musicProvider ? { musicProvider: runtime.musicProvider } : {}),
   logger: true,
-  uiDirectory: resolve(process.cwd(), "web-dist"),
+  editorialWorkspaceApprovalMode: config.OPENCHATCUT_APPROVAL_MODE,
   runtimeInfo: {
     videoProvider: config.VIDEO_PROVIDER,
     videoModel: activeVideoModel(config),
@@ -26,6 +26,10 @@ const server = buildServer({
     voiceoverProvider: config.VOICEOVER_PROVIDER,
     ...(config.VOICEOVER_PROVIDER === "bailian-qwen-audio"
       ? { voiceoverModel: config.BAILIAN_TTS_MODEL }
+      : {}),
+    musicProvider: config.MUSIC_PROVIDER,
+    ...(config.MUSIC_PROVIDER === "volcengine-bigmusic"
+      ? { musicModel: "BigMusic-v5.0" }
       : {}),
   },
   workspaceInfo: {
@@ -50,12 +54,21 @@ const server = buildServer({
         ...(config.LIBTV_STUDIO_URL ? { url: config.LIBTV_STUDIO_URL } : {}),
       },
       {
+        id: "editorial-workspace",
+        name: "OpenChatCut",
+        role: "可替换的多轨看片与人工精修工作区；Harness 仍保存版本、锁版和交付事实",
+        status: config.EDITORIAL_WORKSPACE_PROVIDER === "openchatcut" ? "configured" : "not-configured",
+        kind: "external",
+        ...(config.EDITORIAL_WORKSPACE_PROVIDER === "openchatcut"
+          ? { url: config.OPENCHATCUT_EDITOR_URL }
+          : {}),
+      },
+      {
         id: "hyperframes",
         name: "HyperFrames",
         role: "确定性文字动效与包装预览",
         status: "ready",
         kind: "embedded",
-        url: "/#post-production",
       },
       {
         id: "delivery",
@@ -63,7 +76,6 @@ const server = buildServer({
         role: "OSS、IMS 超分、技术 QC 与归档",
         status: config.DELIVERY_MODE === "cloud" ? "configured" : "disabled",
         kind: "embedded",
-        url: "/#delivery",
       },
     ],
   },

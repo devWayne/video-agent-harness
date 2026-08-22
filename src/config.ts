@@ -11,11 +11,13 @@ const optionalNonNegativeNumber = z.preprocess(
   z.coerce.number().min(0).optional(),
 );
 
+const httpUrl = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+  message: "URLs must use http or https",
+});
+
 const optionalHttpUrl = z.preprocess(
   (value) => (value === "" ? undefined : value),
-  z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
-    message: "Control-surface URLs must use http or https",
-  }).optional(),
+  httpUrl.optional(),
 );
 
 const optionalBoolean = z.preprocess(
@@ -28,7 +30,7 @@ const optionalBoolean = z.preprocess(
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().default("127.0.0.1"),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(3_321),
+  PORT: z.coerce.number().int().min(1).max(65_535).default(4_100),
   DATA_DIR: z.string().default(".data"),
   HARNESS_API_KEY: optionalNonEmptyString,
   GENERATION_PIPELINE: z.enum(["direct", "comfyui-libtv"]).default("direct"),
@@ -73,6 +75,22 @@ const envSchema = z.object({
     .default(48_000),
   BAILIAN_TTS_ENABLE_AIGC_TAG: optionalBoolean.default(true),
   BAILIAN_TTS_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(120_000),
+  MUSIC_PROVIDER: z.enum(["none", "volcengine-bigmusic"]).default("none"),
+  VOLCENGINE_MUSIC_ACCESS_KEY_ID: optionalNonEmptyString,
+  VOLCENGINE_MUSIC_SECRET_ACCESS_KEY: optionalNonEmptyString,
+  VOLCENGINE_MUSIC_SESSION_TOKEN: optionalNonEmptyString,
+  VOLCENGINE_MUSIC_REGION: z.literal("cn-beijing").default("cn-beijing"),
+  VOLCENGINE_MUSIC_ENDPOINT: z.string().default("https://open.volcengineapi.com"),
+  VOLCENGINE_MUSIC_BILLING_MODE: z.enum(["duration", "package"]).default("duration"),
+  VOLCENGINE_MUSIC_DEFAULT_DURATION_SECONDS: z.coerce.number().int().min(30).max(120).default(60),
+  VOLCENGINE_MUSIC_ENABLE_INPUT_REWRITE: optionalBoolean.default(false),
+  VOLCENGINE_MUSIC_AIGC_WATERMARK: optionalBoolean.default(false),
+  VOLCENGINE_MUSIC_COMMERCIAL_SAFETY_PREFIX: z
+    .string()
+    .min(1)
+    .max(500)
+    .default("原创、无人声、非罐头背景纯音乐，不模仿任何现有歌曲、歌手、乐队或影视配乐；"),
+  VOLCENGINE_MUSIC_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(15_000),
   ARK_BASE_URL: z.string().url().default("https://ark.cn-beijing.volces.com/api/v3"),
   ARK_API_KEY: optionalNonEmptyString,
   ARK_SEEDANCE_MODEL: z.string().default("doubao-seedance-2-5-260628"),
@@ -88,6 +106,11 @@ const envSchema = z.object({
   LIBTV_MODEL_NAME: z.string().min(1).default("Wan 2.7"),
   LIBTV_MODE_TYPE: z.enum(["video2video", "mixed2video"]).default("video2video"),
   LIBTV_MAX_DURATION_SECONDS: z.coerce.number().int().min(5).max(15).default(10),
+  EDITORIAL_WORKSPACE_PROVIDER: z.enum(["none", "openchatcut"]).default("none"),
+  OPENCHATCUT_MCP_URL: httpUrl.default("http://127.0.0.1:5199/api/external-mcp/mcp"),
+  OPENCHATCUT_EDITOR_URL: httpUrl.default("http://127.0.0.1:5199"),
+  OPENCHATCUT_MCP_TOKEN: optionalNonEmptyString,
+  OPENCHATCUT_APPROVAL_MODE: z.enum(["manual", "auto"]).default("manual"),
   COST_WAN_CNY_PER_SECOND: optionalNonNegativeNumber,
   COST_4K_CNY_PER_SECOND: optionalNonNegativeNumber,
   DELIVERY_MODE: z.enum(["simulation", "cloud"]).default("simulation"),
@@ -160,6 +183,23 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
   ) {
     throw new Error(
       "VOICEOVER_PROVIDER=bailian-qwen-audio requires BAILIAN_BASE_URL, BAILIAN_API_KEY",
+    );
+  }
+
+  if (
+    config.MUSIC_PROVIDER === "volcengine-bigmusic" &&
+    (!config.VOLCENGINE_MUSIC_ACCESS_KEY_ID && !config.VOLCENGINE_VOD_ACCESS_KEY_ID)
+  ) {
+    throw new Error(
+      "MUSIC_PROVIDER=volcengine-bigmusic requires VOLCENGINE_MUSIC_ACCESS_KEY_ID or VOLCENGINE_VOD_ACCESS_KEY_ID",
+    );
+  }
+  if (
+    config.MUSIC_PROVIDER === "volcengine-bigmusic" &&
+    (!config.VOLCENGINE_MUSIC_SECRET_ACCESS_KEY && !config.VOLCENGINE_VOD_SECRET_ACCESS_KEY)
+  ) {
+    throw new Error(
+      "MUSIC_PROVIDER=volcengine-bigmusic requires VOLCENGINE_MUSIC_SECRET_ACCESS_KEY or VOLCENGINE_VOD_SECRET_ACCESS_KEY",
     );
   }
 

@@ -1,6 +1,6 @@
 # Video Agent Harness
 
-面向生产级横屏视频的 Agent-directed 执行与生产账本。主栈为 TypeScript + Node.js；Codex GPT 通过仓库内 Skill 承担人物/品牌设计、故事、分镜、Provider 路由、看片评审与局部重做决策，Runtime 负责类型化执行能力、恢复、资产血缘、门禁和交付状态。3321 React UI 只保留为兼容投影，不再作为主创作入口；Nomi 等外部工作区可以承载创意操作，但事实必须回写 Runtime 或非敏感生产清单。
+面向生产级横屏视频的 Agent-directed 执行与生产账本。主栈为 TypeScript + Node.js；Codex GPT 通过仓库内 Skill 承担人物/品牌设计、故事、分镜、Provider 路由、看片评审与局部重做决策，Runtime 负责类型化执行能力、恢复、资产血缘、门禁、可编辑时间线和交付状态。服务是无头 API，不再内置 React 创作台；OpenChatCut 等外部编辑工作区通过适配器接入，Runtime 始终是事实源。
 
 ## 当前能力
 
@@ -14,6 +14,8 @@
 - `GET /v1/video-jobs/:id/download`：为私有 4K 成片签发短时下载地址。
 - `GET /v1/voiceovers/capabilities`、`POST /v1/voiceovers`：发现并调用百炼 `qwen-audio-3.0-tts-plus` 商业广告旁白能力，完整参数写入 OpenAPI。
 - `POST /v1/projects`、`GET /v1/projects/:id`：持久化项目、故事、角色/场景一致性包、资产版本、工作台绑定与关联任务。
+- `/v1/projects/:id/editorial-timelines/*`：保存画面、品牌叠加、字幕、原声、旁白、音乐和音效多轨时间线，支持候选版本、局部替换、审片标记、画面锁版与声音锁版。
+- `POST /v1/projects/:id/editorial-timelines/:timelineId/workspace-sync`：通过 Streamable HTTP MCP 把受控时间线送入 OpenChatCut 人工精修；媒体必须先进入其素材池并显式映射，避免编辑器成为隐式资产源。
 - `design-character-reference-pack`：由 Codex 设计并通过宿主图像生成能力产出 canonical 正脸、侧脸、三分之二侧脸、全身和服装细节；批准后以结构化视角映射冻结为 Character Pack。
 - `POST /v1/projects/:id/assets|character-packs|scene-packs|scenes|video-jobs`：从项目内容空间创建可追溯生产任务。
 - `POST /v1/compositions/preview`：把模板、标题、品牌色、动效和单段或多段 timed AI 背景视频编译为安全的 HyperFrames 合成预览。
@@ -27,7 +29,7 @@
 - LibTV 被拆成三个明确适配角色：脚本/分镜创意工具、在线视频生成执行器和视频组装工具；不会把 CLI 本身误当完整 Agent Harness。
 - 新 ProductionOperation 主流程要求显式 `control-draft / final-candidate / delivery` 评审；旧 VideoJob 的“首个成功候选”评价器仅作为兼容基线，不能进入新主流程门禁。
 - OpenAPI 3.1、Bearer 鉴权、健康/就绪检查、Prometheus 指标与可配置人民币成本预算。
-- React + TypeScript Production Console 可以投影 Plan、Operation、Review 和 Asset，但已降为兼容 UI；API 与 Runtime 仍可独立运行。当前创意工作区可使用 Nomi、Codex、ComfyUI 或 LibTV，任何一个都不能取代项目账本。
+- OpenChatCut 是首个可替换的多轨工作区适配器，承担串片预览、局部替换、音轨和人工审片；它不承担 Agent 编导，也不能取代项目账本。
 - HyperFrames 保留为代码原生图形与预览工具；Bettr 的真实画面锁定、端点恢复、交叉过渡、音频对齐和封装由本地确定性媒体工具完成。
 
 当前 Mock 流程输出的是 4K 合成清单，不是假装已经生成 4K MP4。已实证的 Bettr 路径是“28 页 PDF/参考视频 → 27 个镜头意图 → H3 路线试验 → 9 个 Seedance 2.5 生成段 → 118.333 秒 720P 画面锁定 → 火山 VOD AIGC Standard 4K → Qwen Audio 29 条旁白 → 4K 最终封装”。FFmpeg/ffprobe 只做确定性媒体工程与 QC，不冒充 AI 超分。
@@ -40,8 +42,9 @@ Codex GPT + repo-local Skills（创作、路由、评价、重试决定）
   → TypeScript Runtime（操作执行、恢复、资产、门禁、血缘、成本）
   → 路线 A/B：Direct keyframes 或可选 ComfyUI/H3 控制草稿
   → Seedance/MiniMax/LibTV/Wan 终稿 → Codex 严格评审
-  → 确定性画面锁定（HyperFrames 或本地媒体工具）
-  → 一次性 4K → 分 Cue 旁白/混音 → QC / Archive
+  → Harness EditorialTimeline（多轨串片、版本、局部替换、审片标记）
+  ↔ OpenChatCut（可替换的人工编辑工作区）
+  → 画面锁版 → 一次性 4K → 旁白/音乐/音效 → 声音锁版 → QC / Archive
 ```
 
 ## 快速启动
@@ -57,20 +60,18 @@ npm run skills:install -- --host=codex
 npm run dev
 ```
 
-生产构建仍把兼容 Web UI 与 Fastify API 打包到同一服务。API 默认监听：
+生产构建只包含 Fastify API 和 Runtime，不再打包本地 Web UI。API 默认监听：
 
 ```text
-http://127.0.0.1:3321/
+http://127.0.0.1:4100/
 ```
-
-修改前端时可另开终端运行 `npm run dev:web`，Vite 会把 `/v1` 和 `/health` 代理到本地 API。
 
 接口契约位于 `GET /openapi.json`；生产环境设置 `HARNESS_API_KEY` 后，所有 `/v1/*` 请求都需要 Bearer Key。
 
 创建任务：
 
 ```bash
-curl --request POST http://127.0.0.1:3321/v1/video-jobs \
+curl --request POST http://127.0.0.1:4100/v1/video-jobs \
   --header 'content-type: application/json' \
   --data '{
     "brief": "一辆复古跑车沿海岸公路驶向日落",
@@ -79,7 +80,14 @@ curl --request POST http://127.0.0.1:3321/v1/video-jobs \
   }'
 ```
 
-兼容控制台可编译 HyperFrames 预览，但它不是当前主创作入口。生产项目应以仓库 Skill、Runtime 账本和外部工作区回写的 Manifest 为准。
+生产项目以仓库 Skill、Runtime 账本和外部工作区回写的 Manifest 为准。OpenChatCut 可选配置如下；它单独部署，Harness 不复制或内嵌其 AGPL 前端：
+
+```dotenv
+EDITORIAL_WORKSPACE_PROVIDER=openchatcut
+OPENCHATCUT_MCP_URL=http://127.0.0.1:5199/api/external-mcp/mcp
+OPENCHATCUT_EDITOR_URL=http://127.0.0.1:5199
+OPENCHATCUT_APPROVAL_MODE=manual
+```
 
 默认 `VIDEO_PROVIDER=mock`，不会产生云端费用。下面的百炼直连配置仅用于回退、对照实验和协议烟测，不进入当前产品主流程：
 
@@ -110,6 +118,34 @@ TTS_SMOKE_CONFIRM_PAID=YES npm run smoke:voiceover
 ```
 
 上层应用应先调用 `GET /v1/voiceovers/capabilities` 读取运行时默认值，再调用 `POST /v1/voiceovers`。返回的百炼音频 URL 只保留 24 小时，必须及时导入项目私有存储。全部字段、枚举、范围和制作建议见 [`docs/BAILIAN_QWEN_AUDIO_VOICEOVER.md`](./docs/BAILIAN_QWEN_AUDIO_VOICEOVER.md)。
+
+广告和企业介绍片背景纯音乐使用独立的火山 BigMusic v5.0 OpenAPI：
+
+```dotenv
+MUSIC_PROVIDER=volcengine-bigmusic
+VOLCENGINE_MUSIC_BILLING_MODE=duration
+VOLCENGINE_MUSIC_DEFAULT_DURATION_SECONDS=60
+VOLCENGINE_MUSIC_ENABLE_INPUT_REWRITE=false
+VOLCENGINE_MUSIC_AIGC_WATERMARK=false
+```
+
+BigMusic 使用 IAM AK/SK，可复用下方已经配置的 `VOLCENGINE_VOD_ACCESS_KEY_ID/SECRET_ACCESS_KEY`，但账号仍需单独开通 AI 音乐生成大模型。先做不计费的授权预检：
+
+```bash
+npm run smoke:music
+```
+
+上层应用依次调用 `GET /v1/music/capabilities`、`GET /v1/music/usage`、`POST /v1/music/tracks` 和 `GET /v1/music/tracks/{taskId}`。生成完成并转存后，用本地 FFmpeg 完成旁白闪避混音：
+
+```bash
+npm run audio:mix -- \
+  --video ./artifacts/master-4k.mp4 \
+  --voiceover ./artifacts/voiceover-master.wav \
+  --music ./artifacts/background-music.wav \
+  --output ./artifacts/final-with-voice-and-music.mp4
+```
+
+完整字段、分段时长、版权控制、错误码、真实生成和混音参数见 [`docs/VOLCENGINE_BIGMUSIC.md`](./docs/VOLCENGINE_BIGMUSIC.md)。
 
 火山方舟 Seedance 2.5 作为另一条独立 Direct Provider，不会替换百炼配置：
 
@@ -249,7 +285,8 @@ npm run check
 - [`docs/COMFYUI_LIBTV_PIPELINE.md`](./docs/COMFYUI_LIBTV_PIPELINE.md)：本地控制骨架进入 LibTV 在线 V2V 的配置、协议与验收方法。
 - [`docs/VOLCENGINE_SEEDANCE.md`](./docs/VOLCENGINE_SEEDANCE.md)：Seedance 2.5 模型 Profile、异步 API、多模态映射、恢复和错误处理。
 - [`docs/VOLCENGINE_VOD_AIGC_4K.md`](./docs/VOLCENGINE_VOD_AIGC_4K.md)：本地/云端 AIGC 标准版 4K 全流程、无播放域名下载、CLI、费用和排障。
-- [`docs/STUDIO_WORKBENCH_BOUNDARY.md`](./docs/STUDIO_WORKBENCH_BOUNDARY.md)：Harness Studio、ComfyUI 工作台与 LibTV 无限画布的层级、数据所有权和集成边界。
+- [`docs/VOLCENGINE_BIGMUSIC.md`](./docs/VOLCENGINE_BIGMUSIC.md)：BigMusic v5.0 广告背景纯音乐、完整 HTTP 参数、版权控制、任务查询、转存和旁白混音。
+- [`docs/EDITORIAL_WORKSPACE.md`](./docs/EDITORIAL_WORKSPACE.md)：Harness 多轨时间线、OpenChatCut、ComfyUI 与 LibTV 的层级、数据所有权和集成边界。
 - [`docs/THIRD_PARTY_SKILLS.md`](./docs/THIRD_PARTY_SKILLS.md)：仓库内 vendored Skill 的来源、版本和凭据排除边界。
 - [`docs/ACCEPTANCE.md`](./docs/ACCEPTANCE.md)：逐项实测证据与尚待账号侧验收的边界。
 - [`docs/BAILIAN_WAN.md`](./docs/BAILIAN_WAN.md)：Wan 2.7 实测与 Wan 3.0 接入状态。
