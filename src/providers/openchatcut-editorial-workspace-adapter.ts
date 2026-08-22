@@ -19,6 +19,13 @@ interface OpenChatCutTrack {
   trackType?: string;
 }
 
+interface OpenChatCutTimeline {
+  fps: number;
+  width?: number;
+  height?: number;
+  name?: string;
+}
+
 export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceAdapter {
   constructor(private readonly options: OpenChatCutEditorialWorkspaceAdapterOptions) {}
 
@@ -50,6 +57,24 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
         approvalMode: input.approvalMode,
       });
       const editSessionId = requiredString(begun, "editSessionId", "id");
+      const externalTimeline = parseActiveTimeline(await client.callTool("read_project", {
+        editSessionId,
+      }));
+      const externalFps = externalTimeline?.fps ?? input.timeline.fps;
+      if (externalTimeline && (
+        externalTimeline.name !== input.timeline.name
+        || externalTimeline.width !== input.timeline.width
+        || externalTimeline.height !== input.timeline.height
+      )) {
+        await client.callTool("manage_timelines", {
+          action: "update",
+          editSessionId,
+          name: input.timeline.name,
+          width: input.timeline.width,
+          height: input.timeline.height,
+          fit: "contain",
+        });
+      }
       const existingTracks = parseTracks(await client.callTool("edit_track", {
         action: "list",
         editSessionId,
@@ -65,8 +90,8 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
           type: openChatCutMediaType(track.kind),
           assetId: input.assetBindings[clip.assetId],
           trackId,
-          fromFrame: clip.timelineStartFrame,
-          durationInFrames: clip.durationFrames,
+          fromFrame: convertFrame(clip.timelineStartFrame, input.timeline.fps, externalFps),
+          durationInFrames: Math.max(1, convertFrame(clip.durationFrames, input.timeline.fps, externalFps)),
         }));
         await client.callTool("edit_item", { adds, editSessionId });
         stagedClipCount += adds.length;
@@ -76,8 +101,8 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
         await client.callTool("manage_markers", {
           action: "create",
           markers: input.timeline.markers.map((marker) => ({
-            fromFrame: marker.frame,
-            durationFrames: marker.durationFrames ?? 0,
+            fromFrame: convertFrame(marker.frame, input.timeline.fps, externalFps),
+            durationFrames: convertFrame(marker.durationFrames ?? 0, input.timeline.fps, externalFps),
             note: marker.note ? `${marker.label}: ${marker.note}` : marker.label,
             color: marker.status === "resolved" ? "green" : "yellow",
             scope: "project",
@@ -152,7 +177,12 @@ export class OpenChatCutEditorialWorkspaceAdapter implements EditorialWorkspaceA
         }),
         editSessionId,
       });
-      const createdTrack = parseTracks(created)[0];
+      const createdTracks = parseTracks(created);
+      const createdTrack = createdTracks.find((candidate) => candidate.name === track.name)
+        ?? createdTracks.find((candidate) =>
+          !available.some((existingTrack) => existingTrack.id === candidate.id)
+          && compatibleTrackType(candidate, track.kind))
+        ?? createdTracks.at(-1);
       if (!createdTrack) throw new EditorialWorkspaceError(`OpenChatCut did not return the created track ${track.name}`);
       mapping.set(track.id, createdTrack.id);
       createdTrackIds.push(createdTrack.id);
@@ -183,6 +213,23 @@ function parseTracks(value: Record<string, unknown>): OpenChatCutTrack[] {
         : [];
   return candidate.filter((item): item is OpenChatCutTrack =>
     Boolean(item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"));
+}
+
+function parseActiveTimeline(value: Record<string, unknown>): OpenChatCutTimeline | undefined {
+  const candidate = value.timeline;
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return undefined;
+  const timeline = candidate as Record<string, unknown>;
+  if (typeof timeline.fps !== "number" || !Number.isFinite(timeline.fps) || timeline.fps <= 0) return undefined;
+  return {
+    fps: timeline.fps,
+    ...(typeof timeline.width === "number" ? { width: timeline.width } : {}),
+    ...(typeof timeline.height === "number" ? { height: timeline.height } : {}),
+    ...(typeof timeline.name === "string" ? { name: timeline.name } : {}),
+  };
+}
+
+function convertFrame(frame: number, sourceFps: number, targetFps: number): number {
+  return Math.round(frame * targetFps / sourceFps);
 }
 
 function requiredString(value: Record<string, unknown>, ...keys: string[]): string {
